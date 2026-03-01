@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "F:\\Next JS Projects\\mysql_orm\\resources\\logs\\.0a18c5e3fa09a12defbca2f0b4e61bddc8c38456-audit.json",
+    "files": [
+        {
+            "date": 1770214240058,
+            "name": "F:\\Next JS Projects\\mysql_orm\\resources\\logs\\combined-2026-02-04.log",
+            "hash": "65d58eedf254749bfa0c91b495635fdca014c9267bec7990f1419a2cc6b3befe"
+        },
+        {
+            "date": 1770289100124,
+            "name": "F:\\Next JS Projects\\mysql_orm\\resources\\logs\\combined-2026-02-05.log",
+            "hash": "dfeb07d96f17aea5338435ed3f4bcbee6bb93fd828e47af1a10015f2e8f3d364"
+        },
+        {
+            "date": 1770373620074,
+            "name": "F:\\Next JS Projects\\mysql_orm\\resources\\logs\\combined-2026-02-06.log",
+            "hash": "417f6693f46f4950c5dd2f1d305f89b4485dd55cd82281d0d709a888c982fad7"
+        }
+    ],
+    "hashType": "sha256"
+}

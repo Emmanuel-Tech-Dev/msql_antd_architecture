@@ -1,0 +1,33 @@
+{
+  "name": "Find With Query",
+  "request": {
+    "type": "http",
+    "url": "{{BASE_URL}}/rooms/query",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": ""
+    },
+    "method": "POST",
+    "queryParams": [
+      {
+        "id": 0.14808362309786527,
+        "key": "search",
+        "value": "OW0",
+        "isEnabled": true
+      }
+    ],
+    "headers": [],
+    "body": "{\n          \"searchable\": [\"room_number\" , \"room_type\"],\n          \"filterable\": [\"available_spots\", \"room_price\", \"room_capacity\"],\n          \"sortable\": [\"id\", \"created_at\"],\n         \"fullTextSearch\": {\n        \"enabled\": true,\n        \"table\": \"rooms\",\n        \"columns\": [\"room_number\" , \"room_type\"],\n           \"withScore\" : false\n      },\n          \"defaultLimit\": 10\n           \n}\n\n\n      ",
+    "bodyContainer": {
+      "text": "{\n          \"searchable\": [\"room_number\" , \"room_type\"],\n          \"filterable\": [\"available_spots\", \"room_price\", \"room_capacity\"],\n          \"sortable\": [\"id\", \"created_at\"],\n         \"fullTextSearch\": {\n        \"enabled\": true,\n        \"table\": \"rooms\",\n        \"columns\": [\"room_number\" , \"room_type\"],\n           \"withScore\" : false\n      },\n          \"defaultLimit\": 10\n           \n}\n\n\n      ",
+      "form": [],
+      "multipartForm": []
+    },
+    "contentType": "application/json",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    },
+    "pathVariables": []
+  }
+}
