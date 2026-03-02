@@ -82,6 +82,21 @@ const useTableApi = (
         );
     }, [tableConfig]);
 
+    const normalizeTableFilters = (filters = {}) => {
+        const result = {};
+
+        Object.entries(filters).forEach(([key, value]) => {
+            if (!value || value.length === 0) return;
+
+            // convert AntD array → comma string
+            result[`${key}_like`] = Array.isArray(value)
+                ? value.join(',')
+                : value;
+        });
+
+        return result;
+    };
+
 
     const getQueryParams = useCallback((params) => {
         console.log(params)
@@ -169,6 +184,7 @@ const useTableApi = (
     // ─── Table change (pagination / filter / sort) ────────────────────────────
     const handleTableChange = useCallback(
         (pagination, filters, sorter) => {
+            const apiFilters = normalizeTableFilters(filters)
             const newTableParams = {
                 ...tableParams,
                 pagination: {
@@ -176,12 +192,7 @@ const useTableApi = (
                     current: pagination.current,
                     pageSize: pagination.pageSize,
                 },
-                filters: {
-                    ...tableParams.filters,
-                    ...Object.fromEntries(
-                        Object.entries(filters).filter(([, v]) => v !== null)
-                    ),
-                },
+                filters: apiFilters,
                 sorter,
             };
 
@@ -378,7 +389,11 @@ const useTableApi = (
         if (columnFilters[dataIndex]) return; // already fetched, skip
 
         try {
-            const res = await apiRequest('get', `${Settings.baseUrl}/${url}`);
+            const headers = Object.keys({ col: dataIndex }).length
+                ? { "x-table-config": JSON.stringify({ col: dataIndex }) }
+                : {};
+
+            const res = await apiRequest('get', `${Settings.baseUrl}/${url}/filters`, null, { headers });
             const filters = res?.data?.map((item, index) => ({
                 text: item?.[dataIndex],
                 value: item?.[dataIndex],
@@ -395,7 +410,7 @@ const useTableApi = (
     const getColumnFilterProps = useCallback(
         (dataIndex, url) => {
             if (isClientSide) return {};
-
+            console.log(tableParams.filters?.[dataIndex], columnFilters[dataIndex])
             return {
                 filters: columnFilters[dataIndex] || [],
                 filterSearch: true,
@@ -434,6 +449,7 @@ const useTableApi = (
                 setCurrentSelectedRow({ record, selected, selectedRows, nativeEvent });
             },
             onSelectAll: (selected, selectedRows) => {
+                setSelectedRows(selectedRows)
                 // console.log('Select all triggered:', { selected, selectedRows });
             },
         };

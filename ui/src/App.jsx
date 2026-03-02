@@ -58,7 +58,7 @@ export default function App() {
   const table = useTableApi({
     pagination: {
       currentPage: 1,
-      pageSize: 2,
+      pageSize: 10,
       showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
     }
   }, {
@@ -136,6 +136,7 @@ export default function App() {
     //table.setRecord(result)
     table.setAllowSelection(true)
     // table.setColFilters("role_name", `admin_roles`)
+    table.runRequest()
   }, [])
 
   //console.log(table.selectedRows)

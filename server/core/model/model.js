@@ -169,13 +169,13 @@ class Model extends QueryBuilder {
       if (val === undefined || val === null || val === "") continue;
 
       // ── _like  →  column LIKE '%val%' ─────────────────────────────────
-      if (key.endsWith("_like")) {
-        const col = key.slice(0, -5); // remove "_like"
-        if (allowedColumns.has(col)) {
-          this.whereLike(col, `%${val}%`);
-        }
-        continue;
-      }
+      // if (key.endsWith("_like")) {
+      //   const col = key.slice(0, -5); // remove "_like"
+      //   if (allowedColumns.has(col)) {
+      //     this.whereLike(col, `%${val}%`);
+      //   }
+      //   continue;
+      // }
 
       // ── _min  →  column >= val ────────────────────────────────────────
       if (key.endsWith("_min")) {
@@ -216,6 +216,34 @@ class Model extends QueryBuilder {
         continue;
       }
 
+      // ── _like  →  column LIKE '%val%' (supports multi) ─────────────
+      if (key.endsWith("_like")) {
+        const col = key.slice(0, -5);
+        // console.log(col, key);
+        if (allowedColumns.has(col)) {
+          const values = String(val)
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+
+          if (values.length === 1) {
+            // single filter (fast path)
+            this.whereLike(col, `%${values[0]}%`);
+          } else if (values.length > 1) {
+            // multi filter → OR conditions
+            const conditions = values.map((v) => ({
+              column: col,
+              // operator: "LIKE",
+              value: `%${v}%`,
+            }));
+
+            this.where(conditions, "LIKE", "OR");
+          }
+        }
+
+        continue;
+      }
+
       // ── plain key  →  column = val (exact match) ──────────────────────
       if (allowedColumns.has(key)) {
         this.where(key, "=", val);
@@ -234,20 +262,20 @@ class Model extends QueryBuilder {
     }
 
     // ── 5. Pagination ──────────────────────────────────────────────────────
-    const limit = Math.min(
-      parseInt(queryParams.limit) || defaultLimit,
-      maxLimit,
-    );
-    const offset = parseInt(queryParams.offset) || 0;
-    const page = parseInt(queryParams.page);
+    // const limit = Math.min(
+    //   parseInt(queryParams.limit) || defaultLimit,
+    //   maxLimit,
+    // );
+    // const offset = parseInt(queryParams.offset) || 0;
+    // const page = parseInt(queryParams.page);
 
-    if (page && page > 0) {
-      this._paginate = { page, limit };
-    } else if (offset > 0) {
-      this._paginate = { offset, limit };
-    } else {
-      this._paginate = { page: 1, limit };
-    }
+    // if (page && page > 0) {
+    //   this._paginate = { page, limit };
+    // } else if (offset > 0) {
+    //   this._paginate = { offset, limit };
+    // } else {
+    //   this._paginate = { page: 1, limit };
+    // }
 
     return this;
   }

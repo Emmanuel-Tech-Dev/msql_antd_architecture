@@ -25,6 +25,7 @@ class BaseRoute {
     this.updateSome(app);
     this.delete(app);
     this.getTableData(app);
+    this.getColFilters(app);
 
     return this;
   }
@@ -66,6 +67,19 @@ class BaseRoute {
         console.error(err);
         res.status(500).json({ status: "error", message: err.message });
       }
+    });
+  }
+
+  getColFilters(app) {
+    app.get("/api/:resources/filters", validateTable, async (req, res) => {
+      const service = new BaseService(req, res);
+      const data = await service.getColFilters();
+
+      res.status(200).json({
+        status: "ok",
+        message: "Operation Successful!",
+        data,
+      });
     });
   }
 

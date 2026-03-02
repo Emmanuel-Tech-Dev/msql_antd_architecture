@@ -34,34 +34,57 @@ class BaseService {
       exclude: [...(options.exclude || []), ...(headerConfig.exclude || [])],
     };
 
+    // console.log(query);
     const model = await new Model()
       .select(["*"], resources)
       .tableQueryParams(query, resolvedOptions);
 
-    const res = await model.paginate();
+    const res = await model.paginate(query?.page, query?.limit);
 
     return res;
   }
-
   async findAll() {
     const { resources } = this.request.params;
     const query = this.request.query;
 
     // console.log(res);
-    const res = await new Model().select(["*"], resources).execute();
-    // .applyQueryParams(query, options)
-    // .paginate(paginate?.page, paginate?.limit);
+    const res = await new Model()
+      .select(["*"], resources)
+      .paginate(query?.page, query?.limit);
     const data = utils.removePasswordFromObject(res);
 
     return data;
   }
 
+  async getColFilters() {
+    const { resources } = this.request.params;
+    let headerConfig = {};
+    const raw = this.request.headers["x-table-config"];
+    // console.log(raw);
+    if (raw) {
+      try {
+        headerConfig = JSON.parse(raw);
+      } catch {
+        console.warn("⚠ Invalid x-table-config header");
+      }
+    }
+
+    // console.log(headerConfig);
+    // return;
+    const res = await new Model()
+      .select([headerConfig?.col], resources)
+      .execute();
+
+    const data = utils.removePasswordFromObject(res);
+
+    return data;
+  }
   async findAllWithParams(options = {}) {
     // console.log(options);
     const { resources } = this.request.params;
 
     const { paginate } = options;
-    console.log(options);
+    // console.log(options);
 
     const res = await new Model()
       .select(["*"], resources)
