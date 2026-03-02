@@ -543,34 +543,49 @@ class QueryBuilder {
   }
 
   fullTextSearch(table, columns, searchTerm, mode = "NATURAL LANGUAGE") {
-    console.log("full text search", table, columns, searchTerm);
-    // Validate inputs
+    //  console.log("full text search", table, columns, searchTerm);
+
     if (!table || !columns || !searchTerm) {
       throw new Error(
         "Table, columns, and searchTerm are required for fullTextSearch",
       );
     }
 
-    // Handle columns - can be string or array
+    // Sanitize table/column names (only allow alphanumeric, underscore, dot)
+    const sanitizeName = (name) => {
+      if (!/^[a-zA-Z0-9_.]+$/.test(name)) {
+        throw new Error(`Invalid identifier: ${name}`);
+      }
+      return name;
+    };
+
     let columnsList;
     if (Array.isArray(columns)) {
-      if (columns.length === 0) {
+      if (columns.length === 0)
         throw new Error("Columns array cannot be empty");
-      }
-      columnsList = columns.join(", ");
+      columnsList = columns.map(sanitizeName).join(", ");
     } else {
-      columnsList = columns;
+      columnsList = sanitizeName(columns);
     }
+    sanitizeName(table);
 
-    // Validate and format search mode
     const validModes = ["NATURAL LANGUAGE", "BOOLEAN", "QUERY EXPANSION"];
     const upperMode = mode.toUpperCase();
 
     let searchMode;
+    let finalSearchTerm = searchTerm;
+
     if (upperMode === "NATURAL LANGUAGE" || upperMode === "NATURAL") {
       searchMode = "NATURAL LANGUAGE MODE";
     } else if (upperMode === "BOOLEAN") {
       searchMode = "BOOLEAN MODE";
+      // ✅ Escape special Boolean Mode characters to prevent syntax errors
+      finalSearchTerm = `"${searchTerm.replace(/[+\-><()~*]/g, " ").trim()}"`;
+      if (!finalSearchTerm) {
+        throw new Error(
+          "Search term is empty after sanitizing special characters",
+        );
+      }
     } else if (upperMode === "QUERY EXPANSION" || upperMode === "EXPANSION") {
       searchMode = "WITH QUERY EXPANSION";
     } else {
@@ -579,11 +594,8 @@ class QueryBuilder {
       );
     }
 
-    // Build the query
     this.query = `SELECT * FROM ${table} WHERE MATCH(${columnsList}) AGAINST(? IN ${searchMode})`;
-
-    // Add the search term as a parameter (prevents SQL injection)
-    this.params.push(searchTerm);
+    this.params.push(finalSearchTerm);
 
     return this;
   }

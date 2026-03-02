@@ -75,10 +75,11 @@ export default function App() {
     fullTextSearch: {
       enabled: true,
       columns: ["name", "email"],
-      mode: "NATURAL LANGUAGE",
+      mode: "BOOLEAN",
       withScore: true,
       table: "admin"
     },
+    filterable: ["id , name"]
 
   }
   )
@@ -94,9 +95,11 @@ export default function App() {
       sorter: true
     },
     {
-      title: "Custom ID",
-      dataIndex: "custom_id",
-      key: "custom_id",
+      title: "Role",
+      dataIndex: "role_name",
+      key: "role_name",
+      // filteredValue: "role_name",
+      ...table.getColumnFilterProps("role_name", "admin_roles")
     },
     {
       title: "Name",
@@ -132,13 +135,14 @@ export default function App() {
   useEffect(() => {
     //table.setRecord(result)
     table.setAllowSelection(true)
+    // table.setColFilters("role_name", `admin_roles`)
   }, [])
 
   //console.log(table.selectedRows)
 
   return (
     <>
-      <Button onClick={() => table.runRequest()}>Testing Click</Button>
+      <Button onClick={() => table.runRequest(true)}>Testing Click</Button>
       testing
       {/* 
       <Input.Search

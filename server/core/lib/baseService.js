@@ -48,10 +48,9 @@ class BaseService {
     const query = this.request.query;
 
     // console.log(res);
-    const res = await new Model()
-      .select(["*"], resources)
-      .applyQueryParams(query, options)
-      .paginate(paginate?.page, paginate?.limit);
+    const res = await new Model().select(["*"], resources).execute();
+    // .applyQueryParams(query, options)
+    // .paginate(paginate?.page, paginate?.limit);
     const data = utils.removePasswordFromObject(res);
 
     return data;

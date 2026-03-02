@@ -1,5 +1,5 @@
 import { useRequest } from "ahooks";
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import useNotification from "./useNotification";
 import { apiRequest } from "../services/apiClient";
 import Settings from "../utils/Settings";
@@ -58,6 +58,8 @@ const useTableApi = (
         ...initParams,
     }));
 
+    const tableParamsRef = useRef(tableParams);
+
     //RowSelections
 
     const [allowSelection, setAllowSelection] = useState(false);
@@ -66,6 +68,10 @@ const useTableApi = (
     const [currentSelectedRow, setCurrentSelectedRow] = useState()
 
     const [selectionType, setSelectionType] = useState("checkbox")
+
+
+    const [columnFilters, setColumnFilters] = useState({}); // { dataIndex: [{ text, value }] }
+    const [filtersLoading, setFiltersLoading] = useState({});
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -117,7 +123,7 @@ const useTableApi = (
     }, [isClientSide]);
 
 
-
+    console.log(tableParams.current)
     // ─── Request ──────────────────────────────────────────────────────────────
     const { loading, error, params, run } = useRequest(
         ({ tableParams: tp } = {}) => {
@@ -132,6 +138,7 @@ const useTableApi = (
         {
             ...reqOptions,
             defaultParams: [{ tableParams }],
+            refreshDeps: [tableParamsRef],
             onError: (err) => {
                 message.error(err?.message || "Something went wrong", 6);
                 setRecord([]);
@@ -342,20 +349,69 @@ const useTableApi = (
 
 
     // ─── Manual re-fetch ──────────────────────────────────────────────────────
+    useEffect(() => {
+        tableParamsRef.current = tableParams;
+    }, [tableParams]);
+
+
+    // runRequest always uses latest tableParams via ref
     const runRequest = useCallback(() => {
-        const newFilters = { ...tableParams.filters };
-
-
-        const newTableParams = {
-            ...tableParams,
-            pagination: { ...tableParams.pagination, current: 1 },
-            filters: newFilters,
+        const freshParams = {
+            pagination: {
+                ...tableParams.pagination,
+                current: 1,
+            },
+            filters: {},
+            sorter: {},
+            search: "",
         };
-        setTableParams(newTableParams);
 
-        run({ tableParams: { ...newTableParams } });
+        setTableParams(freshParams);
+        setSearchText("");
+        setSearchedColumn("");
+        run({ tableParams: freshParams });
     }, [run, tableParams]);
 
+
+    const setColFilters = useCallback(async (dataIndex, url,) => {
+        if (isClientSide) return;
+        if (columnFilters[dataIndex]) return; // already fetched, skip
+
+        try {
+            const res = await apiRequest('get', `${Settings.baseUrl}/${url}`);
+            const filters = res?.data?.map((item, index) => ({
+                text: item?.[dataIndex],
+                value: item?.[dataIndex],
+                key: item?.id || `${item?.[dataIndex]}-${index}`,
+            })) || [];
+
+            setColumnFilters((prev) => ({ ...prev, [dataIndex]: filters }));
+        } catch (error) {
+            console.error('Error fetching column filters:', error);
+        }
+    }, [isClientSide, columnFilters]);
+    // Usage
+    // reset to page 1 (after search/filter)
+    const getColumnFilterProps = useCallback(
+        (dataIndex, url) => {
+            if (isClientSide) return {};
+
+            return {
+                filters: columnFilters[dataIndex] || [],
+                filterSearch: true,
+                filterMultiple: true,
+                filteredValue: tableParams.filters?.[dataIndex] || columnFilters[dataIndex] || null,
+                filterDropdownProps: {
+
+                    onOpenChange: (open) => {
+                        if (open) setColFilters(dataIndex, url); // fetch only on first open
+                    }
+                },
+                onFilter: () => true, // server handles filtering
+            };
+        },
+        [isClientSide, columnFilters, tableParams.filters, setColFilters]
+    );
 
     //rowSelections 
 
@@ -414,6 +470,8 @@ const useTableApi = (
         setCurrentSelectedRow,
         selectedRowKeys,
         setSelectedRowKeys,
+        setColFilters,
+        getColumnFilterProps
     };
 };
 
