@@ -153,7 +153,10 @@ const useTableApi = (
         {
             ...reqOptions,
             defaultParams: [{ tableParams }],
-            refreshDeps: [tableParamsRef],
+            refreshDeps: [tableParams],
+            refreshDepsAction: () => {
+                run({ tableParams: { ...tableParamsRef.current } }); // use ref for latest params
+            },
             onError: (err) => {
                 message.error(err?.message || "Something went wrong", 6);
                 setRecord([]);

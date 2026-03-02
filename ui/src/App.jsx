@@ -5,6 +5,8 @@ import useTableApi from "./hooks/useTableApi";
 import { Button, Input, Table } from "antd";
 import { useState } from "react";
 import CustomTable from "./components/CustomTable";
+import useDelete from "./hooks/useDelete";
+import { DeleteOutlined } from "@ant-design/icons";
 
 
 const result = [
@@ -83,8 +85,9 @@ export default function App() {
 
   }
   )
+  const { confirm, saveCompleted } = useDelete();
 
-    ;
+  ;
 
   const columns = [
     {
@@ -119,32 +122,39 @@ export default function App() {
       key: "phone_no",
       render: (val) => val ?? "N/A",
     },
-    // {
-    //   title: "Action",
-    //   key: "action",
-    //   render: (_, record) => (
-    //     // <Space>
-    //     //   <Button type="link" onClick={() => handleEdit(record)}>Edit</Button>
-    //     //   <Button type="link" danger onClick={() => handleDelete(record)}>Delete</Button>
-    //     // </Space>
-    //   ),
-    // },
+    {
+      title: 'Action',
+      render: (_, record) => (
+        confirm(
+          `admin/${record.id}`,  // url
+          record,                // data
+          'Delete this user?',   // title
+          <Button danger size="small" icon={<DeleteOutlined />} />, // elem
+          (success) => {         // callback
+            if (success) console.log('deleted');
+          }
+        )
+      ),
+    },
   ];
 
 
   useEffect(() => {
     //table.setRecord(result)
+    if (saveCompleted) {
+      table.runRequest(true)
+    };
     table.setAllowSelection(true)
     // table.setColFilters("role_name", `admin_roles`)
     table.runRequest()
-  }, [])
+  }, [saveCompleted])
 
   //console.log(table.selectedRows)
 
   return (
     <>
-      <Button onClick={() => table.runRequest(true)}>Testing Click</Button>
-      testing
+      {/* <Button onClick={() => table.runRequest(true)}>Testing Click</Button>
+      testing */}
       {/* 
       <Input.Search
         placeholder="Search..."
