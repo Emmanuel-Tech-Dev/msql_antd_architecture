@@ -2,11 +2,17 @@
 
 import { useEffect } from "react";
 import useTableApi from "./hooks/useTableApi";
-import { Button, Input, Table } from "antd";
+import { Button, Calendar, Input, Space, Table } from "antd";
 import { useState } from "react";
 import CustomTable from "./components/CustomTable";
 import useDelete from "./hooks/useDelete";
 import { DeleteOutlined } from "@ant-design/icons";
+import useApi from "./hooks/useApi";
+import useCalendar from "./hooks/useCalender";
+import useDrawer from "./hooks/useDrawer";
+import useModal from "./hooks/useModal";
+import useLocalForage, { DRIVERS } from "./hooks/useLocalForage";
+import useMasonry from "./hooks/useMasonary";
 
 
 const result = [
@@ -65,7 +71,7 @@ export default function App() {
     }
   }, {
     manual: true,
-    loadingDelay: 4000
+    // loadingDelay: 300
   },
     "id", {
     // tableConfig — maps to every applyQueryParams option
@@ -86,8 +92,36 @@ export default function App() {
   }
   )
   const { confirm, saveCompleted } = useDelete();
+  const { data, loading, run: fetchNewData } = useApi("get", "admin_roles")
+    ;
 
-  ;
+  const storage = useLocalForage({
+    name: 'app',
+    storeName: 'adminRoles',
+    driver: DRIVERS.INDEXEDDB,
+  });
+
+
+
+  const cal = useCalendar("card", {
+    notes: {
+      '2026-03-08': [{ id: 1, title: 'Team meeting', type: 'warning' }],
+      '2026-03-15': [{ id: 2, title: 'Release day', type: 'error' }],
+    },
+    onDateSelect: (date, { notes, events }) => {
+      const formatted = date.format('YYYY-MM-DD');
+      // setClickedDate(formatted);
+      // setDrawerOpen(true);
+      // fetchDayData(formatted); // ✅ fetch on click
+      console.log(formatted)
+    },
+  });
+
+  const drawer = useDrawer({ resizable: true, width: 500 });
+  const modal = useModal({ draggable: true, width: 300 });
+
+
+
 
   const columns = [
     {
@@ -99,8 +133,8 @@ export default function App() {
     },
     {
       title: "Role",
-      dataIndex: "role_name",
-      key: "role_name",
+      dataIndex: "custom_id",
+      key: "custome_id",
       // filteredValue: "role_name",
       ...table.getColumnFilterProps("role_name", "admin_roles")
     },
@@ -129,7 +163,7 @@ export default function App() {
           `admin/${record.id}`,  // url
           record,                // data
           'Delete this user?',   // title
-          <Button danger size="small" icon={<DeleteOutlined />} />, // elem
+          <Button type="primary" danger size="small" icon={<DeleteOutlined />} />, // elem
           (success) => {         // callback
             if (success) console.log('deleted');
           }
@@ -139,22 +173,105 @@ export default function App() {
   ];
 
 
+  // useEffect(() => {
+  //   //table.setRecord(result)
+
+  //   table.setAllowSelection(true)
+  //   table.setColFilters("role_name", `admin_roles`)
+  //   table.runRequest()
+  // }, [])
+
+
+  console.log(data)
+
   useEffect(() => {
-    //table.setRecord(result)
     if (saveCompleted) {
       table.runRequest(true)
     };
-    table.setAllowSelection(true)
-    // table.setColFilters("role_name", `admin_roles`)
-    table.runRequest()
   }, [saveCompleted])
 
   //console.log(table.selectedRows)
 
+  // console.log(data, loading)
+  useEffect(() => {
+    fetchNewData();
+  }, []);
+
+
+
+  useEffect(() => {
+    console.log('data changed:', data);          // ← is data arriving?
+    console.log('data.result:', data?.data.result);   // ← does result exist?
+
+    const fetch = async () => {
+      await storage.setItem("adminRoles", data.data.result)
+        .then((val) => console.log('saved to indexedDB ✅', val))  // ← did it save?
+        .catch((err) => console.error('save failed ❌', err));
+    }
+    if (data?.data) {
+      // ← any error?
+      fetch()
+    }
+  }, [data]);
+
+  // useEffect(() => {
+  //   const debug = async () => {
+  //     // ✅ check which driver is actually being used
+  //     console.log('driver:', storage.getDriver());
+
+  //     // ✅ check if anything is in the store at all
+  //     const all = await storage.getAll();
+  //     console.log('all items in store:', all);
+
+  //     // ✅ check keys
+  //     const keys = await storage.keys();
+  //     console.log('keys:', keys);
+
+  //     // ✅ try a manual set and get
+  //     await storage.setItem('test', { hello: 'world' });
+  //     const test = await storage.getItem('test');
+  //     console.log('test item:', test);
+  //   };
+
+  //   debug();
+  // }, [])
+
+  const gallery = useMasonry('dynamic', {
+    columns: 3,
+    gutter: 16,
+    initialItems: [
+      { id: 1, title: 'Card 1', description: 'Some text', height: 20 },
+      { id: 2, title: 'Card 2', description: 'More text', height: 300 },
+      { id: 3, title: 'Card 3', description: 'More text', height: 400 },
+      { id: 4, title: 'Card 4', description: 'More text', height: 360 },
+      { id: 8, title: 'Card 8', description: 'More text', height: 530 },
+      { id: 5, title: 'Card 5', description: 'More text', height: 120 },
+      { id: 6, title: 'Card 6', description: 'More text', height: 80 },
+      { id: 7, title: 'Card 6', description: 'More text', height: 50 },
+    ],
+  });
+
+
   return (
     <>
-      {/* <Button onClick={() => table.runRequest(true)}>Testing Click</Button>
-      testing */}
+      <Button onClick={() => drawer.openDrawer({
+        title: 'Edit User',
+        content:
+          "Teststseteshshs",
+        extra: (
+          <Space>
+            <Button onClick={drawer.closeDrawer}>Cancel</Button>
+            {/* <Button type="primary" onClick={handleSave}>Save</Button> */}
+          </Space>
+        ),
+      })}>Testing Click</Button>
+
+      <Button onClick={() => modal.openModal({
+        title: 'Drag me',        // ← hover title to drag
+        content: "tehisgsgsgsdhs",
+        onOk: async () => console.log("testing"),
+      })}>Testing Click 2</Button>
+
       {/* 
       <Input.Search
         placeholder="Search..."
@@ -164,6 +281,12 @@ export default function App() {
       <Table  {...table.tableProps} columns={columns} /> */}
 
       <CustomTable tableConfig={table} columns={columns} />
+
+
+      {/* <Calendar {...cal.calendarProps} /> */}
+      {drawer.drawerJSX()}
+      {modal.modalJSX()}
+      {gallery.masonryJSX()}
     </>
   );
 }

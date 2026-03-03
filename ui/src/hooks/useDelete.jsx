@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Popconfirm } from 'antd';
 import { apiRequest } from '../services/apiClient';
 import Settings from '../utils/Settings';
-import useNotification from 'antd/es/notification/useNotification';
+import useNotification from './useNotification';
+
 
 const useDelete = () => {
     const [saveCompleted, setSaveCompleted] = useState(false);

@@ -1,5 +1,5 @@
 import { useRequest } from "ahooks";
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import useNotification from "./useNotification";
 import { apiRequest } from "../services/apiClient";
 import Settings from "../utils/Settings";
@@ -20,10 +20,7 @@ import { SearchOutlined } from "@ant-design/icons";
  *  - Server-side mode  → on confirm the search term is merged into `tableParams.filters`
  *                        and a new request is fired with `?<dataIndex>=<term>` appended.
  *
- * @param {object}  initParams   - Initial tableParams (pagination / filters / sorter overrides).
- * @param {object}  reqOptions   - ahooks useRequest options passed through.
- * @param {string}  endpoint     - API path (e.g. "/users"). Omit for client-side mode.
- * @param {string}  rowkey       - Row key field name (default: "id").
+
  */
 const useTableApi = (
     initParams = {},
@@ -71,16 +68,16 @@ const useTableApi = (
 
 
     const [columnFilters, setColumnFilters] = useState({}); // { dataIndex: [{ text, value }] }
-    const [filtersLoading, setFiltersLoading] = useState({});
+    // const [filtersLoading, setFiltersLoading] = useState({});
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    const buildConfigParams = useCallback(() => {
-        if (!tableConfig || Object.keys(tableConfig).length === 0) return {};
-        return Object.fromEntries(
-            Object.entries(tableConfig).map(([key, val]) => [`_${key}`, val])
-        );
-    }, [tableConfig]);
+    // const buildConfigParams = useCallback(() => {
+    //     if (!tableConfig || Object.keys(tableConfig).length === 0) return {};
+    //     return Object.fromEntries(
+    //         Object.entries(tableConfig).map(([key, val]) => [`_${key}`, val])
+    //     );
+    // }, [tableConfig]);
 
     const normalizeTableFilters = (filters = {}) => {
         const result = {};
@@ -99,7 +96,7 @@ const useTableApi = (
 
 
     const getQueryParams = useCallback((params) => {
-        console.log(params)
+        // console.log(params)
         if (isClientSide) return
         const queryParams = {
             page: params.pagination?.current || 1,
@@ -138,7 +135,7 @@ const useTableApi = (
     }, [isClientSide]);
 
 
-    console.log(tableParams.current)
+    // console.log(tableParams.current)
     // ─── Request ──────────────────────────────────────────────────────────────
     const { loading, error, params, run } = useRequest(
         ({ tableParams: tp } = {}) => {
@@ -152,13 +149,15 @@ const useTableApi = (
         },
         {
             ...reqOptions,
+            // loadingDelay: 5000,
             defaultParams: [{ tableParams }],
             refreshDeps: [tableParams],
             refreshDepsAction: () => {
                 run({ tableParams: { ...tableParamsRef.current } }); // use ref for latest params
             },
             onError: (err) => {
-                message.error(err?.message || "Something went wrong", 6);
+                message.warning("Search results are temporarily unavailable. Please refresh table or try a different filter.", 6);
+                console.log(err.message)
                 setRecord([]);
             },
             onSuccess: (data) => {
@@ -363,9 +362,9 @@ const useTableApi = (
 
 
     // ─── Manual re-fetch ──────────────────────────────────────────────────────
-    useEffect(() => {
-        tableParamsRef.current = tableParams;
-    }, [tableParams]);
+    // useEffect(() => {
+    //     tableParamsRef.current = tableParams;
+    // }, [tableParams]);
 
 
     // runRequest always uses latest tableParams via ref
@@ -413,12 +412,12 @@ const useTableApi = (
     const getColumnFilterProps = useCallback(
         (dataIndex, url) => {
             if (isClientSide) return {};
-            console.log(tableParams.filters?.[dataIndex], columnFilters[dataIndex])
+            // console.log(tableParams.filters?.[dataIndex], columnFilters[dataIndex])
             return {
                 filters: columnFilters[dataIndex] || [],
                 filterSearch: true,
                 filterMultiple: true,
-                filteredValue: tableParams.filters?.[dataIndex] || columnFilters[dataIndex] || null,
+                filteredValues: tableParams.filters?.[dataIndex] || columnFilters[dataIndex] || null,
                 filterDropdownProps: {
 
                     onOpenChange: (open) => {
@@ -459,6 +458,8 @@ const useTableApi = (
     }, [allowSelection, selectionType, selectedRowKeys]);
 
 
+    // console.log("testing if my datat table is loading", loading)
+
     // ─── Public API ───────────────────────────────────────────────────────────
     return {
         record,
@@ -475,6 +476,7 @@ const useTableApi = (
             size: "small",
             pagination: tableParams.pagination,
             onChange: handleTableChange,
+            // loading: loading
         },
         getColumnSearchProps,
         runRequest,

@@ -43,7 +43,10 @@ const limiter = rateLimiter({
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
-  message: "Too many requests from this IP, please try again after 15 minutes",
+  message: {
+    status: "error",
+    message: "Too many login attempts, please try again later.",
+  },
 });
 
 // const io = socket(server, {
