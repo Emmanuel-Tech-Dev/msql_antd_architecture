@@ -135,6 +135,53 @@ class BaseService {
 
     return res;
   }
+
+  async bootstrap(payload) {
+    // handle both single config and array of configs
+    const configs = Array.isArray(payload?.tables) ? payload.tables : [payload];
+
+    const results = {};
+
+    for (const config of configs) {
+      const { table, storeName, critfdx, critval, fields, sql } = config;
+
+      let column = fields?.length ? fields : ["*"];
+      let res;
+
+      // ✅ build where conditions in the shape your where() method expects
+      let where = [];
+      if (
+        critfdx &&
+        Array.isArray(critfdx) &&
+        Array.isArray(critval) &&
+        critfdx.length === critval.length &&
+        critfdx.length > 0
+      ) {
+        where = critfdx.map((col, index) => ({
+          column: col, // ✅ was { [v]: critval[index] } — wrong shape
+          operator: "=",
+          value: critval[index],
+        }));
+      }
+
+      if (sql) {
+        res = await new Model().setSql(sql).execute();
+      } else if (where.length) {
+        res = await new Model()
+          .select(column, table)
+          .where(where, "=", null)
+          .execute();
+      } else {
+        res = await new Model().select(column, table).execute();
+      }
+
+      // ✅ key result by storeName so frontend can map it back
+      results[storeName] = res;
+    }
+
+    // ✅ was missing return
+    return results;
+  }
 }
 
 module.exports = BaseService;

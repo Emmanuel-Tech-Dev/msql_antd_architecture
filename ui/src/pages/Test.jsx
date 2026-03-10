@@ -13,6 +13,8 @@ import useDrawer from "../hooks/useDrawer";
 import useModal from "../hooks/useModal";
 import useLocalForage, { DRIVERS } from "../hooks/useLocalForage";
 import useMasonry from "../hooks/useMasonary";
+import useAdd from "../hooks/useAdd";
+import Settings from "../utils/Settings";
 
 
 
@@ -63,6 +65,7 @@ const result = [
 
 
 export default function Test() {
+    const addDataForms = useAdd("tables_metadata", "table_name")
 
     const table = useTableApi({
         pagination: {
@@ -93,14 +96,14 @@ export default function Test() {
     }
     )
     const { confirm, saveCompleted } = useDelete();
-    const { data, loading, run: fetchNewData } = useApi("get", "admin_roles")
-        ;
+    // const { data, loading, run: fetchNewData } = useApi("get", "admin_roles")
+    ;
 
-    const storage = useLocalForage({
-        name: 'app',
-        storeName: 'adminRoles',
-        driver: DRIVERS.INDEXEDDB,
-    });
+    // const storage = useLocalForage({
+    //     name: 'app',
+    //     storeName: 'adminRoles',
+    //     driver: DRIVERS.INDEXEDDB,
+    // });
 
 
 
@@ -137,7 +140,7 @@ export default function Test() {
             dataIndex: "custom_id",
             key: "custome_id",
             // filteredValue: "role_name",
-            ...table.getColumnFilterProps("custom_id", "admin")
+            // ...table.getColumnFilterProps("custom_id", "admin")
         },
         {
             title: "Name",
@@ -174,11 +177,17 @@ export default function Test() {
     ];
 
 
+    function openAddModal(tableName = "admin") {
+        addDataForms.setTblName(tableName)
+        addDataForms.setShowModal(true)
+        addDataForms.setSaveCompleted(false)
+    }
+
     useEffect(() => {
         //table.setRecord(result)
-
+        console.log("initialized..")
         table.setAllowSelection(true)
-        table.setColFilters("custom_id", `admin`)
+        // table.setColFilters("custom_id", `admin`)
         table.runRequest()
     }, [])
 
@@ -195,25 +204,26 @@ export default function Test() {
 
     // console.log(data, loading)
     useEffect(() => {
-        fetchNewData();
+
+        //  fetchNewData();
     }, []);
 
 
 
-    useEffect(() => {
-        console.log('data changed:', data);          // ← is data arriving?
-        console.log('data.result:', data?.data.result);   // ← does result exist?
+    // useEffect(() => {
+    //     // console.log('data changed:', data);          // ← is data arriving?
+    //     // console.log('data.result:', data?.data.result);   // ← does result exist?
 
-        const fetch = async () => {
-            await storage.setItem("adminRoles", data.data.result)
-                .then((val) => console.log('saved to indexedDB ✅', val))  // ← did it save?
-                .catch((err) => console.error('save failed ❌', err));
-        }
-        if (data?.data) {
-            // ← any error?
-            fetch()
-        }
-    }, [data]);
+    //     const fetch = async () => {
+    //         await storage.setItem("adminRoles", data.data.result)
+    //             // .then((val) => console.log('saved to indexedDB ✅', val))  // ← did it save?
+    //             // .catch((err) => console.error('save failed ❌', err));
+    //     }
+    //     if (data?.data) {
+    //         // ← any error?
+    //         fetch()
+    //     }
+    // }, [data]);
 
     // useEffect(() => {
     //   const debug = async () => {
@@ -253,6 +263,12 @@ export default function Test() {
     });
 
 
+    function saveOnOk() {
+        addDataForms.save(`${Settings.baseUrl}/admin`)
+
+    }
+
+
     return (
         <>
             <Button onClick={() => drawer.openDrawer({
@@ -273,6 +289,10 @@ export default function Test() {
                 onOk: async () => console.log("testing"),
             })}>Testing Click 2</Button>
 
+            <Button
+                onClick={() => openAddModal()}
+            ></Button>
+
             {/* 
       <Input.Search
         placeholder="Search..."
@@ -288,6 +308,7 @@ export default function Test() {
             {drawer.drawerJSX()}
             {modal.modalJSX()}
             {gallery.masonryJSX()}
+            {addDataForms.addModal("Add Testing Hook", saveOnOk)}
 
             {/* <AppLayout /> */}
         </>

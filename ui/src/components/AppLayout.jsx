@@ -19,9 +19,9 @@ const items = [
 export default function AppLayout() {
     const navigate = useNavigate()
     const sider = useSider({
-        variant: 'header-sider',
+        variant: 'default',
         items,
-        isGrouped: true,
+        isGrouped: false,
         groupKey: 'group',
         groupVariant: 'dropdown',
         appName: 'Admin Panel',
@@ -33,9 +33,9 @@ export default function AppLayout() {
         //     background: "#fff",
         //     color: "#000"
         // }
-        contentStyle: {
-            // margin: "100px 0"
-        }
+        // contentStyle: {
+        //     // margin: "100px 0"
+        // }
     });
     const siderHeader = (
         <div style={{ padding: '0 16px' }}>

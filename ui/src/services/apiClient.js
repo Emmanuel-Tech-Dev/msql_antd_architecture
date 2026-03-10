@@ -34,6 +34,8 @@ export const apiRequest = async (
     ...config,
   });
 
+  // console.log(res);
+
   return res?.data;
 };
 

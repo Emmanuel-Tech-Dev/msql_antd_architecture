@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import useTableApi from "./hooks/useTableApi";
-import { Button, Calendar, Input, Space, Table } from "antd";
+import { Button, Calendar, Input, Space, Spin, Table } from "antd";
 import { useState } from "react";
 import CustomTable from "./components/CustomTable";
 import useDelete from "./hooks/useDelete";
@@ -16,6 +16,8 @@ import useMasonry from "./hooks/useMasonary";
 import AppLayout from "./components/AppLayout";
 import { Navigate, Route, Router, Routes } from "react-router-dom";
 import Test from "./pages/Test";
+import Test2 from "./pages/Test2";
+import useBootstrap from "./hooks/useBootstrap";
 
 
 const result = [
@@ -66,7 +68,26 @@ const result = [
 
 export default function App() {
 
+  const { loading, refetch } = useBootstrap({
+    onSuccess: (data) => {
+      console.log('[Bootstrap] ready:', data);
+    },
+    onError: (err) => {
+      console.error('[Bootstrap] failed:', err);
+    },
+  })
 
+
+  if (loading) return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+    }}>
+      <Spin size="large" tip="Loading..." />
+    </div>
+  );
 
 
   return (
@@ -93,6 +114,7 @@ export default function App() {
         }>
           <Route index element={<Test />} />
           <Route path="home" element={<Test />} />
+          {/* <Route path="test" element={<Test2 />} /> */}
           {/* <Route path='campaign' element={} /> */}
           {/* Settings sub-routes */}
           {/* <Route path="settings">

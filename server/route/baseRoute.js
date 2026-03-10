@@ -26,6 +26,7 @@ class BaseRoute {
     this.delete(app);
     this.getTableData(app);
     this.getColFilters(app);
+    this.bootstrap(app);
 
     return this;
   }
@@ -266,6 +267,18 @@ class BaseRoute {
         status: "ok",
         message: "Operation Successfull!",
         details: "Resource deleted successfully",
+      });
+    });
+  }
+
+  bootstrap(app) {
+    app.post("/api/v1/bootstrap", async (req, res) => {
+      const service = new BaseService(req, res);
+      const data = await service.bootstrap(req.body);
+      //console.log(data);
+      res.json({
+        success: true,
+        data,
       });
     });
   }
