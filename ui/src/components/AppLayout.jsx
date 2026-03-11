@@ -16,19 +16,22 @@ const items = [
     { key: 'settings', label: 'Settings', icon: <SettingOutlined />, path: '/settings', order: 2 },
 ];
 
-export default function AppLayout() {
+export default function AppLayout({ AppReload }) {
     const navigate = useNavigate()
     const sider = useSider({
-        variant: 'default',
+        variant: 'none',
         items,
         isGrouped: false,
         groupKey: 'group',
         groupVariant: 'dropdown',
         appName: 'Admin Panel',
+        showSiderProfile: true,   // shows avatar + name + email at bottom
+        showSiderLogout: true,
         user: { name: 'Emmanuel', email: 'emmanuel@example.com' },
         notificationCount: 5,
         onLogout: () => { console.log("logged out"); navigate('/login'); },
         onProfile: () => navigate('/profile'),
+
         // headerStyle: {
         //     background: "#fff",
         //     color: "#000"
@@ -43,6 +46,7 @@ export default function AppLayout() {
                 ? <Avatar style={{ background: '#1677ff' }}>A</Avatar>
                 : <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>MyApp</Typography.Text>
             }
+            {/* <Button onClick={() => AppReload()} /> */}
         </div>
     );
 

@@ -4,6 +4,7 @@ import useSettingsStore from '../store/settings-store';
 import useNotification from './useNotification';
 import { apiRequest } from '../services/apiClient';
 import { FireFilled } from '@ant-design/icons';
+import { useLocation } from "react-router-dom"
 
 const getFromLS = (key) => {
     try {
@@ -23,6 +24,8 @@ const useBootstrap = (options = {}) => {
     const { onSuccess, onError } = options;
     const { message } = useNotification();
     const [loading, setLoading] = useState(true)
+    const location = useLocation()
+
 
     const store = useValuesStore();
     const settingsStore = useSettingsStore();
@@ -31,10 +34,10 @@ const useBootstrap = (options = {}) => {
         (entry) => entry && typeof entry === 'object' && entry.storeName && entry.url
     );
 
-    console.log("configs ", bootstrapConfigs)
+    // console.log("configs ", bootstrapConfigs)
 
     const bootstrapKeys = bootstrapConfigs.map((c) => c.storeName);
-    console.log("bootstrap keys from congig ", bootstrapKeys)
+    // console.log("bootstrap keys from congig ", bootstrapKeys)
 
     const primaryUrl = bootstrapConfigs[0]?.url ?? '';
 
@@ -61,7 +64,12 @@ const useBootstrap = (options = {}) => {
     }, [store, bootstrapKeys]);
 
     const fetchBootstrap = useCallback(() => {
-
+        if (["/login", "/init_psd_recovery", "/complete_recover_password", "/"].includes(
+            location.pathname
+        )) {
+            setLoading(false)
+            return
+        }
         apiRequest('post', primaryUrl, buildPayload())
             .then((res) => {
                 const data = res?.data;
@@ -75,7 +83,7 @@ const useBootstrap = (options = {}) => {
                 if (onError) onError(err);
                 setLoading(false)
             });
-    }, [primaryUrl, buildPayload, hydrateStore, onSuccess, onError, message]);
+    }, [primaryUrl, buildPayload, hydrateStore, onSuccess, onError, message, location]);
 
     useEffect(() => {
         if (hasRun.current) return;
@@ -105,7 +113,13 @@ const useBootstrap = (options = {}) => {
             return;
         }
 
+
+
+
+
         fetchBootstrap();
+
+
     }, []);
 
     const refetch = useCallback(() => {

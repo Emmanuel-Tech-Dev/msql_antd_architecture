@@ -20,7 +20,7 @@ const useSider = (staticConfig = {}) => {
         items: initialItems = [],
         headerItems: initialHeaderItems = [],
         variant = 'sider',
-        width = 220,
+        width = 160,
         collapsedWidth = 80,
         breakpoint = 'lg',
         theme = 'dark',
@@ -51,6 +51,8 @@ const useSider = (staticConfig = {}) => {
         notificationCount = 0,
         onLogout,
         onProfile,
+        showSiderProfile = false,     // shows user profile at bottom of sider
+        showSiderLogout = false,
     } = staticConfig;
 
     const { token } = antTheme.useToken();
@@ -267,36 +269,119 @@ const useSider = (staticConfig = {}) => {
     ), [theme, processedHeaderItems, headerItems, items, getSelectedKeysFromData]);
 
     // ─── Shared sider node ────────────────────────────────────────────────
-    const renderSider = useCallback(({ siderHeader, trigger } = {}) => (
-        <Sider
-            width={width}
-            collapsed={collapsed}
-            collapsedWidth={collapsedWidth}
-            collapsible={collapsible}
-            breakpoint={breakpoint}
-            reverseArrow={reverseArrow}
-            theme={theme}
-            trigger={trigger !== undefined ? trigger : undefined}
-            onCollapse={onCollapse}
-            style={{
-                position: 'sticky',
-                top: 0,
-                height: '100vh',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                flexShrink: 0,
-                ...siderStyle,
-            }}
-        >
-            {siderHeader && (
-                <div style={{ height: headerHeight, display: 'flex', alignItems: 'center', overflow: 'hidden', flexShrink: 0, width: '100%' }}>
-                    {siderHeader}
+    const renderSider = useCallback(({ siderHeader, trigger } = {}) => {
+        const isDark = theme === 'dark';
+        const textColor = isDark ? '#fff' : token.colorText;
+
+        const bottomSection = (showSiderProfile || showSiderLogout) && (
+            <div style={{
+                borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : token.colorBorderSecondary}`,
+                padding: '12px 8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+            }}>
+                {showSiderProfile && (
+                    <div
+                        onClick={() => onProfile ? onProfile() : navigate('/profile')}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 12px',
+                            borderRadius: token.borderRadius,
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.08)' : token.colorBgTextHover}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                        <Avatar size="small" style={{ backgroundColor: token.colorPrimary, flexShrink: 0 }}>
+                            {user?.name?.charAt(0)?.toUpperCase()}
+                        </Avatar>
+                        {!collapsed && (
+                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, overflow: 'hidden' }}>
+                                <Typography.Text strong style={{ fontSize: 13, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {user?.name}
+                                </Typography.Text>
+                                <Typography.Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.45)' : token.colorTextSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {user?.email}
+                                </Typography.Text>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {showSiderLogout && (
+                    <div
+                        onClick={() => onLogout ? onLogout() : navigate('/')}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 12px',
+                            borderRadius: token.borderRadius,
+                            cursor: 'pointer',
+                            color: token.colorError,
+                            transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = isDark ? 'rgba(255,77,79,0.12)' : token.colorErrorBg}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                        <LogoutOutlined style={{ fontSize: 14, flexShrink: 0 }} />
+                        {!collapsed && (
+                            <Typography.Text style={{ fontSize: 13, color: token.colorError }}>
+                                Logout
+                            </Typography.Text>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+
+        return (
+            <Sider
+                width={width}
+                collapsed={collapsed}
+                collapsedWidth={collapsedWidth}
+                collapsible={collapsible}
+                breakpoint={breakpoint}
+                reverseArrow={reverseArrow}
+                theme={theme}
+                trigger={trigger !== undefined ? trigger : undefined}
+                onCollapse={onCollapse}
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    height: '100vh',
+                    overflowX: 'hidden',
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    ...siderStyle,
+                }}
+            >
+                {/* sider needs flex column layout to push bottom section down */}
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'hidden' }}>
+                    {siderHeader && (
+                        <div style={{ height: headerHeight, display: 'flex', alignItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                            {siderHeader}
+                        </div>
+                    )}
+                    {/* menu takes all available space */}
+                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                        {renderSiderMenu()}
+                    </div>
+                    {/* bottom section pinned to bovttom */}
+                    {bottomSection}
                 </div>
-            )}
-            {renderSiderMenu()}
-        </Sider>
-    ), [collapsed, collapsedWidth, collapsible, breakpoint, reverseArrow, theme,
-        onCollapse, siderStyle, headerHeight, width, renderSiderMenu]);
+            </Sider>
+        );
+    }, [
+        collapsed, collapsedWidth, collapsible, breakpoint, reverseArrow, theme,
+        onCollapse, siderStyle, headerHeight, width, renderSiderMenu,
+        showSiderProfile, showSiderLogout, user, onProfile, onLogout,
+        navigate, token,
+    ]);
 
     // ─── FIX 5: collapsed isolated — renderDefaultHeader only rebuilds when
     //            non-layout things change, not on every resize tick
@@ -389,6 +474,19 @@ const useSider = (staticConfig = {}) => {
         const bgContainer = token.colorBgContainer;
         const borderRadius = token.borderRadiusLG;
 
+        if (variant === 'none') {
+            return (
+                <Layout style={{ minHeight: '100vh', display: 'flex', flexDirection: 'row', ...layoutStyle }}>
+                    {renderSider({ siderHeader, trigger })}
+                    <Layout style={{ flex: 1, minWidth: 0 }}>
+                        <Content style={{ margin: '10px', padding: '10px', minHeight: '100vh', ...contentStyle }}>
+                            <Outlet />
+                        </Content>
+                        {resolvedFooter}
+                    </Layout>
+                </Layout>
+            );
+        }
         if (variant === 'default') {
             return (
                 <Layout style={{ minHeight: '100vh', ...layoutStyle }}>
@@ -408,7 +506,7 @@ const useSider = (staticConfig = {}) => {
                             }}>
                                 {header ?? renderDefaultHeader()}
                             </Header>
-                            <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                            <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                                 <Outlet />
                             </Content>
                             {resolvedFooter}
@@ -417,14 +515,13 @@ const useSider = (staticConfig = {}) => {
                 </Layout>
             );
         }
-
         if (variant === 'basic') {
             return (
                 <Layout style={{ minHeight: '100vh', ...layoutStyle }}>
                     <Header style={{ display: 'flex', alignItems: 'center', padding: '0 24px', ...headerStyle }}>
                         {resolvedHeader}
                     </Header>
-                    <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                    <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                         <Outlet />
                     </Content>
                     {resolvedFooter}
@@ -440,7 +537,7 @@ const useSider = (staticConfig = {}) => {
                         {renderHeaderMenu()}
                         {header}
                     </Header>
-                    <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                    <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                         <Outlet />
                     </Content>
                     {resolvedFooter}
@@ -517,7 +614,7 @@ const useSider = (staticConfig = {}) => {
                                 {resolvedHeader}
                             </Header>
                         )}
-                        <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                        <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                             <Outlet />
                         </Content>
                         {resolvedFooter}
@@ -552,7 +649,7 @@ const useSider = (staticConfig = {}) => {
                             </span>
                             {header}
                         </Header>
-                        <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                        <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                             <Outlet />
                         </Content>
                         {resolvedFooter}
@@ -586,7 +683,7 @@ const useSider = (staticConfig = {}) => {
                                 {resolvedHeader}
                             </Header>
                         )}
-                        <Content style={{ margin: '12px', padding: '12px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
+                        <Content style={{ margin: '10px', padding: '10px', minHeight: 'calc(100vh - 112px)', ...contentStyle }}>
                             <Outlet />
                         </Content>
                         {resolvedFooter}

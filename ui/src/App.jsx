@@ -85,7 +85,7 @@ export default function App() {
       alignItems: 'center',
       height: '100vh',
     }}>
-      <Spin size="large" tip="Loading..." />
+      <Spin size="large" description="Loading..." />
     </div>
   );
 
@@ -107,7 +107,7 @@ export default function App() {
           // <ProtectedRoute>
           //   <DropdownSidebarLayout />
           // </ProtectedRoute>
-          <AppLayout />
+          <AppLayout AppReload={refetch} />
 
 
 

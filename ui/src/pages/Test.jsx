@@ -15,6 +15,8 @@ import useLocalForage, { DRIVERS } from "../hooks/useLocalForage";
 import useMasonry from "../hooks/useMasonary";
 import useAdd from "../hooks/useAdd";
 import Settings from "../utils/Settings";
+import useEdit from "../hooks/useEdit";
+import ValuesStore from "../store/values-store"
 
 
 
@@ -65,7 +67,9 @@ const result = [
 
 
 export default function Test() {
+    const valuesStore = ValuesStore()
     const addDataForms = useAdd("tables_metadata", "table_name")
+    const edit = useEdit("tables_metadata", "table_name")
 
     const table = useTableApi({
         pagination: {
@@ -162,19 +166,47 @@ export default function Test() {
         },
         {
             title: 'Action',
-            render: (_, record) => (
-                confirm(
-                    `admin/${record.id}`,  // url
-                    record,                // data
-                    'Delete this user?',   // title
-                    <Button type="primary" danger size="small" icon={<DeleteOutlined />} />, // elem
-                    (success) => {         // callback
-                        if (success) console.log('deleted');
-                    }
+            render: (_, record) => {
+                return (
+                    <Space>
+
+                        <Button className="btn-successx border-0x"
+                            onClick={(e) => editRecord(record, "admin")}
+                        >
+                            <i className="fas fa-edit text-success" />
+                        </Button>
+
+                        {
+                            confirm(
+                                `admin/${record.id}`,  // url
+                                record,                // data
+                                'Delete this user?',   // title
+                                <Button type="primary" danger size="small" icon={<DeleteOutlined />} />, // elem
+                                (success) => {         // callback
+                                    if (success) console.log('deleted');
+                                }
+                            )
+                        }
+                    </Space>
                 )
-            ),
+            }
+
+
+            ,
         },
     ];
+
+
+
+    function editRecord(record, tableName) {
+        const storeKey = "editableRecord";
+        valuesStore.setValue(storeKey, record);
+        edit.setTblName(tableName);
+        edit.setData(record);
+        edit.setRecordKey(storeKey);
+        edit.setShowModal(true);
+        edit.setSaveCompleted(false);
+    }
 
 
     function openAddModal(tableName = "admin") {
@@ -304,11 +336,12 @@ export default function Test() {
             <CustomTable tableConfig={table} columns={columns} />
 
 
-            <Calendar {...cal.calendarProps} />
+            {/* <Calendar {...cal.calendarProps} /> */}
             {drawer.drawerJSX()}
             {modal.modalJSX()}
-            {gallery.masonryJSX()}
+            {/* {gallery.masonryJSX()} */}
             {addDataForms.addModal("Add Testing Hook", saveOnOk)}
+            {edit.editModal("Edit Card")}
 
             {/* <AppLayout /> */}
         </>

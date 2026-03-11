@@ -7,6 +7,7 @@ const { uploadSingle } = require("../core/config/multer");
 const { uploadSingleFile } = require("../core/lib/uploadServices");
 const uploadServices = require("../core/lib/uploadServices");
 const utils = require("../shared/utils/functions");
+const Model = require("../core/model/model");
 
 class BaseRoute {
   constructor(app) {
@@ -27,6 +28,7 @@ class BaseRoute {
     this.getTableData(app);
     this.getColFilters(app);
     this.bootstrap(app);
+    this.getExtraMetaList(app);
 
     return this;
   }
@@ -279,6 +281,18 @@ class BaseRoute {
       res.json({
         success: true,
         data,
+      });
+    });
+  }
+
+  getExtraMetaList(app) {
+    app.post("/api/v1/extra_meta_options", async (req, res) => {
+      console.log(req.body);
+      const { sql } = req.body;
+      const result = await new Model().setSql(sql).execute();
+      // console.log(result);
+      res.json({
+        details: result,
       });
     });
   }
