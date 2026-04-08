@@ -7,6 +7,7 @@ import {
 import useSider from '../hooks/useSider';
 import { Avatar, Button, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 
 const items = [
     { key: 'dashboard', label: 'Dashboard', icon: <DashboardOutlined />, path: '/dashboard', order: 1 },
@@ -20,6 +21,7 @@ export default function AppLayout({ AppReload }) {
     const navigate = useNavigate()
     const sider = useSider({
         variant: 'none',
+        width: "225px",
         items,
         isGrouped: false,
         groupKey: 'group',
@@ -46,7 +48,8 @@ export default function AppLayout({ AppReload }) {
                 ? <Avatar style={{ background: '#1677ff' }}>A</Avatar>
                 : <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>MyApp</Typography.Text>
             }
-            {/* <Button onClick={() => AppReload()} /> */}
+            <Button onClick={() => sider.toggle()} />
+            <ThemeToggle />
         </div>
     );
 

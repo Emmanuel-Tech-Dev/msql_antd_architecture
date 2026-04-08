@@ -278,6 +278,8 @@ const useSider = (staticConfig = {}) => {
                 borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : token.colorBorderSecondary}`,
                 padding: '12px 8px',
                 display: 'flex',
+                alignItems: 'center',
+                justifyContent: "center",
                 flexDirection: 'column',
                 gap: 4,
             }}>

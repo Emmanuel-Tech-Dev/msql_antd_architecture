@@ -181,7 +181,7 @@ export default function Test() {
                                 `admin/${record.id}`,  // url
                                 record,                // data
                                 'Delete this user?',   // title
-                                <Button type="primary" danger size="small" icon={<DeleteOutlined />} />, // elem
+                                <Button type="primary" danger icon={<DeleteOutlined />} />, // elem
                                 (success) => {         // callback
                                     if (success) console.log('deleted');
                                 }

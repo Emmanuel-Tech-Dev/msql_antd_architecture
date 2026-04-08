@@ -13,11 +13,16 @@ import useDrawer from "./hooks/useDrawer";
 import useModal from "./hooks/useModal";
 import useLocalForage, { DRIVERS } from "./hooks/useLocalForage";
 import useMasonry from "./hooks/useMasonary";
+import './index.css'
 import AppLayout from "./components/AppLayout";
 import { Navigate, Route, Router, Routes } from "react-router-dom";
 import Test from "./pages/Test";
 import Test2 from "./pages/Test2";
+import { Analytics } from "./pages/Analytics/Analytics";
 import useBootstrap from "./hooks/useBootstrap";
+import { AnalyticsHospital } from "./pages/Analytics/AnalyticsHospital";
+import { AnalyticsSchool } from "./pages/Analytics/AnalyticsSchool";
+import { AnalyticsEcommerce } from "./pages/Analytics/AnalyticsEcommerce";
 
 
 const result = [
@@ -114,7 +119,10 @@ export default function App() {
         }>
           <Route index element={<Test />} />
           <Route path="home" element={<Test />} />
-          {/* <Route path="test" element={<Test2 />} /> */}
+          <Route path="test" element={<Analytics />} />
+          <Route path="test1" element={<AnalyticsHospital />} />
+          <Route path="test2" element={<AnalyticsSchool />} />
+          <Route path="test3" element={<AnalyticsEcommerce />} />
           {/* <Route path='campaign' element={} /> */}
           {/* Settings sub-routes */}
           {/* <Route path="settings">

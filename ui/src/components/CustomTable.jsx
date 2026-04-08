@@ -35,7 +35,7 @@ const CustomTable = ({ tableConfig, columns }) => {
                 </div>
             </Card>
 
-            <Card
+            <div
                 className='!mt-5'
                 styles={{
                     body: {
@@ -47,7 +47,7 @@ const CustomTable = ({ tableConfig, columns }) => {
                 <Table {...tableConfig?.tableProps} columns={columns} />
 
 
-            </Card>
+            </div>
         </div>
     )
 }
