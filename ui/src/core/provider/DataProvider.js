@@ -14,6 +14,7 @@ import { createContext, useContext } from "react";
     getMany   → { data: [] }
     custom    → { data: any }
 */
+
 export const DATA_PROVIDER_INTERFACE = [
   "getList",
   "getOne",
