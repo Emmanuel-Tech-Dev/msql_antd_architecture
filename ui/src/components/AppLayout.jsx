@@ -1,85 +1,91 @@
+// src/components/AppLayout.jsx
 
 import {
-    DashboardOutlined, UserOutlined,
-    SettingOutlined, FileOutlined, TeamOutlined,
-    MenuFoldOutlined, MenuUnfoldOutlined,
+    DashboardOutlined,
+    UserOutlined,
+    SettingOutlined,
+    FileOutlined,
+    TeamOutlined,
+    SafetyOutlined,
+    KeyOutlined,
+    ApiOutlined,
+    ToolOutlined,
+    AppstoreOutlined,
 } from '@ant-design/icons';
 import useSider from '../hooks/useSider';
 import { Avatar, Button, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import { useBrowserRoutes } from '../core/provider/ResourceProvider';
+import useAuthStore from '../store/authStore';
+import { useMemo } from 'react';
 
-const items = [
-    { key: 'dashboard', label: 'Dashboard', icon: <DashboardOutlined />, path: '/dashboard', order: 1 },
-    { key: 'users', label: 'Users', icon: <TeamOutlined />, path: '/users', order: 1, group: 'Management' },
-    { key: 'roles', label: 'Roles', icon: <UserOutlined />, path: '/roles', order: 2, group: 'Management' },
-    { key: 'sales', label: 'Sales', icon: <FileOutlined />, path: '/sales', order: 1, group: 'Reports' },
-    { key: 'settings', label: 'Settings', icon: <SettingOutlined />, path: '/settings', order: 2 },
-];
+const ICON_MAP = {
+    DashboardOutlined: <DashboardOutlined />,
+    UserOutlined: <UserOutlined />,
+    SettingOutlined: <SettingOutlined />,
+    FileOutlined: <FileOutlined />,
+    TeamOutlined: <TeamOutlined />,
+    SafetyOutlined: <SafetyOutlined />,
+    KeyOutlined: <KeyOutlined />,
+    ApiOutlined: <ApiOutlined />,
+    ToolOutlined: <ToolOutlined />,
+    AppstoreOutlined: <AppstoreOutlined />,
+};
+
+const resolveIcon = (iconString) =>
+    ICON_MAP[iconString] ?? <AppstoreOutlined />;
 
 export default function AppLayout({ AppReload }) {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const browserRoutes = useBrowserRoutes();
+    const user = useAuthStore((s) => s.user);
+
+    // transform admin_resources BROWSER_ROUTE rows into useSider item shape
+    const items = useMemo(() =>
+        browserRoutes.map((route) => ({
+            key: route.resource_path,
+            label: route.resource,
+            icon: resolveIcon(route.icon),
+            path: route.resource_path,
+            order: route.order ?? 0,
+            // category maps to groupKey in useSider
+            category: route.category ?? null,
+        })),
+        [browserRoutes]
+    );
+
+
+    console.log("Sider items:", items);
+
     const sider = useSider({
         variant: 'none',
-        width: "225px",
+        width: 225,
         items,
-        isGrouped: false,
-        groupKey: 'group',
+        isGrouped: true,
+        groupKey: 'category',
         groupVariant: 'dropdown',
         appName: 'Admin Panel',
-        showSiderProfile: true,   // shows avatar + name + email at bottom
+        showSiderProfile: true,
         showSiderLogout: true,
-        user: { name: 'Emmanuel', email: 'emmanuel@example.com' },
-        notificationCount: 5,
-        onLogout: () => { console.log("logged out"); navigate('/login'); },
+        user: {
+            name: user?.name ?? 'Admin',
+            email: user?.email ?? '',
+        },
+        notificationCount: 0,
+        onLogout: () => { navigate('/login'); },
         onProfile: () => navigate('/profile'),
-
-        // headerStyle: {
-        //     background: "#fff",
-        //     color: "#000"
-        // }
-        // contentStyle: {
-        //     // margin: "100px 0"
-        // }
     });
+
     const siderHeader = (
-        <div style={{ padding: '0 16px' }}>
+        <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
             {sider.collapsed
                 ? <Avatar style={{ background: '#1677ff' }}>A</Avatar>
                 : <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>MyApp</Typography.Text>
             }
-            <Button onClick={() => sider.toggle()} />
             <ThemeToggle />
         </div>
     );
 
-    // const header = (
-    //     <div style={{ display: 'flex', alignItems: 'center', padding: '0 24px', background: '#001529' }}>
-    //         <Button
-    //             type="text"
-    //             icon={sider.collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-    //             onClick={sider.toggle}
-    //             style={{ color: '#fff', fontSize: 16 }}
-    //         />
-    //     </div>
-    // );
-
     return sider.layoutJSX({ siderHeader, trigger: null });
 }
-//How grouping works
-
-// items = [
-//     { key: 'dashboard', label: 'Dashboard', path: '/dashboard' },        // no group → ungrouped → renders as basic item
-//     { key: 'users', label: 'Users', path: '/users', group: 'User Management' },  // grouped
-//     { key: 'roles', label: 'Roles', path: '/roles', group: 'User Management' },  // grouped
-//     { key: 'settings', label: 'Settings', path: '/settings' },        // no group → ungrouped → renders as basic item
-// ]
-
-// isGrouped: true, groupKey: 'group', groupVariant: 'dropdown'
-
-// result menu:
-// Dashboard          ← ungrouped, basic item
-//   User Management    ← dropdown group
-// Users
-// Roles
-// Settings           ← ungrouped, basic item

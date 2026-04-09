@@ -23,6 +23,7 @@ import useBootstrap from "./hooks/useBootstrap";
 import { AnalyticsHospital } from "./pages/Analytics/AnalyticsHospital";
 import { AnalyticsSchool } from "./pages/Analytics/AnalyticsSchool";
 import { AnalyticsEcommerce } from "./pages/Analytics/AnalyticsEcommerce";
+import { useResourcesReady } from "./core/provider/ResourceProvider";
 
 
 const result = [
@@ -73,26 +74,14 @@ const result = [
 
 export default function App() {
 
-  const { loading, refetch } = useBootstrap({
-    onSuccess: (data) => {
-      console.log('[Bootstrap] ready:', data);
-    },
-    onError: (err) => {
-      console.error('[Bootstrap] failed:', err);
-    },
-  })
+  const isReady = useResourcesReady();
 
-
-  if (loading) return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-    }}>
-      <Spin size="large" description="Loading..." />
+  if (!isReady) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Spin size="large" description="System Getting Ready..." />
     </div>
   );
+
 
 
   return (
@@ -112,7 +101,7 @@ export default function App() {
           // <ProtectedRoute>
           //   <DropdownSidebarLayout />
           // </ProtectedRoute>
-          <AppLayout AppReload={refetch} />
+          <AppLayout />
 
 
 

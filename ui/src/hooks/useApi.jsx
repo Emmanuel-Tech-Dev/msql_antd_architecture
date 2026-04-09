@@ -1,38 +1,65 @@
-import { useRequest } from "ahooks";
-import { apiRequest } from "../services/apiClient";
-import Settings from "../utils/Settings";
-import useNotification from "./useNotification";
+// src/hooks/useApi.js
 
-// hooks/useApi.js
-const useApi = (method, url, options = {}) => {
+import { useCustom, useCustomMutation } from '../core/hooks/data/useCustom';
+import useNotification from './useNotification';
+
+const useApi = (method = 'get', url, options = {}) => {
     const { message } = useNotification();
+    const isRead = method.toLowerCase() === 'get';
+    const {
+        manual = false,
+        onSuccess,
+        onError,
+        successMessage,
+        ...restOptions
+    } = options;
 
-    return useRequest(
-        (data) => apiRequest(method, `${Settings.baseUrl}/${url}`, data),
-        {
-            manual: true,
-            // Pass the original options so ahooks sees them
-            ...options,
-            onSuccess: (res, params) => {
-                // 1. Internal logic (Notifications)
-                if (options.successMessage) {
-                    message.success(options.successMessage);
-                }
-
-                // 2. Manual Trigger: Call the function passed in the options
-                // This ensures the code in useBootstrap: (res) => { console.log(res) } runs
-                if (options.onSuccess) {
-                    options.onSuccess(res, params);
-                }
+    const queryResult = useCustom({
+        url,
+        method,
+        queryOptions: {
+            enabled: isRead && !manual,
+            onSuccess: (data) => {
+                if (successMessage) message.success(successMessage);
+                onSuccess?.(data);
             },
-            onError: (err, params) => {
+            onError: (err) => {
                 message.error(err?.message || 'Something went wrong');
-                if (options.onError) {
-                    options.onError(err, params);
-                }
+                onError?.(err);
             },
-        }
-    );
+            ...restOptions,
+        },
+    });
+
+    const mutationResult = useCustomMutation({
+        mutationOptions: {
+            onSuccess: (data) => {
+                if (successMessage) message.success(successMessage);
+                onSuccess?.(data);
+            },
+            onError: (err) => {
+                message.error(err?.message || 'Something went wrong');
+                onError?.(err);
+            },
+            ...restOptions,
+        },
+    });
+
+    if (isRead) {
+        return {
+            data: queryResult.data?.data,
+            loading: queryResult.isLoading,
+            error: queryResult.error,
+            run: queryResult.refetch,
+        };
+    }
+
+    return {
+        data: mutationResult.data?.data,
+        loading: mutationResult.isPending,
+        error: mutationResult.error,
+        run: (payload) => mutationResult.mutate({ url, method, payload }),
+    };
 };
 
 export default useApi;

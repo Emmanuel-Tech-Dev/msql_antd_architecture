@@ -1,8 +1,6 @@
-// src/core/hooks/data/useCreate.js
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useDataProvider } from "../../providers/DataProvider";
-import queryKeys from "../../queryKeys";
+import { useDataProvider } from "../../provider/DataProvider";
+//import queryKeys from "../../queryKeys";
 
 const useCreate = ({ resource, meta, mutationOptions = {} } = {}) => {
   const dataProvider = useDataProvider();

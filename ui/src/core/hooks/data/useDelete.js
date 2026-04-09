@@ -1,7 +1,7 @@
 // src/core/hooks/data/useDelete.js
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useDataProvider } from "../../providers/DataProvider";
+import { useDataProvider } from "../../provider/DataProvider";
 
 const useDeleteOne = ({ resource, meta, mutationOptions = {} } = {}) => {
   const dataProvider = useDataProvider();

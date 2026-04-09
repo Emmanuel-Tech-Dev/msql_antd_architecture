@@ -6,7 +6,7 @@ import { Button, Calendar, Input, Space, Table } from "antd";
 import { useState } from "react";
 import CustomTable from "../components/CustomTable";
 import useDelete from "../hooks/useDelete";
-import { DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import useApi from "../hooks/useApi";
 import useCalendar from "../hooks/useCalender";
 import useDrawer from "../hooks/useDrawer";
@@ -99,7 +99,7 @@ export default function Test() {
 
     }
     )
-    const { confirm, saveCompleted } = useDelete();
+    const { confirm, saveCompleted } = useDelete({ resource: "admin" });
     // const { data, loading, run: fetchNewData } = useApi("get", "admin_roles")
     ;
 
@@ -170,23 +170,20 @@ export default function Test() {
                 return (
                     <Space>
 
-                        <Button className="btn-successx border-0x"
+                        <Button type=""
                             onClick={(e) => editRecord(record, "admin")}
-                        >
-                            <i className="fas fa-edit text-success" />
-                        </Button>
+                            icon={<EditOutlined />}
+                        />
 
-                        {
-                            confirm(
-                                `admin/${record.id}`,  // url
-                                record,                // data
-                                'Delete this user?',   // title
-                                <Button type="primary" danger icon={<DeleteOutlined />} />, // elem
-                                (success) => {         // callback
-                                    if (success) console.log('deleted');
-                                }
-                            )
-                        }
+
+                        {confirm(
+                            record.id,
+                            'Delete this user?',
+                            <Button type="primary" danger icon={<DeleteOutlined />} />,
+                            (success) => {
+                                if (success) console.log('deleted');
+                            }
+                        )}
                     </Space>
                 )
             }
@@ -296,7 +293,7 @@ export default function Test() {
 
 
     function saveOnOk() {
-        addDataForms.save(`${Settings.baseUrl}/admin`)
+        addDataForms.save(`${Settings.baseUrl}/api/admin`)
 
     }
 

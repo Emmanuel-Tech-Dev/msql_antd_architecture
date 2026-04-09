@@ -1,7 +1,7 @@
 // src/core/hooks/data/useList.js
 
 import { useQuery } from "@tanstack/react-query";
-import { useDataProvider } from "../../providers/DataProvider";
+import { useDataProvider } from "../../provider/DataProvider";
 import queryKeys from "../../queryKeys";
 
 const useList = ({

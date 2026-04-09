@@ -9,6 +9,9 @@ import useTextEditor from './useTextEditor';
 import useDraggable from './useDraggable';
 import useNotification from './useNotification';
 import { apiRequest } from '../services/apiClient';
+import { useCustomMutation } from '../core/hooks/data/useCustom';
+import useUpdate from '../core/hooks/data/useUpdate';
+import { useQueryClient } from "@tanstack/react-query";
 
 const { RangePicker } = DatePicker;
 
@@ -691,37 +694,110 @@ const useEdit = (tablesMetaData, whereKeyName) => {
     }
 
     // ─── save ─────────────────────────────────────────────────────────────
-    async function save(key = undefined, url = `${Settings.baseUrl}/update`, tableName = tblName, endpoint = null, callback) {
-        removeNonEditableFields(key || recordKey, tableName);
+    // async function save(key = undefined, url = `${Settings.baseUrl}/update`, tableName = tblName, endpoint = null, callback) {
+    //     removeNonEditableFields(key || recordKey, tableName);
+    //     const d = valuesStore.getValue(key || recordKey);
+    //     const b = removeUnknownFields(tableName, d);
+    //     const res = await apiRequest('put', url, b);
+    //     if (res.status === 'Ok') {
+    //         reset(key);
+    //         message.success('Record has been updated successfully');
+    //         callback?.(true, 'Record has been updated successfully');
+    //     } else {
+    //         message.error(res.msg);
+    //         callback?.(false, res.msg);
+    //     }
+    // }
+
+    // async function saveRaw(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback) {
+    //     removeNonEditableFields(key || recordKey, tableName);
+    //     const d = valuesStore.getValue(key || recordKey);
+    //     const res = await utils.requestWithReauth('post', url, endpoint, d);
+    //     if (res.status === 'Ok') {
+    //         reset(key);
+    //         message.success('Record has been updated successfully');
+    //         callback?.(true, 'Record has been updated successfully');
+    //     } else {
+    //         message.error(res.msg);
+    //         callback?.(false, res.msg);
+    //     }
+    // }
+
+    // async function saveSelected(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback, localSelectedKeysToEdit) {
+    //     removeNonEditableFields(key || recordKey, tableName);
+    //     const d = valuesStore.getValue(key || recordKey);
+    //     const keys = localSelectedKeysToEdit || selectedKeysToEdit;
+
+    //     if (!Array.isArray(keys)) {
+    //         message.error('Keys to select must be an array');
+    //         return;
+    //     }
+
+    //     const b = {};
+    //     for (const k of keys) { b[k] = d[k]; }
+
+    //     const res = await utils.requestWithReauth('post', url, endpoint, b);
+    //     if (res.status === 'Ok') {
+    //         reset(key);
+    //         message.success('Record has been updated successfully');
+    //         callback?.(true, 'Record has been updated successfully');
+    //     } else {
+    //         message.error(res.msg);
+    //         callback?.(false, res.msg);
+    //     }
+    // }
+
+    // async function saveWithFiles(key = undefined, url = `${Settings.baseUrl}/edit_with_files`, tableName = tblName, endpoint = null) {
+    //     removeNonEditableFields(key || recordKey, tableName);
+    //     const d = valuesStore.getValue(key || recordKey);
+    //     const b = removeUnknownFields(tableName, d);
+    //     const data = { record: JSON.stringify(b), files: JSON.stringify(upload.fileList) };
+    //     const res = await utils.requestWithReauth('post', url, endpoint, data);
+    //     if (res.status === 'Ok') {
+    //         reset(key);
+    //         message.success('Record has been updated successfully');
+    //     } else {
+    //         message.error(res.msg);
+    //     }
+    // }
+
+
+
+    // const { mutate: updateMutate, isPending: updatePending } = useUpdate({
+    //     resource,
+    //     meta,
+    //     mutationOptions: {
+    //         onError: (error) => message.error(error?.message || 'Failed to update record'),
+    //     },
+    // });
+
+    const queryClient = useQueryClient();
+
+    // Replace save():
+    async function save(key = undefined, id, resource = tblName, callback) {
+        removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
-        const b = removeUnknownFields(tableName, d);
-        const res = await apiRequest('put', url, b);
-        if (res.status === 'Ok') {
+        const b = removeUnknownFields(resource, d);
+
+        setLoading(true);
+        try {
+            await apiRequest('put', `api/${resource}/${id}`, b);
+            queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
+            queryClient.removeQueries({ queryKey: [resource, 'detail', id] });
             reset(key);
             message.success('Record has been updated successfully');
             callback?.(true, 'Record has been updated successfully');
-        } else {
-            message.error(res.msg);
-            callback?.(false, res.msg);
+        } catch (error) {
+            message.error(error?.message || 'Failed to update record');
+            callback?.(false, error?.message);
+        } finally {
+            setLoading(false);
         }
     }
 
-    async function saveRaw(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback) {
-        removeNonEditableFields(key || recordKey, tableName);
-        const d = valuesStore.getValue(key || recordKey);
-        const res = await utils.requestWithReauth('post', url, endpoint, d);
-        if (res.status === 'Ok') {
-            reset(key);
-            message.success('Record has been updated successfully');
-            callback?.(true, 'Record has been updated successfully');
-        } else {
-            message.error(res.msg);
-            callback?.(false, res.msg);
-        }
-    }
-
-    async function saveSelected(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback, localSelectedKeysToEdit) {
-        removeNonEditableFields(key || recordKey, tableName);
+    // Replace saveSelected():
+    async function saveSelected(key = undefined, id, resource = tblName, callback, localSelectedKeysToEdit) {
+        removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
         const keys = localSelectedKeysToEdit || selectedKeysToEdit;
 
@@ -731,30 +807,55 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
 
         const b = {};
-        for (const k of keys) { b[k] = d[k]; }
+        keys.forEach((k) => { b[k] = d[k]; });
 
-        const res = await utils.requestWithReauth('post', url, endpoint, b);
-        if (res.status === 'Ok') {
+        setLoading(true);
+        try {
+            await apiRequest('put', `api/${resource}/${id}`, b);
+            queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
+            queryClient.removeQueries({ queryKey: [resource, 'detail', id] });
             reset(key);
             message.success('Record has been updated successfully');
             callback?.(true, 'Record has been updated successfully');
-        } else {
-            message.error(res.msg);
-            callback?.(false, res.msg);
+        } catch (error) {
+            message.error(error?.message || 'Failed to update record');
+            callback?.(false, error?.message);
+        } finally {
+            setLoading(false);
         }
     }
 
-    async function saveWithFiles(key = undefined, url = `${Settings.baseUrl}/edit_with_files`, tableName = tblName, endpoint = null) {
-        removeNonEditableFields(key || recordKey, tableName);
+    // Replace saveWithFiles():
+    async function saveWithFiles(key = undefined, id, resource = tblName) {
+        removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
-        const b = removeUnknownFields(tableName, d);
-        const data = { record: JSON.stringify(b), files: JSON.stringify(upload.fileList) };
-        const res = await utils.requestWithReauth('post', url, endpoint, data);
-        if (res.status === 'Ok') {
+        const b = removeUnknownFields(resource, d);
+
+        const formData = new FormData();
+        formData.append('body', JSON.stringify(b));
+
+        if (upload.fileList?.length) {
+            upload.fileList.forEach((file) => {
+                if (file.originFileObj) formData.append('file', file.originFileObj);
+            });
+        }
+
+        setLoading(true);
+        try {
+            await apiRequest(
+                'post',
+                `api/${resource}/file`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } }
+            );
+            queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
+            queryClient.removeQueries({ queryKey: [resource, 'detail', id] });
             reset(key);
             message.success('Record has been updated successfully');
-        } else {
-            message.error(res.msg);
+        } catch (error) {
+            message.error(error?.message || 'Failed to update record');
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -843,7 +944,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         recallFiles, recallSingleFile,
         setShowModal,
         setTblMetaDataName, setWhrKeyName,
-        save, saveRaw, saveSelected, saveWithFiles,
+        save, saveSelected, saveWithFiles,
         setTblName, tblName,
         setData, setRecordKey,
         upload, editor,

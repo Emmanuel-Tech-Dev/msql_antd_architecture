@@ -11,6 +11,9 @@ import useDynamicForm from './useDynamicForm';
 import dayjs from 'dayjs';
 import useNotification from './useNotification';
 import { apiRequest } from '../services/apiClient';
+import useCreate from '../core/hooks/data/useCreate';
+import { useCustomMutation } from '../core/hooks/data/useCustom';
+import { useQueryClient } from "@tanstack/react-query";
 
 const { RangePicker } = DatePicker;
 
@@ -208,7 +211,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
 
                                 const res = await apiRequest(
                                     'post',
-                                    `${Settings.baseUrl}/v1/${requestTo}`,
+                                    `/api/v1/${requestTo}`,
                                     { sql },
                                     null
 
@@ -713,37 +716,68 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
     }
 
     // ─── save ─────────────────────────────────────────────────────────────
-    async function save(url = `${Settings.baseUrl}/${tblName}`, tablemodel = { tbl: tblName }, callback) {
+    // const { mutate: createMutate, isPending: createPending } = useCreate({
+    //     resource,
+    //     meta,
+    //     mutationOptions: {
+    //         onError: (error) => message.error(error?.message || 'Failed to save record'),
+    //     },
+    // });
+
+    const queryClient = useQueryClient();
+
+    // Replace save():
+    async function save(resource, callback) {
         const v = validateShowErrorMessage();
         if (!v?.isValid) return;
 
-        const res = await apiRequest('post', url, { ...record });
-        if (res.status === 'Ok') {
+        setLoading(true);
+        try {
+            await apiRequest('post', `api/${resource}`, { ...record });
+            queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
             reset();
             message.success('Record has been added successfully');
             callback?.(true, 'Record has been added successfully');
-        } else {
-            message.error(res.msg);
-            callback?.(false, res.msg);
+        } catch (error) {
+            message.error(error?.message || 'Failed to save record');
+            callback?.(false, error?.message);
+        } finally {
+            setLoading(false);
         }
     }
 
-    async function saveWithFiles(url = `${Settings.baseUrl}/add_with_files`, tablemodel = { tbl: tblName }, callback) {
+    // Replace saveWithFiles():
+    async function saveWithFiles(resource, callback) {
         const v = validateShowErrorMessage();
         if (!v?.isValid) return;
 
-        const data = {
-            record: JSON.stringify(record),
-            files: JSON.stringify(upload.base64FileList),
-        };
-        const res = await utils.requestWithReauth('post', url, tablemodel, data);
-        if (res.status === 'Ok') {
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('body', JSON.stringify(record));
+
+            if (upload.fileList?.length) {
+                upload.fileList.forEach((file) => {
+                    if (file.originFileObj) formData.append('file', file.originFileObj);
+                });
+            }
+
+            await apiRequest(
+                'post',
+                `/api/${resource}/file`,
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' } }
+            );
+
+            queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
             reset();
             message.success('Record has been added successfully');
             callback?.(true, 'Record has been added successfully');
-        } else {
-            message.error(res.msg);
-            callback?.(false, res.msg);
+        } catch (error) {
+            message.error(error?.message || 'Failed to save record');
+            callback?.(false, error?.message);
+        } finally {
+            setLoading(false);
         }
     }
 

@@ -1,5 +1,3 @@
-// src/core/hooks/data/useMany.js
-
 import { useQuery } from "@tanstack/react-query";
 import { useDataProvider } from "../../providers/DataProvider";
 import queryKeys from "../../queryKeys";

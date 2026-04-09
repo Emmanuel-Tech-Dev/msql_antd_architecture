@@ -1,7 +1,7 @@
 // src/core/hooks/data/useCustom.js
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useDataProvider } from "../../providers/DataProvider";
+import { useDataProvider } from "../../provider/DataProvider";
 import queryKeys from "../../queryKeys";
 
 export const useCustom = ({

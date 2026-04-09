@@ -1,6 +1,6 @@
 // src/core/providers/FrameworkProvider.jsx
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { DataProviderContext, validateProvider } from './DataProvider';
 import { AuthProviderContext, validateAuthProvider } from './AuthProvider';
@@ -15,7 +15,7 @@ function FrameworkBootstrap({ dataProvider, resources, children }) {
     const setRegistry = useResourceStore((s) => s.setRegistry);
     const valuesStore = useValuesStore();
 
-    const { error: bootstrapError } = useQuery({
+    const { data, error: bootstrapError } = useQuery({
         queryKey: queryKeys.bootstrap(),
         queryFn: () => dataProvider.custom({
             url: 'api/v1/bootstrap',
@@ -28,21 +28,24 @@ function FrameworkBootstrap({ dataProvider, resources, children }) {
             },
         }),
         staleTime: Infinity,
-        onSuccess: (res) => {
-            const bootstrapData = res?.data ?? {};
-
-            const tablesMetadata = bootstrapData.tables_metadata ?? [];
-            valuesStore.setValue('tables_metadata', tablesMetadata);
-
-            const adminResources = bootstrapData.admin_resources ?? [];
-            const { resources: mergedResources, browserRoutes } = mergeResources(
-                resources,
-                adminResources
-            );
-
-            setRegistry({ resources: mergedResources, browserRoutes });
-        },
     });
+
+    useEffect(() => {
+        if (!data) return;
+
+        const bootstrapData = data?.data?.data ?? {};
+        console.log(bootstrapData)
+        const tablesMetadata = bootstrapData.tables_metadata ?? [];
+        valuesStore.setValue('tables_metadata', tablesMetadata);
+
+        const adminResources = bootstrapData.admin_resources ?? [];
+        const { resources: mergedResources, browserRoutes } = mergeResources(
+            resources,
+            adminResources
+        );
+
+        setRegistry({ resources: mergedResources, browserRoutes });
+    }, [data]);
 
     if (bootstrapError) {
         console.error('[Framework] Bootstrap failed:', bootstrapError.message);
