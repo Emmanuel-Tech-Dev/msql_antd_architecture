@@ -158,8 +158,6 @@ const mysqlOrmProvider = (baseUrl) => ({
         headers: headers ?? {},
       });
 
-      console.log("Custom request response:", data);
-
       return { data };
     } catch (e) {
       normalizeError(e);

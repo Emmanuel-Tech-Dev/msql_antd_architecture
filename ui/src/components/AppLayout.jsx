@@ -1,19 +1,12 @@
 // src/components/AppLayout.jsx
 
 import {
-    DashboardOutlined,
-    UserOutlined,
-    SettingOutlined,
-    FileOutlined,
-    TeamOutlined,
-    SafetyOutlined,
-    KeyOutlined,
-    ApiOutlined,
-    ToolOutlined,
-    AppstoreOutlined,
+    DashboardOutlined, UserOutlined, SettingOutlined,
+    FileOutlined, TeamOutlined, SafetyOutlined,
+    KeyOutlined, ApiOutlined, ToolOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
 import useSider from '../hooks/useSider';
-import { Avatar, Button, Typography } from 'antd';
+import { Avatar, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import { useBrowserRoutes } from '../core/provider/ResourceProvider';
@@ -33,15 +26,30 @@ const ICON_MAP = {
     AppstoreOutlined: <AppstoreOutlined />,
 };
 
-const resolveIcon = (iconString) =>
-    ICON_MAP[iconString] ?? <AppstoreOutlined />;
+const resolveIcon = (iconString) => ICON_MAP[iconString] ?? <AppstoreOutlined />;
 
-export default function AppLayout({ AppReload }) {
+// initConfig — layout structure decisions, never change after mount
+const SIDER_INIT = {
+    variant: 'default', //none , default, sider, top
+    width: 220,
+    collapsedWidth: 80,
+    breakpoint: 'lg',
+    theme: 'dark',
+    isGrouped: true,
+    groupKey: 'category',
+    groupVariant: 'dropdown',
+    bottomKey: '/admin/settings/system_logs',
+    defaultHeader: true,
+    defaultFooter: false,
+    showSiderProfile: true,
+    showSiderLogout: true,
+};
+
+export default function AppLayout() {
     const navigate = useNavigate();
     const browserRoutes = useBrowserRoutes();
     const user = useAuthStore((s) => s.user);
 
-    // transform admin_resources BROWSER_ROUTE rows into useSider item shape
     const items = useMemo(() =>
         browserRoutes.map((route) => ({
             key: route.resource_path,
@@ -49,41 +57,41 @@ export default function AppLayout({ AppReload }) {
             icon: resolveIcon(route.icon),
             path: route.resource_path,
             order: route.order ?? 0,
-            // category maps to groupKey in useSider
             category: route.category ?? null,
         })),
         [browserRoutes]
     );
 
-
-    console.log("Sider items:", items);
-
-    const sider = useSider({
-        variant: 'none',
-        width: 225,
+    // liveConfig — reactive values that change after mount
+    const sider = useSider(SIDER_INIT, {
         items,
-        isGrouped: true,
-        groupKey: 'category',
-        groupVariant: 'dropdown',
         appName: 'Admin Panel',
-        showSiderProfile: true,
-        showSiderLogout: true,
         user: {
             name: user?.name ?? 'Admin',
             email: user?.email ?? '',
         },
         notificationCount: 0,
-        onLogout: () => { navigate('/login'); },
+        onLogout: () => navigate('/login'),
         onProfile: () => navigate('/profile'),
     });
 
     const siderHeader = (
-        <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+            padding: '0 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+        }}>
             {sider.collapsed
-                ? <Avatar style={{ background: '#1677ff' }}>A</Avatar>
-                : <Typography.Text strong style={{ color: '#fff', fontSize: 16 }}>MyApp</Typography.Text>
+                ? <Avatar style={{ background: '#1677ff', flexShrink: 0 }}>A</Avatar>
+                : <Typography.Text strong style={{ color: '#fff', fontSize: 15 }}>
+                    Admin Panel
+                </Typography.Text>
             }
-            <ThemeToggle />
+            <div style={{ marginLeft: 'auto' }}>
+                <ThemeToggle />
+            </div>
         </div>
     );
 

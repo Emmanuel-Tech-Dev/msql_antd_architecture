@@ -14,13 +14,15 @@ const useList = ({
 }) => {
   const dataProvider = useDataProvider();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.list(resource, { pagination, filters, sorters }),
     queryFn: () =>
       dataProvider.getList({ resource, pagination, filters, sorters, meta }),
     enabled: !!resource,
     ...queryOptions,
   });
+
+  return query;
 };
 
 export default useList;

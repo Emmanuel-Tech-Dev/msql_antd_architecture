@@ -42,6 +42,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
     const [extraMetaList, setExtraMetaList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [validatorMap, setValidatorMap] = useState({});
+    const [optionsVersion, setOptionsVersion] = useState(0);
 
     // ─── refs ─────────────────────────────────────────────────────────────
     const recordRef = useRef(record);          // always-current record — no stale closure in addForm
@@ -49,6 +50,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
     const targetPendingRef = useRef(new Set());       // prevents duplicate setTarget in-flight calls
     const formBuildingRef = useRef(false);           // prevents concurrent addForm runs
 
+    const loadedOptionsRef = useRef(0);
     // keep recordRef in sync with record state — no form rebuild triggered
     useEffect(() => {
         recordRef.current = record;
@@ -88,8 +90,9 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
         addForm(tblName);
     }, [
         tblName,
-        sqlSelectResult,
-        fields,
+        // sqlSelectResult,
+        // fields,
+        optionsVersion,
         dynamicForm.htmlMarkupModel,
         dynamicForm.childrenHtmlMarkupModel,
         upload.fileList,
@@ -598,6 +601,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
             // one batched setState for all option results — not N separate calls
             if (Object.keys(batchedSqlResults).length) {
                 setSqlSelectResult((prev) => ({ ...prev, ...batchedSqlResults }));
+                setOptionsVersion((v) => v + 1);
             }
 
             setForm(html);
@@ -674,6 +678,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
                     }
 
                     setSqlSelectResult((prev) => ({ ...prev, [target]: resolvedOptions }));
+                    setOptionsVersion((v) => v + 1);
                 })
             );
         } finally {

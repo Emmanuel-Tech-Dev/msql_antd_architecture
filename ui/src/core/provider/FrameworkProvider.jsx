@@ -34,7 +34,7 @@ function FrameworkBootstrap({ dataProvider, resources, children }) {
         if (!data) return;
 
         const bootstrapData = data?.data?.data ?? {};
-        console.log(bootstrapData)
+
         const tablesMetadata = bootstrapData.tables_metadata ?? [];
         valuesStore.setValue('tables_metadata', tablesMetadata);
 

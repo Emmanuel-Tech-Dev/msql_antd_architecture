@@ -1,6 +1,6 @@
 // src/hooks/useTableApi.js
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import useTableState from './table/useTableState';
 import useTableQuery from './table/useTableQuery';
 import useTableColumns from './table/useTableColumns';
@@ -35,10 +35,12 @@ const useTableApi = (
         const normalizedFilters = {};
         Object.entries(filters ?? {}).forEach(([key, value]) => {
             if (!value || value.length === 0) return;
-            normalizedFilters[`${key}_like`] = Array.isArray(value)
+            normalizedFilters[key] = Array.isArray(value)
                 ? value.join(',')
                 : value;
         });
+
+
 
         state.updateParams({
             pagination: {
@@ -70,6 +72,15 @@ const useTableApi = (
         state.setSearch(term);
     }, [state]);
 
+    // ─── Auto-refetch when tableParams change ────────────────────────────────
+    useEffect(() => {
+      
+        if (reqOptions?.manual && query.refetch) {
+           
+            query.refetch();
+        }
+    }, [state.tableParams, query.refetch]);
+
     // ─── runRequest — reset and refetch ──────────────────────────────────────
     const runRequest = useCallback(() => {
         state.resetParams();
@@ -91,6 +102,7 @@ const useTableApi = (
         onChange: handleTableChange,
         rowSelection: selection.rowSelectionConfig,
     };
+
 
     return {
         // data

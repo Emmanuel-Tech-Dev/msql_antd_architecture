@@ -13,6 +13,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
   const [columnFilters, setColumnFilters] = useState({});
   const searchInput = useRef(null);
 
+
   const handleSearch = useCallback(
     (selectedKeys, confirm, dataIndex) => {
       confirm();
@@ -32,10 +33,14 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
   );
 
   const handleReset = useCallback(
-    (clearFilters, dataIndex) => {
+    (clearFilters, dataIndex, setSelectedKeys, confirm) => {
+
+      setSelectedKeys([]);
       clearFilters();
+      confirm();
       setSearchText("");
       setSearchedColumn("");
+
 
       const newFilters = { ...tableParams.filters };
       delete newFilters[`${dataIndex}_like`];
@@ -47,6 +52,10 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
     },
     [tableParams, updateParams],
   );
+
+
+
+ 
 
   const getColumnSearchProps = useCallback(
     (dataIndex) => ({
@@ -80,7 +89,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
             </Button>
             <Button
               onClick={() =>
-                clearFilters && handleReset(clearFilters, dataIndex)
+                clearFilters && handleReset(clearFilters, dataIndex, setSelectedKeys, confirm)
               }
               size="small"
               style={{ width: 90 }}
@@ -165,6 +174,18 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
     [isClientSide, columnFilters],
   );
 
+  // ─── Clear all filters ────────────────────────────────────────────────────
+  const clearAllFilters = useCallback(() => {
+    setSearchText("");
+    setSearchedColumn("");
+    setColumnFilters({});
+
+    updateParams({
+      pagination: { ...tableParams.pagination, current: 1 },
+      filters: {},
+    });
+  }, [tableParams, updateParams]);
+
   const getColumnFilterProps = useCallback(
     (dataIndex, resource) => {
       if (isClientSide) return {};
@@ -191,6 +212,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
     getColumnSearchProps,
     getColumnFilterProps,
     setColFilters,
+    clearAllFilters,
   };
 };
 

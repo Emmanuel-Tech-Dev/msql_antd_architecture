@@ -217,7 +217,7 @@ export default function Test() {
         console.log("initialized..")
         table.setAllowSelection(true)
         // table.setColFilters("custom_id", `admin`)
-        table.runRequest()
+        // table.runRequest()
     }, [])
 
 
@@ -293,7 +293,7 @@ export default function Test() {
 
 
     function saveOnOk() {
-        addDataForms.save(`${Settings.baseUrl}/api/admin`)
+        addDataForms.save("admin")
 
     }
 

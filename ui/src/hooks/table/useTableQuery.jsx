@@ -9,8 +9,11 @@ const normalizeFilters = (filters = {}) => {
   const result = {};
   Object.entries(filters).forEach(([key, value]) => {
     if (!value || value.length === 0) return;
-    result[`${key}_like`] = Array.isArray(value) ? value.join(",") : value;
+    // Add _like suffix (lowercase) for backend queries - avoid duplicates
+    const backendKey = key.endsWith('_like') ? key : `${key}_like`;
+    result[backendKey] = Array.isArray(value) ? value.join(",") : value;
   });
+
   return result;
 };
 
@@ -34,7 +37,7 @@ const useTableQuery = ({
       current: tableParams.pagination.current,
       pageSize: tableParams.pagination.pageSize,
     },
-    filters,
+    filters: filters,
     sorters: tableParams.sorter,
     meta: {
       mysql: {
@@ -54,7 +57,10 @@ const useTableQuery = ({
     },
   });
 
+
+
   const record = data?.data ?? [];
+
   const pagination = data?.pagination ?? {};
 
   return {

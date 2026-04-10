@@ -9,9 +9,7 @@ import useTextEditor from './useTextEditor';
 import useDraggable from './useDraggable';
 import useNotification from './useNotification';
 import { apiRequest } from '../services/apiClient';
-import { useCustomMutation } from '../core/hooks/data/useCustom';
-import useUpdate from '../core/hooks/data/useUpdate';
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from '@tanstack/react-query';
 
 const { RangePicker } = DatePicker;
 
@@ -21,6 +19,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
     const upload = useUpload('', '');
     const editor = useTextEditor();
     const draggable = useDraggable();
+    const queryClient = useQueryClient();
 
     const [showModal, setShowModal] = useState(false);
     const [tblMetaDataName, setTblMetaDataName] = useState(tablesMetaData);
@@ -40,19 +39,20 @@ const useEdit = (tablesMetaData, whereKeyName) => {
     const [loading, setLoading] = useState(false);
     const [selectedKeysToEdit, setSelectedKeysToEdit] = useState([]);
     const [validatorMap, setValidatorMap] = useState({});
+    const [optionsVersion, setOptionsVersion] = useState(0);
 
-    // ─── refs ─────────────────────────────────────────────────────────────
-    const dataRef = useRef(data);           // always-current data — no stale closure in editableForm
-    const extraMetaRef = useRef(new Set());      // O(1) guard — replaces extraMetaList array check
-    const targetPendingRef = useRef(new Set());      // prevents duplicate setTarget in-flight calls
-    const formBuildingRef = useRef(false);          // prevents concurrent editableForm runs
+    // ─── refs ──────────────────────────────────────────────────────────────
+    const dataRef = useRef(data);
+    const extraMetaRef = useRef(new Set());
+    const targetPendingRef = useRef(new Set());
+    const formBuildingRef = useRef(false);
 
-    // keep dataRef in sync — no form rebuild on every keystroke
+    // keep dataRef in sync with data state
     useEffect(() => {
         dataRef.current = data;
     }, [data]);
 
-    // ─── memoize metadata lookup ──────────────────────────────────────────
+    // ─── metadata lookup ───────────────────────────────────────────────────
     const tblMeta = useMemo(() => {
         if (!tblName) return [];
         return valuesStore
@@ -60,20 +60,18 @@ const useEdit = (tablesMetaData, whereKeyName) => {
             ?.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0)) ?? [];
     }, [tblName, tblMetaDataName, whrKeyName, valuesStore]);
 
-    // ─── O(1) meta lookup map — eliminates O(n²) nested loops ────────────
     const metaByColumn = useMemo(() => {
         const map = {};
         tblMeta.forEach((m) => { map[m.column_name] = m; });
         return map;
     }, [tblMeta]);
 
-    // ─── filtered meta ────────────────────────────────────────────────────
     const filteredMeta = useMemo(() => {
         if (!fields?.length) return tblMeta;
         return tblMeta.filter((v) => fields.includes(v.column_name));
     }, [tblMeta, fields]);
 
-    // ─── helpers ──────────────────────────────────────────────────────────
+    // ─── helpers ───────────────────────────────────────────────────────────
     function selectOptionLabelRender(image, key, value, row) {
         const vl = value?.split(',').map((val) => row[val]).join(' - ');
         return image ? (
@@ -84,9 +82,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         ) : vl;
     }
 
-    // ─── useEffect for editableForm — replaces useMemo misuse ────────────
-    // data excluded from deps — reads from dataRef.current instead
-    // valuesStore.getValue(recordKey) removed — was a function call in deps array
+    // ─── editableForm effect ───────────────────────────────────────────────
+    // data is back in deps — safe now because changeValue no longer calls setData
+    // typing only updates valuesStore + dataRef, zero setState calls
     useEffect(() => {
         if (!tblName || !data || !recordKey) return;
         if (formBuildingRef.current) return;
@@ -94,12 +92,13 @@ const useEdit = (tablesMetaData, whereKeyName) => {
     }, [
         tblName,
         recordKey,
-        sqlSelectResult,
+        data,           // safe to include — changeValue no longer calls setData
         fields,
         upload.fileList,
+        optionsVersion,
     ]);
 
-    // ─── editableForm ─────────────────────────────────────────────────────
+    // ─── editableForm ──────────────────────────────────────────────────────
     async function editableForm(data, recordKey, tableName) {
         if (formBuildingRef.current) return;
         formBuildingRef.current = true;
@@ -111,13 +110,12 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                 return;
             }
 
-            const currentData = dataRef.current ?? {};
+            const currentData = data ?? {};
             const tempValidatorMap = {};
-            const batchedSqlResults = {};  // accumulate — one setSqlSelectResult at end
+            const batchedSqlResults = {};
             const html = [];
 
             for (const key of Object.keys(currentData)) {
-                // O(1) lookup — replaces O(n) inner for loop per key
                 const metaItem = metaByColumn[key];
                 if (!metaItem) continue;
 
@@ -134,7 +132,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
 
                 const value = valuesStore.getValue(recordKey)?.[key];
                 const marginBottom = 'mb-2';
-                const showValidatorIndicator = validator ? <label className="text-red-500">*</label> : '';
+                const showValidatorIndicator = validator
+                    ? <label className="text-red-500">*</label>
+                    : '';
 
                 let options;
 
@@ -183,7 +183,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                         const groupBy = p?.groupBy;
                         const endpoint = p?.endpoint;
                         const endpointResKey = p?.endpoint_result_key;
-                        const requestTo = endpoint ? endpoint : 'get_extra_meta_options';
+                        const requestTo = endpoint ? endpoint : 'api/v1/extra_meta_options';
 
                         for (const placeholder in sqlPlaceHolders) {
                             sql = sql.replace(placeholder, sqlPlaceHolders[placeholder]);
@@ -196,12 +196,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                                 extraMetaRef.current.add(name);
                                 setExtraMetaList((r) => [...r, name]);
 
-                                const res = await utils.requestWithReauth(
-                                    'post',
-                                    `${Settings.baseUrl}/${requestTo}`,
-                                    null,
-                                    { sql }
-                                );
+                                const res = await apiRequest('post', requestTo, { sql });
 
                                 if (groupBy) {
                                     const grouped = utils.groupBy(res.details, groupBy);
@@ -478,7 +473,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                     case 'textEditor':
                         html.push(
                             <div key={`${name}_editable`} className={marginBottom}>
-                                <label className={`font-bold ${marginBottom}`}>Enter {realName}{showValidatorIndicator}</label>
+                                <label className={`font-bold ${marginBottom}`}>
+                                    Enter {realName}{showValidatorIndicator}
+                                </label>
                                 {editor.editor(value)}
                             </div>
                         );
@@ -487,7 +484,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                     case 'file':
                         html.push(
                             <div key={`${name}_editable`}>
-                                <label className={`font-bold ${marginBottom}`}>Upload {realName}{showValidatorIndicator}</label>
+                                <label className={`font-bold ${marginBottom}`}>
+                                    Upload {realName}{showValidatorIndicator}
+                                </label>
                                 {upload.uploader('uploadedImages', '', `${name}_editable`)}
                             </div>
                         );
@@ -547,9 +546,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                 }
             }
 
-            // one batched setState for all option results — not N separate calls
             if (Object.keys(batchedSqlResults).length) {
                 setSqlSelectResult((prev) => ({ ...prev, ...batchedSqlResults }));
+                setOptionsVersion((v) => v + 1);
             }
 
             setForm(html);
@@ -562,25 +561,28 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // ─── changeValue — updates store + dataRef, does NOT trigger form rebuild
+    // ─── changeValue ───────────────────────────────────────────────────────
+    // updates valuesStore + dataRef only — zero setState calls
+    // form does NOT rebuild on keystroke
     function changeValue(value, key, recordKey) {
         const normalized = Array.isArray(value) ? value.join(',') : value;
         const current = valuesStore.getValue(recordKey);
         if (current && current[key] !== undefined) {
             valuesStore.updateObjectValue(recordKey, key, normalized);
-            // keep dataRef in sync so editableForm always reads latest values
-            dataRef.current = { ...dataRef.current, [key]: normalized };
+            if (dataRef.current) {
+                dataRef.current = { ...dataRef.current, [key]: normalized };
+            }
         }
         setWhichElementChanged(key);
         setTarget(normalized, key);
     }
 
-    // ─── setTarget — ref guard prevents duplicate in-flight requests ──────
+    // ─── setTarget ─────────────────────────────────────────────────────────
     async function setTarget(v, key) {
         const guardKey = `${key}:${v}`;
         if (targetPendingRef.current.has(guardKey)) return;
 
-        const elem = metaByColumn[key] ?? {};  // O(1) lookup
+        const elem = metaByColumn[key] ?? {};
         const opts = elem.extra_options;
         if (!opts) return;
 
@@ -603,10 +605,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                     if (!sql) return;
 
                     sql = sql.replace('this.value', v);
-                    const res = await utils.requestWithReauth(
+                    const res = await apiRequest(
                         'post',
-                        `${Settings.baseUrl}/get_extra_meta_options`,
-                        null,
+                        'api/v1/extra_meta_options',
                         { sql }
                     );
 
@@ -628,6 +629,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
                     }
 
                     setSqlSelectResult((prev) => ({ ...prev, [target]: resolvedOptions }));
+                    setOptionsVersion((v) => v + 1);
                 })
             );
         } finally {
@@ -635,7 +637,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // ─── validation ───────────────────────────────────────────────────────
+    // ─── validation ────────────────────────────────────────────────────────
     function validate() {
         if (Object.keys(validatorMap).length <= 0) return { verbose: {}, isValid: false };
 
@@ -643,7 +645,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         const result = {};
 
         for (const key in validatorMap) {
-            const value = data?.[key];
+            const value = dataRef.current?.[key];
             const rule = validatorMap[key]?.validator;
             const realName = validatorMap[key]?.realName;
             if (rule) {
@@ -669,7 +671,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         return v;
     }
 
-    // ─── removeNonEditableFields ──────────────────────────────────────────
+    // ─── removeNonEditableFields ────────────────────────────────────────────
     function removeNonEditableFields(rKey, tableName) {
         const meta = valuesStore.getValuesBy(tblMetaDataName, whrKeyName, tableName);
         for (let i = 0; i < meta.length; i++) {
@@ -682,7 +684,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // ─── removeUnknownFields ──────────────────────────────────────────────
+    // ─── removeUnknownFields ────────────────────────────────────────────────
     function removeUnknownFields(tableName, data) {
         const meta = valuesStore.getValuesBy(tblMetaDataName, whrKeyName, tableName);
         const metaMap = {};
@@ -693,87 +695,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         return data;
     }
 
-    // ─── save ─────────────────────────────────────────────────────────────
-    // async function save(key = undefined, url = `${Settings.baseUrl}/update`, tableName = tblName, endpoint = null, callback) {
-    //     removeNonEditableFields(key || recordKey, tableName);
-    //     const d = valuesStore.getValue(key || recordKey);
-    //     const b = removeUnknownFields(tableName, d);
-    //     const res = await apiRequest('put', url, b);
-    //     if (res.status === 'Ok') {
-    //         reset(key);
-    //         message.success('Record has been updated successfully');
-    //         callback?.(true, 'Record has been updated successfully');
-    //     } else {
-    //         message.error(res.msg);
-    //         callback?.(false, res.msg);
-    //     }
-    // }
-
-    // async function saveRaw(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback) {
-    //     removeNonEditableFields(key || recordKey, tableName);
-    //     const d = valuesStore.getValue(key || recordKey);
-    //     const res = await utils.requestWithReauth('post', url, endpoint, d);
-    //     if (res.status === 'Ok') {
-    //         reset(key);
-    //         message.success('Record has been updated successfully');
-    //         callback?.(true, 'Record has been updated successfully');
-    //     } else {
-    //         message.error(res.msg);
-    //         callback?.(false, res.msg);
-    //     }
-    // }
-
-    // async function saveSelected(key = undefined, url = `${Settings.baseUrl}/edit`, tableName = tblName, endpoint = null, callback, localSelectedKeysToEdit) {
-    //     removeNonEditableFields(key || recordKey, tableName);
-    //     const d = valuesStore.getValue(key || recordKey);
-    //     const keys = localSelectedKeysToEdit || selectedKeysToEdit;
-
-    //     if (!Array.isArray(keys)) {
-    //         message.error('Keys to select must be an array');
-    //         return;
-    //     }
-
-    //     const b = {};
-    //     for (const k of keys) { b[k] = d[k]; }
-
-    //     const res = await utils.requestWithReauth('post', url, endpoint, b);
-    //     if (res.status === 'Ok') {
-    //         reset(key);
-    //         message.success('Record has been updated successfully');
-    //         callback?.(true, 'Record has been updated successfully');
-    //     } else {
-    //         message.error(res.msg);
-    //         callback?.(false, res.msg);
-    //     }
-    // }
-
-    // async function saveWithFiles(key = undefined, url = `${Settings.baseUrl}/edit_with_files`, tableName = tblName, endpoint = null) {
-    //     removeNonEditableFields(key || recordKey, tableName);
-    //     const d = valuesStore.getValue(key || recordKey);
-    //     const b = removeUnknownFields(tableName, d);
-    //     const data = { record: JSON.stringify(b), files: JSON.stringify(upload.fileList) };
-    //     const res = await utils.requestWithReauth('post', url, endpoint, data);
-    //     if (res.status === 'Ok') {
-    //         reset(key);
-    //         message.success('Record has been updated successfully');
-    //     } else {
-    //         message.error(res.msg);
-    //     }
-    // }
-
-
-
-    // const { mutate: updateMutate, isPending: updatePending } = useUpdate({
-    //     resource,
-    //     meta,
-    //     mutationOptions: {
-    //         onError: (error) => message.error(error?.message || 'Failed to update record'),
-    //     },
-    // });
-
-    const queryClient = useQueryClient();
-
-    // Replace save():
+    // ─── save ──────────────────────────────────────────────────────────────
     async function save(key = undefined, id, resource = tblName, callback) {
         removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
@@ -795,7 +717,6 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // Replace saveSelected():
     async function saveSelected(key = undefined, id, resource = tblName, callback, localSelectedKeysToEdit) {
         removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
@@ -825,7 +746,6 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // Replace saveWithFiles():
     async function saveWithFiles(key = undefined, id, resource = tblName) {
         removeNonEditableFields(key || recordKey, resource);
         const d = valuesStore.getValue(key || recordKey);
@@ -842,12 +762,9 @@ const useEdit = (tablesMetaData, whereKeyName) => {
 
         setLoading(true);
         try {
-            await apiRequest(
-                'post',
-                `api/${resource}/file`,
-                formData,
-                { headers: { 'Content-Type': 'multipart/form-data' } }
-            );
+            await apiRequest('post', `api/${resource}/file`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             queryClient.invalidateQueries({ queryKey: [resource, 'list'] });
             queryClient.removeQueries({ queryKey: [resource, 'detail', id] });
             reset(key);
@@ -859,7 +776,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         }
     }
 
-    // ─── reset ────────────────────────────────────────────────────────────
+    // ─── reset ─────────────────────────────────────────────────────────────
     function reset(key) {
         setTblName(undefined);
         setShowModal(false);
@@ -884,7 +801,7 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         targetPendingRef.current.clear();
     }
 
-    // ─── file recall helpers ──────────────────────────────────────────────
+    // ─── file recall helpers ────────────────────────────────────────────────
     function recallFiles(record, filePathDBField, tableName, fileDelURL, fileDelRowIDFieldName, container) {
         const value = record[filePathDBField];
         const fs = value?.split(',').filter((f) => f !== '').map((filename) => ({
@@ -906,9 +823,11 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         });
     }
 
-    // ─── modal ────────────────────────────────────────────────────────────
+    // ─── modal ─────────────────────────────────────────────────────────────
     function editModal(title, handleOk, okText = 'Save', okButtonProps = { style: { background: Settings.secondaryColorHex, border: 'none' } }, width, shouldDrag = true) {
-        const modalTitle = shouldDrag ? <div {...draggable.draggableTitleProps}>{title}</div> : title;
+        const modalTitle = shouldDrag
+            ? <div {...draggable.draggableTitleProps}>{title}</div>
+            : title;
         return (
             <>
                 <Modal
