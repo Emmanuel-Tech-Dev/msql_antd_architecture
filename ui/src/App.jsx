@@ -14,7 +14,7 @@ import useModal from "./hooks/useModal";
 import useLocalForage, { DRIVERS } from "./hooks/useLocalForage";
 import useMasonry from "./hooks/useMasonary";
 import './index.css'
-import AppLayout from "./components/AppLayout";
+import AppLayout from "./components/Layout/AppLayout";
 import { Navigate, Route, Router, Routes } from "react-router-dom";
 import Test from "./pages/Test";
 import Test2 from "./pages/Test2";
@@ -24,63 +24,30 @@ import { AnalyticsHospital } from "./pages/Analytics/AnalyticsHospital";
 import { AnalyticsSchool } from "./pages/Analytics/AnalyticsSchool";
 import { AnalyticsEcommerce } from "./pages/Analytics/AnalyticsEcommerce";
 import { useResourcesReady } from "./core/provider/ResourceProvider";
+import Login from "./pages/auth/Login";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 
 
-const result = [
-  {
-    id: 9,
-    custom_id: "REG20251223388396",
-    name: "Root User",
-    email: "emmanuelkusi345@gmail.com",
-    phone_no: null,
-    role: "admin",
-    status: "active",
-    created_at: "2025-12-23T10:00:00.000Z",
-  },
-  {
-    id: 11,
-    custom_id: "REG20251223215723",
-    name: "John Doe",
-    email: "johndoe@gmail.com",
-    phone_no: "0241234567",
-    role: "user",
-    status: "active",
-    created_at: "2025-12-23T11:00:00.000Z",
-  },
-  {
-    id: 13,
-    custom_id: "REG20251224123456",
-    name: "Jane Smith",
-    email: "janesmith@gmail.com",
-    phone_no: "0551234567",
-    role: "user",
-    status: "inactive",
-    created_at: "2025-12-24T09:00:00.000Z",
-  },
-  {
-    id: 14,
-    custom_id: "REG20251231542539",
-    name: "testme",
-    email: "emmanuelkusi3@gmail.com",
-    phone_no: null,
-    role: "user",
-    status: "active",
-    created_at: "2025-12-31T08:00:00.000Z",
-  },
-]
 
 
 
 
 export default function App() {
 
-  const isReady = useResourcesReady();
 
-  if (!isReady) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <Spin size="large" description="System Getting Ready..." />
-    </div>
-  );
+
+  // const isReady = useResourcesReady();
+
+  // if (!isReady) return (
+  //   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+  //     <Spin size="large" description="System Getting Ready..." />
+  //   </div>
+  // );
+
+
+
+
 
 
 
@@ -88,13 +55,11 @@ export default function App() {
     <>
       <Routes>
         {/* Auth Routes */}
-        <Route path="/" element={<Navigate to="login" replace />} />
-        <Route path="/login" element={<Test />} />
-        {/* <Route path="/create_account" element={<SignUp />} />
-        <Route path="/reset_password" element={<RequestResetLink />} />
-        <Route path="/verify_password/:resetToken" element={<VerifyResetToken />} />
-        <Route path="/otp_request" element={<RequestOtp />} />
-        <Route path="/verify_otp" element={<VerifyOtp />} /> */}
+
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/init_psd_recovery" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected Admin Routes */}
         <Route path="/admin" element={

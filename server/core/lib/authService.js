@@ -418,7 +418,6 @@ class AuthService {
 
   async refreshToken(token) {
     const decoded = await this.verifyToken(token, this.refreshTokenSecret);
-    console.log(decoded);
 
     if (!decoded || decoded.type !== "refresh") {
       throw new AppError("ERR_INVALID_TOKEN");
@@ -715,7 +714,7 @@ class AuthService {
         reset_token_expiry: null,
         reset_token_used: true,
         token_version: newTokenVersion,
-        restet_limit: 0,
+        reset_limit: 0,
         last_reset_attempt: null,
         updated_at: new Date(),
       })

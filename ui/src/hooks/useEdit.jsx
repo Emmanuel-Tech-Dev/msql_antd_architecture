@@ -91,11 +91,12 @@ const useEdit = (tablesMetaData, whereKeyName) => {
         editableForm(data, recordKey, tblName);
     }, [
         tblName,
-        recordKey,
-        data,           // safe to include — changeValue no longer calls setData
+        // recordKey,
+        valuesStore.getValue(recordKey),
         fields,
         upload.fileList,
         optionsVersion,
+        //  sqlSelectResult,
     ]);
 
     // ─── editableForm ──────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import SiderLayout from '../components/SiderLayout';
+import SiderLayout from '../components/Layout/SiderLayout';
 
 const debounce = (fn, delay) => {
     let timer;

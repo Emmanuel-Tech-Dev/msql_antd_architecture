@@ -95,6 +95,7 @@ class AuthRoute {
   refreshToken(app) {
     app.post("/auth/refresh", async (req, res) => {
       const token = req.cookies.refresh_token;
+      //  console.log("Refresh token request received", { token });
       const response = await this.auth.refreshToken(token);
       res
         .status(200)

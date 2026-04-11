@@ -13,7 +13,7 @@ class BaseRoute {
   constructor(app) {
     this.app = app;
 
-    // this.init(app);
+    this.init(app);
 
     this.findAll(app);
     this.findWithParams(app);
@@ -35,7 +35,7 @@ class BaseRoute {
 
   async init(app) {
     app.use(authMiddleWare);
-    app.use(authorization);
+    //app.use(authorization);
   }
 
   findAll(app) {
@@ -287,7 +287,7 @@ class BaseRoute {
 
   getExtraMetaList(app) {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
-      console.log(req.body);
+      // console.log(req.body);
       const { sql } = req.body;
       const result = await new Model().setSql(sql).execute();
       // console.log(result);

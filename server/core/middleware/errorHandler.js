@@ -3,7 +3,10 @@ const AppError = require("../../shared/helpers/AppError");
 const errorHandler = (logger) => {
   return (err, req, res, next) => {
     // Set defaults for non-AppError instances
-    err.statusCode = err.statusCode || 500;
+
+    jwtStatus = err?.message === "jwt expired" ? 401 : err.statusCode || 500;
+
+    err.statusCode = err.statusCode || jwtStatus || 500;
     err.status = err.status || "error";
     err.errorCode = err.errorCode || "ERR_INTERNAL_SERVER";
 

@@ -33,12 +33,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-
+    console.log(error);
     if (original.url?.includes("/auth/refresh")) {
       return Promise.reject(error);
     }
 
     if (error.response?.status === 401 && !original._retry) {
+      console.log(error);
       original._retry = true;
 
       if (!isRefreshing) {

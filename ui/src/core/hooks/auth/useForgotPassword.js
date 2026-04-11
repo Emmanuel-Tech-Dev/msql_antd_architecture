@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useAuthProvider } from "../../providers/AuthProvider";
+import { useAuthProvider } from "../../provider/AuthProvider";
 
 const useForgotPassword = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();

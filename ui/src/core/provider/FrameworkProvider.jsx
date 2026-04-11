@@ -10,23 +10,39 @@ import { FrameworkContext } from './FrameworkContext';
 import useValuesStore from '../../store/values-store';
 import queryClient from '../queryClient';
 import queryKeys from '../queryKeys';
+import { useLocation } from 'react-router-dom';
+
+
+const PUBLIC_ROUTES = ["/login", "/init_psd_recovery", "/reset-password", "/register", "otp-request", "/otp-verify"];
 
 function FrameworkBootstrap({ dataProvider, resources, children }) {
     const setRegistry = useResourceStore((s) => s.setRegistry);
     const valuesStore = useValuesStore();
+    const location = useLocation();
+
+
+
+    function fetchBootstrap() {
+        if (!PUBLIC_ROUTES.includes(
+            location.pathname,
+        )) {
+            return dataProvider.custom({
+                url: 'api/v1/bootstrap',
+                method: 'post',
+                payload: {
+                    tables: [
+                        { table: 'tables_metadata', storeName: 'tables_metadata', fields: ['*'] },
+                        { table: 'admin_resources', storeName: 'admin_resources', fields: ['*'] },
+                    ],
+                },
+            })
+        }
+
+    }
 
     const { data, error: bootstrapError } = useQuery({
         queryKey: queryKeys.bootstrap(),
-        queryFn: () => dataProvider.custom({
-            url: 'api/v1/bootstrap',
-            method: 'post',
-            payload: {
-                tables: [
-                    { table: 'tables_metadata', storeName: 'tables_metadata', fields: ['*'] },
-                    { table: 'admin_resources', storeName: 'admin_resources', fields: ['*'] },
-                ],
-            },
-        }),
+        queryFn: () => fetchBootstrap(),
         staleTime: Infinity,
     });
 

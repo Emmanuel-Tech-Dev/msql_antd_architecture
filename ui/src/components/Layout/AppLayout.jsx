@@ -5,12 +5,12 @@ import {
     FileOutlined, TeamOutlined, SafetyOutlined,
     KeyOutlined, ApiOutlined, ToolOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
-import useSider from '../hooks/useSider';
+import useSider from '../../hooks/useSider';
 import { Avatar, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
-import { useBrowserRoutes } from '../core/provider/ResourceProvider';
-import useAuthStore from '../store/authStore';
+import ThemeToggle from '../ThemeToggle';
+import { useBrowserRoutes } from '../../core/provider/ResourceProvider';
+import useAuthStore from '../../store/authStore';
 import { useMemo } from 'react';
 
 const ICON_MAP = {

@@ -1,7 +1,7 @@
 // src/core/hooks/auth/useRegister.js
 
 import { useMutation } from "@tanstack/react-query";
-import { useAuthProvider } from "../../providers/AuthProvider";
+import { useAuthProvider } from "../../provider/AuthProvider";
 
 const useRegister = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();

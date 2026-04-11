@@ -1,7 +1,7 @@
 // src/core/hooks/auth/useLogout.js
 
 import { useMutation } from "@tanstack/react-query";
-import { useAuthProvider } from "../../providers/AuthProvider";
+import { useAuthProvider } from "../../provider/AuthProvider";
 import queryClient from "../../queryClient";
 
 const useLogout = ({ mutationOptions = {} } = {}) => {
