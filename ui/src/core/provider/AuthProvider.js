@@ -24,6 +24,7 @@ export const AUTH_PROVIDER_INTERFACE = [
   "refreshToken",
   "forgotPassword",
   "resetPassword",
+  "changePassword",
 ];
 
 export function validateAuthProvider(provider) {

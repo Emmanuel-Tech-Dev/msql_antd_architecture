@@ -9,40 +9,60 @@ const useRouteGuard = (loginPath = "/login") => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const roles = useAuthStore((s) => s.roles);
   const browserRoutes = useResourceStore((s) => s.getBrowserRoutes());
+  const storeIsReady = useResourceStore((s) => s.isReady);
+
+  // isReady logic: 
+  // Non-auth users don't wait for resources (isReady=true).
+  // Auth users wait until bootstrapping finishes.
+  const isReady = isAuthenticated ? storeIsReady : true;
+
+  // 1. Find the current route registry entry
+  const route = browserRoutes.find((r) => r.resource_path === location.pathname);
+
+  // 2. Determine if the user is allowed to be here (Synchronous calculation for gating)
+  let isAllowed = false;
+  let target = null;
+
+  // Handle login path specifically to avoid cycles
+  if (location.pathname === loginPath && !isAuthenticated) {
+    isAllowed = true;
+  } else if (!isReady) {
+    // While bootstrapping, we gate the UI even if they might be allowed eventually
+    isAllowed = false;
+  } else if (!route) {
+    // Missing route
+    isAllowed = false;
+    target = isAuthenticated ? "/admin/404" : loginPath;
+  } else if (route.is_public) {
+    // Public route
+    isAllowed = true;
+  } else if (!isAuthenticated) {
+    // Private route, but not logged in
+    isAllowed = false;
+    target = loginPath;
+  } else {
+    // Authenticated and route exists in their allowed browserRoutes
+    isAllowed = true;
+  }
 
   useEffect(() => {
-    const route = browserRoutes.find(
-      (r) => r.resource_path === location.pathname,
-    );
+    // If not ready or already allowed, no imperative action needed
+    if (!isReady || isAllowed) return;
 
-    // route not in registry — let it through
-    if (!route) return;
+    // If we have a target redirect, do it
+    if (target) {
+      // Prevent infinite loop if target is current location
+      if (location.pathname === target) return;
 
-    // public route — always accessible
-    if (route.is_public) return;
-
-    // non-public route — must be authenticated
-    if (!isAuthenticated) {
-      navigate(loginPath, {
+      navigate(target, {
         replace: true,
-        state: { from: location.pathname, message: "Authentication required" },
-      });
-      return;
-    }
-
-    // authenticated but no roles assigned yet — block
-    if (!roles?.length) {
-      navigate(loginPath, {
-        replace: true,
-        state: {
-          from: location.pathname,
-          message: "No roles assigned to this account",
-        },
+        state: { from: location.pathname },
       });
     }
-  }, [location.pathname, isAuthenticated, roles, browserRoutes]);
+  }, [isReady, isAllowed, target, navigate, location.pathname]);
+
+  return { isAllowed, isReady };
 };
 
 export default useRouteGuard;

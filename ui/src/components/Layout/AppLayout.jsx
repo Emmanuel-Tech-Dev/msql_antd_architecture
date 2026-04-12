@@ -9,9 +9,11 @@ import useSider from '../../hooks/useSider';
 import { Avatar, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '../ThemeToggle';
-import { useBrowserRoutes } from '../../core/provider/ResourceProvider';
+import { useBrowserRoutes, useResourcesReady } from '../../core/provider/ResourceProvider';
 import useAuthStore from '../../store/authStore';
 import { useMemo } from 'react';
+import { Spin } from 'antd';
+import useRouteGuard from '../../core/hooks/access/useRouteGuard';
 
 const ICON_MAP = {
     DashboardOutlined: <DashboardOutlined />,
@@ -46,7 +48,11 @@ const SIDER_INIT = {
 };
 
 export default function AppLayout() {
+    // useRouteGuard handles checking permissions and bootstrapping state
+    const { isAllowed, isReady } = useRouteGuard('/login');
+
     const navigate = useNavigate();
+
     const browserRoutes = useBrowserRoutes();
     const user = useAuthStore((s) => s.user);
 
@@ -74,6 +80,21 @@ export default function AppLayout() {
         onLogout: () => navigate('/login'),
         onProfile: () => navigate('/profile'),
     });
+
+    // NOW we can return early after all hooks are declared
+    if (!isAllowed || !isReady) return (
+        <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            background: '#f5f5f5',
+        }}>
+            <Spin size="large" tip="Securing session..." />
+        </div>
+    );
+
+
 
     const siderHeader = (
         <div style={{

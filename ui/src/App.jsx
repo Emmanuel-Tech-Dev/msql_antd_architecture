@@ -23,10 +23,12 @@ import useBootstrap from "./hooks/useBootstrap";
 import { AnalyticsHospital } from "./pages/Analytics/AnalyticsHospital";
 import { AnalyticsSchool } from "./pages/Analytics/AnalyticsSchool";
 import { AnalyticsEcommerce } from "./pages/Analytics/AnalyticsEcommerce";
-import { useResourcesReady } from "./core/provider/ResourceProvider";
 import Login from "./pages/auth/Login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import OtpRequest from "./pages/auth/OtpRequest";
+import OtpVerify from "./pages/auth/OtpVerify";
+import NotFound from "./pages/NotFound";
 
 
 
@@ -37,13 +39,6 @@ export default function App() {
 
 
 
-  // const isReady = useResourcesReady();
-
-  // if (!isReady) return (
-  //   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-  //     <Spin size="large" description="System Getting Ready..." />
-  //   </div>
-  // );
 
 
 
@@ -59,13 +54,16 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/init_psd_recovery" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-
+        <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
+        <Route path="/reset_password" element={<ResetPassword />} />
+        <Route path="/otp_request" element={<OtpRequest />} />
+        <Route path="/verify_otp" element={<OtpVerify />} />
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
           // <ProtectedRoute>
           //   <DropdownSidebarLayout />
           // </ProtectedRoute>
+
           <AppLayout />
 
 
@@ -122,9 +120,11 @@ export default function App() {
             {/* <Route path="category" element={<Category />} />
                   <Route path="info/:id" element={<CampaignInfo />} /> 
           </Route>*/}
+          <Route path="404" element={<NotFound />} />
         </Route>
 
-        {/* <Route path='*' element={<NotFound url={"/"} />} /> */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </>
   );

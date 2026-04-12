@@ -55,6 +55,16 @@ const mysqlOrmAuthProvider = () => ({
   resetPassword: async ({ token, password }) => {
     await apiClient.post(`/auth/reset_password?token=${token}`, { password });
   },
+
+  changePassword: async ({ oldPassword, newPassword }) => {
+    const { data } = await apiClient.post("/auth/change_password", {
+      oldPassword,
+      newpassword: newPassword,
+    });
+    // server rotates token_version — clear auth, force re-login
+    useAuthStore.getState().clearAuth();
+    return { data };
+  },
 });
 
 export default mysqlOrmAuthProvider;

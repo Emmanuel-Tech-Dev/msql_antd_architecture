@@ -3,13 +3,23 @@ const Model = require("../model/model");
 
 const authorization = async (req, res, next) => {
   try {
+    const PUBLIC_ENDPOINTS = [
+      "/api/v1/bootstrap",
+      "/api/v1/extra_meta_options",
+    ];
+
     // 1. Get user
     const user = req.user;
+    const path = req.path;
     if (!user) {
       throw new AppError("ERR_AUTHENTICATION_REQUIRED", null, {
         message: "Failed to authorize user, token missing or invalid",
         level: "access",
       });
+    }
+
+    if (PUBLIC_ENDPOINTS.includes(path)) {
+      return next();
     }
 
     // 2. Check for user roles
@@ -116,7 +126,7 @@ const authorization = async (req, res, next) => {
     req.userPermissions = permissionNames;
     req.userResources = resources;
 
-    console.log(" Authorization successful");
+    // console.log(" Authorization successful");
     next();
   } catch (error) {
     next(error);

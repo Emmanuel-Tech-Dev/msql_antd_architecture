@@ -11,38 +11,49 @@ import useValuesStore from '../../store/values-store';
 import queryClient from '../queryClient';
 import queryKeys from '../queryKeys';
 import { useLocation } from 'react-router-dom';
+import useAuthStore from '../../store/authStore';
 
 
 const PUBLIC_ROUTES = ["/login", "/init_psd_recovery", "/reset-password", "/register", "otp-request", "/otp-verify"];
 
 function FrameworkBootstrap({ dataProvider, resources, children }) {
     const setRegistry = useResourceStore((s) => s.setRegistry);
+
     const valuesStore = useValuesStore();
     const location = useLocation();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname);
 
 
+    // useEffect(() => {
+    //     if (isPublicRoute) {
+    //         setRegistry({ resources: {}, browserRoutes: [] });
+    //     }
+    // }, [isPublicRoute]);
 
-    function fetchBootstrap() {
-        if (!PUBLIC_ROUTES.includes(
-            location.pathname,
-        )) {
-            return dataProvider.custom({
-                url: 'api/v1/bootstrap',
-                method: 'post',
-                payload: {
-                    tables: [
-                        { table: 'tables_metadata', storeName: 'tables_metadata', fields: ['*'] },
-                        { table: 'admin_resources', storeName: 'admin_resources', fields: ['*'] },
-                    ],
-                },
-            })
-        }
+    // // unauthenticated on protected route — mark ready immediately
+    // // so useRouteGuard fires and redirects to login
+    // useEffect(() => {
+    //     if (!isPublicRoute && !isAuthenticated) {
+    //         setRegistry({ resources: {}, browserRoutes: [] });
+    //     }
+    // }, [isPublicRoute, isAuthenticated]);
 
-    }
+
 
     const { data, error: bootstrapError } = useQuery({
         queryKey: queryKeys.bootstrap(),
-        queryFn: () => fetchBootstrap(),
+        queryFn: () => dataProvider.custom({
+            url: 'api/v1/bootstrap',
+            method: 'post',
+            payload: {
+                tables: [
+                    { table: 'tables_metadata', storeName: 'tables_metadata', fields: ['*'] },
+                    { table: 'admin_resources', storeName: 'admin_resources', fields: ['*'] },
+                ],
+            },
+        }),
+        enabled: !isPublicRoute && isAuthenticated,
         staleTime: Infinity,
     });
 
