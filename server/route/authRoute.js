@@ -19,6 +19,7 @@ class AuthRoute {
     this.verifyResetToken(app);
     this.resetPassword(app);
     this.googleOAuth(app);
+    this.getUserInfo(app);
 
     this.init();
 
@@ -27,6 +28,13 @@ class AuthRoute {
 
   async init() {
     this.refreshTTL = await this.settings.get("auth.jwt.refresh_ttl");
+  }
+
+  getUserInfo(app) {
+    app.get("/auth/user_info", authMiddleWare, async (req, res) => {
+      const user = req.user;
+      res.json({ status: "ok", data: user });
+    });
   }
 
   login(app) {

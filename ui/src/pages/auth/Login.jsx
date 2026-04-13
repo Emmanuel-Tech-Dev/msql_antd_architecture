@@ -7,15 +7,14 @@ import useNotification from '../../hooks/useNotification';
 export default function Login() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { alert, AlertJsx } = useNotification();
+    const { alert, AlertJsx, message } = useNotification();
     const from = location.state?.from ?? '/admin/home';
 
     const { mutate, isPending } = useLogin({
         mutationOptions: {
             onSuccess: () => navigate(from, { replace: true }),
             onError: (err) => {
-                alert.error('Sign in failed', 'Invalid email or password')
-
+                message.error('Invalid email or password');
                 console.error('Login error:', err);
             },
         },
@@ -58,10 +57,8 @@ export default function Login() {
                     </p>
                 </div>
 
-                {/* inline alert — shows on login error */}
-                <div style={{ marginBottom: 16 }}>
-                    <AlertJsx />
-                </div>
+
+
 
                 <Form
                     layout="vertical"

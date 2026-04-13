@@ -540,6 +540,453 @@ const utils = {
     }
   },
 
+  validateSoftData(data) {
+    const val = data.value; // Extract the value to be validated from the data object
+    const validator = data.validator.split("("); // Split the validator string to get the validator name and arguments
+    const args = validator[1]?.replace(")", "").split(",") || []; // Extract the arguments from the validator string
+    const required = data.required; // Check if the validation is required
+    if (required) {
+      // If validation is required
+      const validationFunction = utils.ValidationFactory[validator[0]]; // Extract the validation function name
+      if (!validationFunction) {
+        throw new Error(
+          `Validator "${validator[0]}" not found in ValidationFactory.`,
+        );
+      }
+      const valid = validationFunction(val, ...args); // Call the specified validator function with the value and arguments
+      return { valid, ...data }; // Return an object with the validation result and other data
+    }
+    return { valid: true, ...data }; // If validation is not required, return true
+  },
+
+  validateSoftListData(data) {
+    const valids = [];
+    for (let i = 0; i < data.length; i++) {
+      const val = data[i].value;
+      const name = data[i].name;
+      const validator = data[i].validator.split("(");
+      const args = validator[1]?.replace(")", "").split(",") || [];
+      const extra = { ...data[i] };
+      const required = data[i].required;
+      if (required) {
+        const valid = utils.ValidationFactory[validator](val, ...args);
+        if (!valid) {
+          return { valid, name };
+        } else {
+          valids.push({ ...data[i] });
+        }
+      } else {
+        valids.push({ ...data[i] });
+      }
+    }
+    return { data: valids, valid: true };
+  },
+
+  ValidationFactory: {
+    //STRING VALIDATION  +(match one or more) *(match zero or more)
+    validateEmptyString: (val) => {
+      if (val) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlpha: (val) => {
+      let pattern = /^[a-zA-Z]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaAllowSpace: (val) => {
+      let pattern = /^[a-zA-Z ]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMinCharLength: (val, requiredMinCharLength) => {
+      let valid = utils.ValidationFactory.validateAlpha(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMaxCharLength: (val, requiredMaxCharLength) => {
+      let valid = utils.ValidationFactory.validateAlpha(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMinMaxCharLength: (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlpha(val);
+      if (
+        val &&
+        valid &&
+        val?.trim().length >= requiredMinCharLength &&
+        val?.trim().length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMinCharLengthAllowSpace: (val, requiredMinCharLength) => {
+      let valid = utils.ValidationFactory.validateAlphaAllowSpace(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMaxCharLengthAllowSpace: (val, requiredMaxCharLength) => {
+      let valid = utils.ValidationFactory.validateAlphaAllowSpace(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaMinMaxCharLengthAllowSpace: (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlphaAllowSpace(val);
+      if (
+        val &&
+        valid &&
+        val?.trim().length >= requiredMinCharLength &&
+        val?.trim().length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    //NUMBER VALIDATION
+    validateNumber: function (val) {
+      let pattern = /^[\d]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateDecNumber: function (val) {
+      let pattern = /^[\d.]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberAllowSpace: function (val) {
+      let pattern = /^[\d ]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberMinCharLength: function (val, requiredMinCharLength) {
+      let valid = utils.ValidationFactory.validateNumber(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberMaxCharLength: function (val, requiredMaxCharLength) {
+      let valid = utils.ValidationFactory.validateNumber(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberMinMaxCharLength: function (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) {
+      let valid = utils.ValidationFactory.validateNumber(val);
+      if (
+        val &&
+        valid &&
+        val?.trim().length >= requiredMinCharLength &&
+        val?.trim().length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    validateNumberMinCharLengthAllowSpace: function (
+      val,
+      requiredMinCharLength,
+    ) {
+      let valid = utils.ValidationFactory.validateNumberAllowSpace(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberMaxCharLengthAllowSpace: function (
+      val,
+      requiredMaxCharLength,
+    ) {
+      let valid = utils.ValidationFactory.validateNumberAllowSpace(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateNumberMinMaxCharLengthAllowSpace: function (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) {
+      let valid = utils.ValidationFactory.validateNumberAllowSpace(val);
+      if (
+        val &&
+        valid &&
+        val?.trim().length >= requiredMinCharLength &&
+        val?.trim().length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    //ALPHANUMERIC VALIDATION
+    validateAlphaNumeric: (val) => {
+      let pattern = /^[0-9a-zA-Z]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericAllowSpace: (val) => {
+      let pattern = /^[0-9a-zA-Z ]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericAllowExtraChar: (val) => {
+      let pattern = /^[0-9a-zA-Z.@$#_ ]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMinCharLength: (val, requiredMinCharLength) => {
+      let valid = utils.ValidationFactory.validateAlphaNumeric(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMaxCharLength: (val, requiredMaxCharLength) => {
+      let valid = utils.ValidationFactory.validateAlphaNumeric(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMinMaxCharLength: (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlphaNumeric(val);
+      if (
+        val &&
+        valid &&
+        val?.trim().length >= requiredMinCharLength &&
+        val?.trim().length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMinCharLengthAllowSpace: (
+      val,
+      requiredMinCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlphaNumericAllowSpace(val);
+      if (val && valid && val?.trim().length >= requiredMinCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMaxCharLengthAllowSpace: (
+      val,
+      requiredMaxCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlphaNumericAllowSpace(val);
+      if (val && valid && val?.trim().length <= requiredMaxCharLength) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateAlphaNumericMinMaxCharLengthAllowSpace: (
+      val,
+      requiredMinCharLength,
+      requiredMaxCharLength,
+    ) => {
+      let valid = utils.ValidationFactory.validateAlphaNumericAllowSpace(val);
+      if (
+        val &&
+        valid &&
+        val?.trim()?.length >= requiredMinCharLength &&
+        val?.trim()?.length <= requiredMaxCharLength
+      ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    //EMAIL VALIDATION
+    validateEmailWithUnicode: function (val) {
+      let pattern =
+        /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateEmailNoUnicode: function (val) {
+      let pattern =
+        /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    validateSimpleEmail: function (val) {
+      let pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    //TELEPHONE NUMBER VALIDATION
+    validateTelephoneNumber: function (val) {
+      let pattern = /^$/;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+
+    //LOOSE VALIDATION
+    looselyValidateNumber: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateNumber(val);
+      }
+    },
+    looselyValidateDecNumber: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateDecNumber(val);
+      }
+    },
+    looselyValidateAlphaNumericAllowSpace: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateAlphaNumericAllowSpace(val);
+      }
+    },
+    looselyValidateEmailNoUnicode: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateEmailNoUnicode(val);
+      }
+    },
+    looselyValidateEmailWithUnicode: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateEmailWithUnicode(val);
+      }
+    },
+    looselyValidatePlainString: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateAlpha(val);
+      }
+    },
+    looselyValidateAlphaNumericAllowExtraChar: (val) => {
+      if (!val) {
+        //if the val is empty, don't check anything
+        return true;
+      } else {
+        //if the val isn't empty, check if the value conforms to this pattern
+        return utils.ValidationFactory.validateAlphaNumericAllowExtraChar(val);
+      }
+    },
+    noValidation: () => {
+      return true;
+    },
+    validateYYYYMMDate: (val) => {
+      let pattern = /^\d{4}-(0[1-9]|1[012])$/gm;
+      if (pattern.test(val?.trim())) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    //IS SAME
+  },
+
   checkIsIOS: () =>
     /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream,
 };

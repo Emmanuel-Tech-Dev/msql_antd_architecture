@@ -29,22 +29,17 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import OtpRequest from "./pages/auth/OtpRequest";
 import OtpVerify from "./pages/auth/OtpVerify";
 import NotFound from "./pages/NotFound";
-
+import Users from "./pages/admin/Users";
+import Roles from "./pages/admin/Roles";
+//import RoleAssignments from "./pages/admin/RoleAssignment";
+import Permissions from "./pages/admin/Permissions";
+import Resources from "./pages/admin/Resources";
 
 
 
 
 
 export default function App() {
-
-
-
-
-
-
-
-
-
 
   return (
     <>
@@ -75,6 +70,11 @@ export default function App() {
           <Route path="test1" element={<AnalyticsHospital />} />
           <Route path="test2" element={<AnalyticsSchool />} />
           <Route path="test3" element={<AnalyticsEcommerce />} />
+          <Route path="management/users" element={<Users />} />
+          <Route path="management/roles" element={<Roles />} />
+          <Route path="management/permissions" element={<Permissions />} />
+          <Route path="management/resources" element={<Resources />} />
+          {/* <Route path="management/assignments" element={<RoleAssignments />} /> */}
           {/* <Route path='campaign' element={} /> */}
           {/* Settings sub-routes */}
           {/* <Route path="settings">
@@ -124,7 +124,7 @@ export default function App() {
         </Route>
 
         <Route path="/404" element={<NotFound />} />
-        <Route path="*" element={<Navigate to="/404" replace />} />
+        <Route path="*" element={<Navigate to="404" replace />} />
       </Routes>
     </>
   );

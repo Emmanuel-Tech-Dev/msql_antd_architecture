@@ -14,6 +14,8 @@ import useAuthStore from '../../store/authStore';
 import { useMemo } from 'react';
 import { Spin } from 'antd';
 import useRouteGuard from '../../core/hooks/access/useRouteGuard';
+import useLogout from '../../core/hooks/auth/useLogout';
+import useNotification from '../../hooks/useNotification';
 
 const ICON_MAP = {
     DashboardOutlined: <DashboardOutlined />,
@@ -48,9 +50,22 @@ const SIDER_INIT = {
 };
 
 export default function AppLayout() {
-    // useRouteGuard handles checking permissions and bootstrapping state
-    const { isAllowed, isReady } = useRouteGuard('/login');
 
+
+    const { isAllowed, isReady } = useRouteGuard('/login');
+    const { message } = useNotification();
+
+    const { mutate: logout } = useLogout({
+        mutationOptions: {
+            onSuccess: () => {
+                message.success('Logged out successfully');
+            },
+            onError: (err) => {
+                message.error(err?.message || 'Failed to logout. Please try again.');
+            }
+
+        }
+    })
     const navigate = useNavigate();
 
     const browserRoutes = useBrowserRoutes();
@@ -77,7 +92,9 @@ export default function AppLayout() {
             email: user?.email ?? '',
         },
         notificationCount: 0,
-        onLogout: () => navigate('/login'),
+        onLogout: () => {
+            logout()
+        },
         onProfile: () => navigate('/profile'),
     });
 

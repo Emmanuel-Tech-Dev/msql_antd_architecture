@@ -3,8 +3,18 @@ const AppError = require("../../shared/helpers/AppError");
 const AuthService = require("../lib/authService");
 const Model = require("../model/model");
 
+const PUBLIC_ENDPOINTS = ["/api/v1/bootstrap", "/api/v1/extra_meta_options"];
+
 const authMiddleWare = async (req, res, next) => {
+  const path = req.path;
+
+  if (PUBLIC_ENDPOINTS.includes(path)) {
+    next();
+    return;
+  }
+
   const auth = new AuthService();
+
   let token = req.headers.authorization;
   let decodedToken;
 
@@ -21,7 +31,7 @@ const authMiddleWare = async (req, res, next) => {
     token = token.slice(7).trim();
     decodedToken = await auth.verifyToken(
       token,
-      process.env.ACCESS_TOKEN_SECRET
+      process.env.ACCESS_TOKEN_SECRET,
     );
   }
 

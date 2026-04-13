@@ -1,11 +1,15 @@
-import { CalendarOutlined, FilterOutlined, ReloadOutlined, SortAscendingOutlined } from '@ant-design/icons'
+import { CalendarOutlined, ExportOutlined, FilterOutlined, ReloadOutlined, SortAscendingOutlined } from '@ant-design/icons'
 import { Button, Card, Divider, Input, Space, Table } from 'antd'
 import React from 'react'
 import utils from '../utils/function_utils'
 
 const CustomTable = ({ tableConfig, columns }) => {
     return (
-        <div className=''>
+        <Card className='' styles={{
+            body: {
+                padding: "0px"
+            }
+        }}>
             <Card >
                 <div className='flex items-center justify-between'>
                     <div>
@@ -15,14 +19,14 @@ const CustomTable = ({ tableConfig, columns }) => {
                             className='!w-100 '
 
                         />
-                        <Button icon={<ReloadOutlined />} className='ml-3' onClick={() => tableConfig.runRequest()} />
+
                     </div>
 
 
                     <Space>
                         <div className='flex gap-2 items-center'>
-                            <Button icon={<FilterOutlined />} />
-                            <Button icon={<SortAscendingOutlined />} />
+                            <Button icon={<ReloadOutlined />} onClick={() => tableConfig.runRequest()} />
+                            <Button icon={<ExportOutlined />} />
 
 
                         </div>
@@ -35,20 +39,13 @@ const CustomTable = ({ tableConfig, columns }) => {
                 </div>
             </Card>
 
-            <div
-                className='!mt-5'
-                styles={{
-                    body: {
-                        padding: "0px"
-                    }
-                }}
-            >
-
-                <Table {...tableConfig?.tableProps} columns={columns} />
 
 
-            </div>
-        </div>
+            <Table {...tableConfig?.tableProps} columns={columns} />
+
+
+
+        </Card>
     )
 }
 
