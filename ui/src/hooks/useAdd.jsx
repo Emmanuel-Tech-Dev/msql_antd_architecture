@@ -735,7 +735,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
     async function save(resource, callback) {
         const v = validateShowErrorMessage();
         if (!v?.isValid) return;
-        console.log('Saving record:', record);
+
         setLoading(true);
         try {
             await apiRequest('post', `api/${resource}`, { ...record });
@@ -845,7 +845,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
                 <Modal
                     modalRender={(modal) => shouldDrag ? draggable.drag(modal) : modal}
                     confirmLoading={loading}
-                    // zIndex={9999}
+                    zIndex={9999}
                     title={modalTitle}
                     width={width}
                     open={showModal}

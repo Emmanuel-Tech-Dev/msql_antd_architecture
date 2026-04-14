@@ -34,6 +34,7 @@ import Roles from "./pages/admin/Roles";
 //import RoleAssignments from "./pages/admin/RoleAssignment";
 import Permissions from "./pages/admin/Permissions";
 import Resources from "./pages/admin/Resources";
+import SystemLogs from "./pages/settings/SystemLogs";
 
 
 
@@ -74,52 +75,7 @@ export default function App() {
           <Route path="management/roles" element={<Roles />} />
           <Route path="management/permissions" element={<Permissions />} />
           <Route path="management/resources" element={<Resources />} />
-          {/* <Route path="management/assignments" element={<RoleAssignments />} /> */}
-          {/* <Route path='campaign' element={} /> */}
-          {/* Settings sub-routes */}
-          {/* <Route path="settings">
-            <Route index element={<Navigate to="api_settings" replace />} />
-            <Route path="api_settings" element={<SystemSettings />} />
-            <Route path="system_logs" element={<LogsOverview />} />
-            <Route path="system_logs/report" element={<Logs />} />
-          </Route>
-
-          {/* User Management sub-routes */}
-          {/* <Route path="management" element={<UserManagementLayout />}>
-            <Route index element={<Navigate to="users" replace />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="roles" element={<Roles />} />
-            <Route path="resources" element={<Resources />} />
-            <Route path="permissions" element={<Permission />} />
-          </Route> */}
-
-          {/* <Route path="project" >
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<Projects />} />
-            <Route path="details/:projectId" element={<ProjectDetails />} />
-          </Route>
-          <Route path="department" >
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<Department />} />
-            {/* <Route path="details/:projectId" element={<ProjectDetails />} />
-          </Route>
-
-          <Route path="campaign" >
-            <Route index element={<Campaign />} />
-            <Route path="category" element={<Category />} />
-            <Route path="info/:id" element={<CampaignInfo />} />
-          </Route>
-          <Route path="staff" >
-            <Route index element={<Staff />} />
-            {/* <Route path="category" element={<Category />} />
-                  <Route path="info/:id" element={<CampaignInfo />} /> *
-          </Route>
-
-          <Route path="volunteer" >
-            <Route index element={<Volunteer />} />
-            {/* <Route path="category" element={<Category />} />
-                  <Route path="info/:id" element={<CampaignInfo />} /> 
-          </Route>*/}
+          <Route path="settings/system_logs" element={<SystemLogs />} />
           <Route path="404" element={<NotFound />} />
         </Route>
 

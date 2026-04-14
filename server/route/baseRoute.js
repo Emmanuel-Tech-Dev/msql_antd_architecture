@@ -13,7 +13,7 @@ class BaseRoute {
   constructor(app) {
     this.app = app;
 
-    this.init(app);
+    // this.init(app);
 
     this.findAll(app);
     this.findWithParams(app);

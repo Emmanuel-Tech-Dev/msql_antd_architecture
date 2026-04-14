@@ -62,7 +62,7 @@ class LoggerService {
         winston.format.metadata({
           fillExcept: ["message", "level", "timestamp", "label"],
         }),
-        winston.format.json()
+        winston.format.json(),
       );
 
       const consoleFormat = winston.format.combine(
@@ -75,8 +75,8 @@ class LoggerService {
               ? `\n${JSON.stringify(meta, null, 2)}`
               : "";
             return `${timestamp} ${level} ${cat} ${message}${metaStr}`;
-          }
-        )
+          },
+        ),
       );
 
       this.logger = winston.createLogger({
@@ -93,7 +93,7 @@ class LoggerService {
             format: consoleFormat,
             handleExceptions: true,
             handleRejections: true,
-          })
+          }),
         );
       }
 
@@ -106,7 +106,7 @@ class LoggerService {
           maxSize: "20m",
           maxFiles: "14d",
           format: structuredFormat,
-        })
+        }),
       );
 
       // Exception and rejection handlers
@@ -178,7 +178,7 @@ class LoggerService {
 
   _findErrorCodeByStatus(status, hint = null) {
     const matches = Object.entries(ERROR_CODES).filter(
-      ([_, value]) => value.status === status
+      ([_, value]) => value.status === status,
     );
 
     if (matches.length === 0) {
@@ -194,7 +194,7 @@ class LoggerService {
     if (hint) {
       const hintLower = hint.toLowerCase();
       const bestMatch = matches.find(([code, _]) =>
-        code.toLowerCase().includes(hintLower)
+        code.toLowerCase().includes(hintLower),
       );
       if (bestMatch) {
         return { code: bestMatch[0], ...bestMatch[1] };
@@ -216,6 +216,7 @@ class LoggerService {
       statusCode: error.statusCode,
       errorMessage: error instanceof Error ? error.message : error,
       stack: error instanceof Error ? error.stack : undefined,
+      correlationId: utils.generateCustomId("corr", 8),
       ...filteredContext,
     };
 
@@ -225,8 +226,8 @@ class LoggerService {
     const logMessage = errorInfo
       ? `[${errorInfo.code}] ${errorInfo.message}`
       : error instanceof Error
-      ? error.message
-      : error;
+        ? error.message
+        : error;
 
     const errLevel = level || "error";
 

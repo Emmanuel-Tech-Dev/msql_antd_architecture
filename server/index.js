@@ -35,6 +35,7 @@ const settings = new SettingsManager();
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const specs = require("./core/config/swagger");
+const LogRoute = require("./route/LogRoute");
 
 const PORT = process.env.PORT || 3000;
 
@@ -142,8 +143,10 @@ app.use((req, res, next) => {
 // app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // console.log("swagger paths:", Object.keys(specs.paths || {}));
 new AuthRoute(app);
-//app.use(authMiddleWare);
+
+app.use(authMiddleWare);
 //app.use(authorization);
+new LogRoute(app);
 new BaseRoute(app);
 
 app.get("/api/", async (req, res) => {
