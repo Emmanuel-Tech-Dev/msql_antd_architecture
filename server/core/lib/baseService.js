@@ -65,7 +65,7 @@ class BaseService {
       try {
         headerConfig = JSON.parse(raw);
       } catch {
-        console.warn("⚠ Invalid x-table-config header");
+        console.warn("Invalid x-table-config header");
       }
     }
 
@@ -148,7 +148,7 @@ class BaseService {
       let column = fields?.length ? fields : ["*"];
       let res;
 
-      // ✅ build where conditions in the shape your where() method expects
+      // build where conditions in the shape your where() method expects
       let where = [];
       if (
         critfdx &&
@@ -158,13 +158,14 @@ class BaseService {
         critfdx.length > 0
       ) {
         where = critfdx.map((col, index) => ({
-          column: col, // ✅ was { [v]: critval[index] } — wrong shape
+          column: col, // was { [v]: critval[index] } — wrong shape
           operator: "=",
           value: critval[index],
         }));
       }
 
       if (sql) {
+        console.log(sql);
         res = await new Model().setSql(sql).execute();
       } else if (where.length) {
         res = await new Model()
@@ -175,11 +176,11 @@ class BaseService {
         res = await new Model().select(column, table).execute();
       }
 
-      // ✅ key result by storeName so frontend can map it back
+      //  key result by storeName so frontend can map it back
       results[storeName] = res;
     }
 
-    // ✅ was missing return
+    // was missing return
     return results;
   }
 }

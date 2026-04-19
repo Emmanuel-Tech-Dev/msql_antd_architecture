@@ -1,16 +1,62 @@
+// server/core/middleware/authorization.js
+
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
+const SettingsManager = require("../lib/systemSettings");
+const utils = require("../../shared/utils/functions");
+
+// simple in-memory cache — keyed by user custom_id
+// invalidated when roles/permissions change (you can call clearPermissionCache(userId) from admin routes)
+const permissionCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+const settings = new SettingsManager();
+
+function getCached(userId) {
+  const entry = permissionCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    permissionCache.delete(userId);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(userId, data) {
+  permissionCache.set(userId, { data, timestamp: Date.now() });
+}
+
+function clearPermissionCache(userId) {
+  if (userId) {
+    permissionCache.delete(userId);
+  } else {
+    permissionCache.clear();
+  }
+}
+
+// endpoints accessible to any authenticated user
+// bootstrap needs auth but not role-based authorization
+const OPEN_TO_AUTHENTICATED = [
+  "/api/v1/bootstrap",
+  "/api/v1/extra_meta_options",
+  "/api/v1/logs",
+  "/api/v1/logs/files",
+  "/api/admin_permissions/table",
+];
 
 const authorization = async (req, res, next) => {
+  // console.log(await settings.get("system.open_routes"));
   try {
-    const PUBLIC_ENDPOINTS = [
-      "/api/v1/bootstrap",
-      "/api/v1/extra_meta_options",
-    ];
+    const requestedPath = req.path;
+    const requestedMethod = req.method;
+    const openEndpoints = await utils.getSystemOpenRoute();
 
-    // 1. Get user
+    // 2. open endpoints — authenticated but no role check needed
+    if (openEndpoints.some((p) => requestedPath.startsWith(p))) {
+      return next();
+    }
+
     const user = req.user;
-    const path = req.path;
     if (!user) {
       throw new AppError("ERR_AUTHENTICATION_REQUIRED", null, {
         message: "Failed to authorize user, token missing or invalid",
@@ -18,102 +64,89 @@ const authorization = async (req, res, next) => {
       });
     }
 
-    if (PUBLIC_ENDPOINTS.includes(path)) {
-      return next();
+    // 3. load from cache or fetch
+    let cached = getCached(user.sub);
+
+    if (!cached) {
+      // 3a. get roles
+      const userRoles = await new Model()
+        .select(["user_id", "role_id"], "admin_user_roles")
+        .where("user_id", "=", user.sub)
+        .execute();
+
+      if (!userRoles || userRoles.length === 0) {
+        throw new AppError("ERR_NO_RESOURCES", null, {
+          message: "User has no roles assigned",
+          level: "access",
+        });
+      }
+
+      const roleIds = userRoles.map((r) => r.role_id);
+
+      // 3b. get permissions for those roles
+      const perms = await new Model()
+        .select(["permission"], "admin_role_permissions")
+        .whereIn("role_id", roleIds)
+        .execute();
+
+      if (!perms || perms.length === 0) {
+        throw new AppError("ERR_NO_RESOURCES", null, {
+          message: "User roles have no permissions assigned",
+          level: "access",
+        });
+      }
+
+      const permissionNames = perms.map((p) => p.permission);
+
+      // 3c. get resources those permissions can access
+      const permResources = await new Model()
+        .select(["resource"], "admin_permission_resources")
+        .whereIn("permission", permissionNames)
+        .execute();
+
+      if (!permResources || permResources.length === 0) {
+        throw new AppError("ERR_NO_RESOURCES", null, {
+          message: "User permissions have no resources assigned",
+          level: "access",
+        });
+      }
+
+      const resourceNames = permResources.map((r) => r.resource);
+
+      // 3d. get full API endpoint details
+      const resources = await new Model()
+        .select(["*"], "admin_resources")
+        .where("resource_type", "=", "API_ENDPOINT")
+        .whereIn("resource", resourceNames)
+        .execute();
+
+      cached = { userRoles, permissionNames, resources };
+      setCache(user.sub, cached);
     }
 
-    // 2. Check for user roles
-    const userRoles = await new Model()
-      .select(["user_id", "role_id"], "admin_user_roles")
-      .where("user_id", "=", user?.sub)
-      .execute();
+    const { userRoles, permissionNames, resources } = cached;
 
-    if (!userRoles || userRoles.length === 0) {
-      throw new AppError("ERR_NO_RESOURCES", null, {
-        message: "User has no roles assigned",
-        level: "access",
-      });
-    }
-
-    //  console.log("User roles:", userRoles);
-
-    // Extract role IDs
-    const roleIds = userRoles.map((r) => r.role_id);
-
-    // 3. Get permissions for these roles
-    const perms = await new Model()
-      .select(["permission"], "admin_role_permissions")
-      .whereIn("role_id", roleIds) //  Use extracted role IDs
-      .execute();
-
-    if (!perms || perms.length === 0) {
-      throw new AppError("ERR_NO_RESOURCES", null, {
-        message: "User roles have no permissions assigned",
-        level: "access",
-      });
-    }
-
-    //console.log("User permissions:", perms);
-
-    //  Extract permission values
-    const permissionNames = perms.map((p) => p.permission);
-    // console.log("Permission names:", permissionNames); // ['create:user', 'read:user']
-
-    // 4. Get resources these permissions can access
-    const resrcs = await new Model()
-      .select(["resource"], "admin_permission_resources")
-      .whereIn("permission", permissionNames) //  Use extracted permission names
-      .execute();
-
-    if (!resrcs || resrcs.length === 0) {
-      throw new AppError("ERR_NO_RESOURCES", null, {
-        message: "User permissions have no resources assigned",
-        level: "access",
-      });
-    }
-
-    //console.log("User resources:", resrcs);
-
-    const resourceNames = resrcs.map((r) => r.resource);
-    console.log("Resource names:", resourceNames); // ['Get Users']
-
-    // 5. Get full resource details
-    const resources = await new Model()
-      .select(["*"], "admin_resources")
-      .where("resource_type", "=", "API_ENDPOINT")
-      .whereIn("resource", resourceNames)
-      .execute();
-
-    console.log("Accessible resources:", resources);
-
-    // 6. Check if user can access the current endpoint
-    const requestedPath = req.path;
-    const requestedMethod = req.method;
-
+    // 4. check access — supports both exact and prefix matching
+    // /api/admin matches /api/admin, /api/admin/123, /api/admin/123/something
     const canAccess = resources.some((r) => {
-      const pathMatches = r.resource_path === requestedPath;
       const methodMatches =
         r.http_method === requestedMethod ||
         r.http_method === "*" ||
         r.http_method === "ALL";
 
-      // console.log(
-      //   "Resource:",
-      //   r.resource_path,
-      //   "Requested:",
-      //   requestedPath,
-      //   "Match:",
-      //   pathMatches && methodMatches
-      // );
+      // exact match
+      if (r.resource_path === requestedPath) return methodMatches;
 
-      return pathMatches && methodMatches;
+      // prefix match for parameterized routes
+      // /api/admin matches /api/admin/123
+      if (requestedPath.startsWith(r.resource_path + "/")) return methodMatches;
+
+      return false;
     });
-
-    console.log("Can Access:", canAccess);
 
     if (!canAccess) {
       throw new AppError("ERR_ACCESS_DENIED", null, {
-        message: `Access denied to ${requestedMethod} ${requestedPath} , not enough permission to access this resources`,
+        message: `Access denied to ${requestedMethod} ${requestedPath}`,
         level: "access",
         userId: user.sub,
         requestedPath,
@@ -121,16 +154,15 @@ const authorization = async (req, res, next) => {
       });
     }
 
-    // 7. Attach user context to request
+    // 5. attach to request for downstream use
     req.userRoles = userRoles;
     req.userPermissions = permissionNames;
     req.userResources = resources;
 
-    // console.log(" Authorization successful");
     next();
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = authorization;
+module.exports = { authorization, clearPermissionCache };

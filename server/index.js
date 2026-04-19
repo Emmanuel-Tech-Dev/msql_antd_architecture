@@ -25,7 +25,10 @@ const errorHandler = require("./core/middleware/errorHandler");
 const AuthService = require("./core/lib/authService");
 const utils = require("./shared/utils/functions");
 const AuthRoute = require("./route/authRoute");
-const authorization = require("./core/middleware/authorization");
+const {
+  authorization,
+  clearPermissionCache,
+} = require("./core/middleware/authorization");
 
 const app = express();
 const server = http.createServer(app);
@@ -36,6 +39,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const specs = require("./core/config/swagger");
 const LogRoute = require("./route/LogRoute");
+const AccessRoute = require("./route/acessRoute");
 
 const PORT = process.env.PORT || 3000;
 
@@ -140,6 +144,8 @@ app.use((req, res, next) => {
   next();
 });
 
+clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
+
 // app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // console.log("swagger paths:", Object.keys(specs.paths || {}));
 new AuthRoute(app);
@@ -147,7 +153,10 @@ new AuthRoute(app);
 app.use(authMiddleWare);
 //app.use(authorization);
 new LogRoute(app);
+new AccessRoute(app);
 new BaseRoute(app);
+
+// clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
 
 app.get("/api/", async (req, res) => {
   try {
@@ -263,6 +272,7 @@ process.on("SIGINT", async () => {
 async function startServer() {
   try {
     await settings.preloadAll();
+    // console.log(settings);
 
     app.locals.settings = settings;
 

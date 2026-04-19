@@ -254,11 +254,13 @@ class QueryBuilder {
     this.sql += ` LIMIT ${start} ${end ? "," + end : ""} `;
     return this;
   }
+
   setSql(sql) {
     // console.log("Setting SQL:", sql);
     this.query = sql;
     return this;
   }
+
   getSql() {
     return this.sql;
   }

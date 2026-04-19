@@ -35,6 +35,7 @@
     "react-draggable": "^4.5.0",
     "react-highlight-words": "^0.21.0",
     "react-router-dom": "^7.13.1",
+    "react-skeletonify": "^1.2.0",
     "react-to-print": "^3.3.0",
     "react-tracked": "^2.0.1",
     "recharts": "^3.8.0",

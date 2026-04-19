@@ -7,6 +7,7 @@ const NodeCache = require("node-cache");
 const { v4: uuidv4 } = require("uuid");
 const otp = require("otp");
 const { customAlphabet } = require("nanoid");
+const SettingsManager = require("../../core/lib/systemSettings");
 
 const ENCRYPTION_KEY = Buffer.from(
   process.env.ENCRYPTION_KEY,
@@ -363,6 +364,13 @@ const utils = {
       config.defaultLimit = parseInt(config.defaultLimit);
 
     return { config, queryParams };
+  },
+
+  async getSystemOpenRoute() {
+    const settings = new SettingsManager();
+    const { route } = await settings.get("system.open_routes");
+    // console.log("from utils", route);
+    return route;
   },
 };
 module.exports = utils;

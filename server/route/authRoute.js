@@ -2,6 +2,7 @@ const AuthService = require("../core/lib/authService");
 const SettingsManager = require("../core/lib/systemSettings");
 const authMiddleWare = require("../core/middleware/authMiddleWare");
 const validateRequest = require("../core/middleware/validateRequest");
+const Model = require("../core/model/model");
 const authSchema = require("../schema/auth.schema/createUserScheme");
 const log = require("../shared/helpers/logger");
 class AuthRoute {
@@ -32,8 +33,44 @@ class AuthRoute {
 
   getUserInfo(app) {
     app.get("/auth/user_info", authMiddleWare, async (req, res) => {
-      const user = req.user;
-      res.json({ status: "ok", data: user });
+      console.log("User info request received", { user: req.user });
+      // return;
+      const userId = req.user.sub;
+
+      const [user] = await new Model()
+        .select(
+          ["custom_id", "name", "email", "phone_no", "avatar", "status"],
+          "admin",
+        )
+        .where("custom_id", "=", userId)
+        .execute();
+
+      if (!user) throw new AppError("ERR_USER_NOT_FOUND");
+
+      const userRoles = await new Model()
+        .select(["role_id"], "admin_user_roles")
+        .where("user_id", "=", userId)
+        .execute();
+
+      const roleIds = userRoles.map((r) => r.role_id);
+
+      const perms = roleIds.length
+        ? await new Model()
+            .select(["permission"], "admin_role_permissions")
+            .whereIn("role_id", roleIds)
+            .execute()
+        : [];
+
+      const permissions = perms.map((p) => p.permission);
+
+      res.status(200).json({
+        status: "ok",
+        data: {
+          user,
+          roles: roleIds,
+          permissions,
+        },
+      });
     });
   }
 

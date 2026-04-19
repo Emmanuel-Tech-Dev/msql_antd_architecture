@@ -8,7 +8,11 @@ const mysqlOrmAuthProvider = () => ({
     const { data } = await apiClient.post("/auth/login", { email, password });
     // refresh token set as httpOnly cookie by server
     // access token returned in body
+    // console.log("Login response data:", data);
+    // return;
     const { token } = data;
+
+    // if (!token) throw new Error("No access token returned from server");
 
     const user = { email };
     useAuthStore.getState().setAuth(user, token);
@@ -30,9 +34,9 @@ const mysqlOrmAuthProvider = () => ({
     return { authenticated: isAuthenticated };
   },
 
-  getIdentity: () => {
-    const user = useAuthStore.getState().getUser();
-    return { user };
+  getIdentity: async () => {
+    const identity = useAuthStore.getState().getUser();
+    return { user: identity };
   },
 
   getPermissions: async () => {

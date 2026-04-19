@@ -1,8 +1,8 @@
 const validateTable = require("../core/middleware/validateTable");
 const BaseService = require("../core/lib/baseService");
 const AppError = require("../shared/helpers/AppError");
-const authMiddleWare = require("../core/middleware/authMiddleWare");
-const authorization = require("../core/middleware/authorization");
+// const authMiddleWare = require("../core/middleware/authMiddleWare");
+// const authorization = require("../core/middleware/authorization");
 const { uploadSingle } = require("../core/config/multer");
 const { uploadSingleFile } = require("../core/lib/uploadServices");
 const uploadServices = require("../core/lib/uploadServices");
@@ -33,10 +33,10 @@ class BaseRoute {
     return this;
   }
 
-  async init(app) {
-    app.use(authMiddleWare);
-    //app.use(authorization);
-  }
+  // async init(app) {
+  //   app.use(authMiddleWare);
+  //   //app.use(authorization);
+  // }
 
   findAll(app) {
     app.get("/api/:resources", validateTable, async (req, res) => {
@@ -289,8 +289,9 @@ class BaseRoute {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
       // console.log(req.body);
       const { sql } = req.body;
+      // console.log(sql);
       const result = await new Model().setSql(sql).execute();
-      // console.log(result);
+      console.log(result);
       res.json({
         details: result,
       });

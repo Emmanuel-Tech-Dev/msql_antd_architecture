@@ -1,12 +1,16 @@
 import { useEffect } from 'react';
-import { Button, Card, Space, Tabs, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Card, Divider, Space, Tabs, Tag } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, InfoOutlined } from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
 import useAdd from '../../hooks/useAdd';
 import useEdit from '../../hooks/useEdit';
 import useDelete from '../../hooks/useDelete';
 import ValuesStore from '../../store/values-store';
+import useDrawer from '../../hooks/useDrawer';
+import { PageHeader } from '../../components/PageHeader';
+import UserLists from '../../components/access/UserLists';
+import PermissionMatrix from '../../components/access/PermissionsMetrix';
 
 
 
@@ -107,11 +111,23 @@ function UserRolesTab() {
 
 
 
-function RolesList() {
+
+
+
+const TABS = [
+    // { key: 'definitions', label: 'Roles', children: <RolesList /> },
+    // { key: 'user_roles', label: 'User → Roles', children: <UserRolesTab /> },
+    // { key: 'admin_roles_permission', label: 'Role → Permission', children: <RolePermissionsTab /> },
+    { key: 'admin_permission', label: 'Assign Permissions', children: <PermissionMatrix /> },
+    { key: 'admin_browser_routes', label: 'Role → Browser Routes', children: "testing" },
+];
+
+export default function Roles() {
     const valuesStore = ValuesStore();
     const add = useAdd('tables_metadata', 'table_name');
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
+    const accessDrawer = useDrawer({ resizable: false, width: 1100 });
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
@@ -121,9 +137,11 @@ function RolesList() {
             table: 'admin_roles',
             defaultLimit: 10,
             maxLimit: 100,
-            searchable: ['name'],
+            searchable: ['role_name'],
         }
     );
+
+
 
     useEffect(() => {
         if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
@@ -148,13 +166,13 @@ function RolesList() {
     }
 
     const columns = [
-        {
-            title: 'ID',
-            dataIndex: 'id',
-            key: 'id',
-            width: 80,
-            sorter: true,
-        },
+        // {
+        //     title: 'ID',
+        //     dataIndex: 'id',
+        //     key: 'id',
+        //     width: 80,
+        //     sorter: true,
+        // },
         {
             title: 'Role Name',
             dataIndex: 'role_name',
@@ -175,65 +193,110 @@ function RolesList() {
             render: (_, record) => (
                 <Space>
                     <Button
-                        size="small"
+                        // size="small"
                         icon={<EditOutlined />}
                         onClick={() => openEdit(record)}
                     />
                     {confirm(
                         record.id,
                         'Delete this role?',
-                        <Button size="small" danger icon={<DeleteOutlined />} />,
+                        <Button danger icon={<DeleteOutlined />} />,
                     )}
+
+                    <Divider type="vertical" />
+                    <Button
+                        type='default'
+
+                        onClick={() => accessDrawer.openDrawer({
+                            title: "Manage Access for " + record?.role_name,
+                            content: <>
+                                <div>
+                                    <div style={{ marginBottom: 20 }}>
+                                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Access Control</h2>
+                                        <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
+                                            Manage system roles and permissions
+                                        </p>
+                                    </div>
+                                    <div className='flex items-start gap-3'>
+                                        <UserLists role_name={record?.role_name} />
+                                        <Card className='w-full' >
+                                            <Tabs items={TABS} />
+                                        </Card>
+                                    </div>
+                                </div>
+                            </>
+                        })}
+                        variant="outlined"
+
+                    >
+                        Manage Access
+                    </Button>
+
                 </Space>
             ),
         },
     ];
 
 
-    console.log(add.record)
+
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
-                >
-                    Add Role
-                </Button>
+            <PageHeader
+                header="Access Control"
+                items={[
+                    { title: ' Manage system roles and permissions' },
+                    // { title: 'Roles' },
+                ]}
+
+                children={
+                    <>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={openAdd}
+                            style={{ background: '#141414', borderColor: '#141414' }}
+                        >
+                            Add Role
+                        </Button>
+                    </>
+                }
+            />
+
+            <div className='mt-6'>
+                <CustomTable tableConfig={table} columns={columns} />
             </div>
 
-            <CustomTable tableConfig={table} columns={columns} />
 
             {add.addModal('Add Role', () => add.save('admin_roles'))}
             {edit.editModal('Edit Role', () => edit.save(undefined, edit.record?.id, 'admin_roles'))}
+
+            {accessDrawer.drawerJSX()}
         </div>
     );
 }
 
 
 
-const TABS = [
-    { key: 'definitions', label: 'Roles', children: <RolesList /> },
-    { key: 'user_roles', label: 'User → Roles', children: <UserRolesTab /> },
 
-];
 
-export default function Roles() {
-    return (
-        <div>
-            <div style={{ marginBottom: 20 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Roles</h2>
-                <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
-                    Manage system and user roles
-                </p>
-            </div>
-            <Card>
-                <Tabs items={TABS} />
-            </Card>
+// export default function Roles() {
+//     return (
+//         <div>
+//             <div style={{ marginBottom: 20 }}>
+//                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Roles</h2>
+//                 <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
+//                     Manage system and user roles
+//                 </p>
+//             </div>
+//             <Card>
+//                 <Tabs items={TABS} />
+//             </Card>
 
-        </div>
-    );
-}
+
+
+
+
+//         </div>
+//     );
+// }

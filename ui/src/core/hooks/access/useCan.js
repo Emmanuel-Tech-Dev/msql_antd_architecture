@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useAccessProvider } from "../../providers/AccessProvider";
+import useAuthStore from "../../../store/authStore";
 
 /*
   useCan({ resource: 'admin', action: 'create' })
@@ -10,13 +11,9 @@ import { useAccessProvider } from "../../providers/AccessProvider";
   Synchronous — no loading state.
   Re-evaluates when authStore permissions change.
 */
-const useCan = ({ resource, action }) => {
-  const accessProvider = useAccessProvider();
-
-  return useMemo(
-    () => accessProvider.can({ resource, action }),
-    [resource, action, accessProvider],
-  );
+const useCan = (permission) => {
+  const permissions = useAuthStore((s) => s.permissions);
+  return permissions?.includes(permission) ?? false;
 };
 
 export default useCan;

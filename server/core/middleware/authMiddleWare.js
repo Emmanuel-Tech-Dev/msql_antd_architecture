@@ -3,7 +3,11 @@ const AppError = require("../../shared/helpers/AppError");
 const AuthService = require("../lib/authService");
 const Model = require("../model/model");
 
-const PUBLIC_ENDPOINTS = ["/api/v1/bootstrap", "/api/v1/extra_meta_options"];
+const PUBLIC_ENDPOINTS = [
+  "/api/v1/bootstrap",
+  "/api/v1/extra_meta_options",
+  "/auth/user_info",
+];
 
 const authMiddleWare = async (req, res, next) => {
   const path = req.path;

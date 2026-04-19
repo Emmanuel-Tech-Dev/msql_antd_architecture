@@ -6,13 +6,19 @@ import useTableApi from '../../hooks/useTableApi';
 import useAdd from '../../hooks/useAdd';
 import useEdit from '../../hooks/useEdit';
 import useDelete from '../../hooks/useDelete';
+import useDrawer from '../../hooks/useDrawer';
 import ValuesStore from '../../store/values-store';
+import useNotification from '../../hooks/useNotification';
+import UserInfo from '../../components/userInfo/UserInfo';
 
 export default function Users() {
+    const { alert, AlertJsx } = useNotification()
     const valuesStore = ValuesStore();
     const add = useAdd('tables_metadata', 'table_name');
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin' });
+
+    const userDrawer = useDrawer({ width: 800 })
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
@@ -36,6 +42,12 @@ export default function Users() {
             table.runRequest();
         }
     }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+
+
+
+    useEffect(() => {
+        alert.info("This is a demo application. The user management features are for demonstration purposes only and do not include actual authentication or authorization mechanisms. Please do not use real user data when testing these features.")
+    }, [])
 
     function openAdd() {
         add.setTblName('admin');
@@ -85,8 +97,8 @@ export default function Users() {
             key: 'status',
             width: 100,
             render: (val) => (
-                <Tag color={val === 'active' ? 'green' : 'default'}>
-                    {val}
+                <Tag color={val === 1 ? 'green' : 'default'}>
+                    {val === 1 ? 'Active' : 'Inactive'}
                 </Tag>
             ),
             ...table.getColumnFilterProps('status', 'admin'),
@@ -98,15 +110,20 @@ export default function Users() {
             render: (_, record) => (
                 <Space>
                     <Button
-                        size="small"
+
                         icon={<EditOutlined />}
                         onClick={() => openEdit(record)}
                     />
-                    {confirm(
-                        record.id,
-                        'Delete this user?',
-                        <Button size="small" danger icon={<DeleteOutlined />} />,
-                    )}
+                    <Button type='primary'
+
+                        onClick={() => userDrawer.openDrawer({
+                            title: `User Information - ${record.name}`,
+                            content: <>
+                                <UserInfo user={record} />
+                            </>,
+                        })}
+
+                    >Manage Users</Button>
                 </Space>
             ),
         },
@@ -137,6 +154,9 @@ export default function Users() {
 
             {add.addModal('Add User', () => add.save('admin'))}
             {edit.editModal('Edit User', () => edit.save(undefined, edit.record?.id, 'admin'))}
+
+            {/* User Management Drawer */}
+            {userDrawer.drawerJSX()}
         </div>
     );
 }

@@ -77,7 +77,7 @@ const useDrawer = (staticConfig = {}) => {
     }, [staticConfig]);
 
     // ─── JSX ──────────────────────────────────────────────────────────────
-    const drawerJSX = useCallback((overrides = {}) => (
+    const drawerJSX = useCallback((overrides = {}, localContent) => (
         <Drawer
             // ✅ static
             placement={staticConfig.placement ?? 'right'}
@@ -94,7 +94,7 @@ const useDrawer = (staticConfig = {}) => {
             styles={staticConfig.styles}
             //  resizable — uses state so width/height update on drag
             resizable={resizableConfig}
-
+            width={width}
             // dynamic
             title={title}
             extra={extra}
@@ -102,9 +102,13 @@ const useDrawer = (staticConfig = {}) => {
             loading={loading}
             open={open}
             onClose={closeDrawer}
+            style={{
+                minWidth: staticConfig.minWidth,
+                maxWidth: staticConfig.maxWidth
+            }}
             {...overrides}
         >
-            {content}
+            {localContent || content}
         </Drawer>
     ), [open, title, content, extra, footer, loading, width, height, closeDrawer, staticConfig, resizableConfig]);
 
@@ -121,6 +125,9 @@ const useDrawer = (staticConfig = {}) => {
         updateFooter,
         setLoading,
         drawerJSX,
+        setOpen,
+        setWidth,
+        setHeight,
     };
 };
 

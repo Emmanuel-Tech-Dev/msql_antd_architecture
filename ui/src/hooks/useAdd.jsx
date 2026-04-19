@@ -45,23 +45,22 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
     const [optionsVersion, setOptionsVersion] = useState(0);
 
     // ─── refs ─────────────────────────────────────────────────────────────
-    const recordRef = useRef(record);          // always-current record — no stale closure in addForm
+    // always-current record — no stale closure in addForm
     const extraMetaRef = useRef(new Set());       // O(1) guard — replaces extraMetaList array check
     const targetPendingRef = useRef(new Set());       // prevents duplicate setTarget in-flight calls
     const formBuildingRef = useRef(false);           // prevents concurrent addForm runs
 
-    const loadedOptionsRef = useRef(0);
+
     // keep recordRef in sync with record state — no form rebuild triggered
-    useEffect(() => {
-        recordRef.current = record;
-    }, [record]);
+
 
     // ─── memoize metadata lookup ──────────────────────────────────────────
     const tblMeta = useMemo(() => {
         if (!tblName) return [];
         return valuesStore
             .getValuesBy(tblMetaDataName, whrKeyName, tblName)
-            ?.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0)) ?? [];
+            ?.sort((a, b) => (Number(a.rank || 0)) - (Number(b.rank || 0))) ?? [];
+        //    / console.log("Values", va)
     }, [tblName, tblMetaDataName, whrKeyName, valuesStore]);
 
     // ─── filtered meta ────────────────────────────────────────────────────
@@ -129,7 +128,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
                 if (!visible) continue;
 
                 // read from ref — always current value, never stale, no form rebuild on keystroke
-                const value = recordRef.current[name] || undefined;
+                const value = record[name] || undefined;
                 const marginBottom = 'mb-2';
                 const showValidatorIndicator = validator ? <label className="text-red-500">*</label> : '';
 
@@ -628,6 +627,8 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
         const guardKey = `${key}:${v}`;
         if (targetPendingRef.current.has(guardKey)) return;
 
+
+
         const tblMetaForKey = valuesStore.getValuesBy(tblMetaDataName, whereKeyName, tblName);
         const elem = tblMetaForKey.find((item) => item?.column_name === key) ?? {};
         const options = elem.extra_options;
@@ -639,10 +640,12 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
 
         targetPendingRef.current.add(guardKey);
 
+        //  console.log(targets)
         try {
             await Promise.all(
                 targets.map(async (p) => {
                     let sql = p?.sql;
+
                     const optKey = p?.key;
                     const optValue = p?.value;
                     const image = p?.image;
@@ -654,7 +657,7 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
                     sql = sql.replace('this.value', v);
                     const res = await apiRequest(
                         'post',
-                        `${Settings.baseUrl}/v1/extra_meta_options`,
+                        `/api/v1/extra_meta_options`,
                         { sql },
                         null
 
@@ -796,7 +799,9 @@ const useAdd = (tablesMetaData, whereKeyName, autoFetch = true) => {
         setSaveCompleted(true);
         setLoading(false);
         setCustomIDIsSet(false);
+        setOptionsVersion(0);
         dynamicForm.form.resetFields();
+
     }
 
     function resetCompletely() {

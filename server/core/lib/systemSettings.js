@@ -1,5 +1,5 @@
 const CacheManager = require("../../shared/helpers/cacheManager");
-const Model = require("../model/model");
+
 const conn = require("../config/conn");
 
 class SettingsManager {
@@ -41,6 +41,7 @@ class SettingsManager {
   }
 
   async fetchFromDB(key) {
+    const Model = require("../model/model");
     const data = await new Model()
       .setSql(
         `SELECT value, type, scope
@@ -53,7 +54,7 @@ class SettingsManager {
            WHEN scope = 'global' THEN 1 
            ELSE 2 
          END
-       LIMIT 1`
+       LIMIT 1`,
       )
       .execute();
 
@@ -94,7 +95,7 @@ class SettingsManager {
 
       const [current] = await connection.query(
         "SELECT * FROM settings WHERE `key` = ?",
-        [key]
+        [key],
       );
 
       if (current.length === 0) {
@@ -107,7 +108,7 @@ class SettingsManager {
       // Update database
       await connection.query(
         "UPDATE settings SET value = ?, updated_at = NOW() WHERE `key` = ?",
-        [newValue, key]
+        [newValue, key],
       );
 
       await connection.commit();
@@ -117,7 +118,7 @@ class SettingsManager {
       const typedValue = this.convertType(newValue, current[0].type);
       this.cache.set(cacheKey, typedValue, 0);
 
-      console.log(`✅ Setting updated: ${key} = ${newValue} by ${changedBy}`);
+      console.log(`Setting updated: ${key} = ${newValue} by ${changedBy}`);
 
       return {
         success: true,
@@ -135,17 +136,16 @@ class SettingsManager {
 
   async preloadAll() {
     console.log("Preloading all settings into cache...");
-
+    // console.log("Error is going on in here ");
+    const Model = require("../model/model");
     try {
       const rows = await new Model()
         .setSql(
           `SELECT \`key\`, value, type 
          FROM system_settings 
-         WHERE env = '${this.environment}' OR env IS NULL OR scope = 'global'`
+         WHERE env = '${this.environment}' OR env IS NULL OR scope = 'global'`,
         )
         .execute();
-
-      // console.log(rows);
 
       // return;
 
@@ -155,12 +155,13 @@ class SettingsManager {
         const value = this.convertType(row.value, row.type);
         this.cache.set(cacheKey, value, 0);
         count++;
+        //console.log(row);
       }
 
       this.isPreloaded = true;
       console.log(` Preloaded ${count} settings into cache`);
       console.log(
-        ` Settings cached FOREVER (until server restart or admin update)`
+        ` Settings cached FOREVER (until server restart or admin update)`,
       );
 
       return count;

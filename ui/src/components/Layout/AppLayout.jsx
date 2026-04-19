@@ -16,6 +16,8 @@ import { Spin } from 'antd';
 import useRouteGuard from '../../core/hooks/access/useRouteGuard';
 import useLogout from '../../core/hooks/auth/useLogout';
 import useNotification from '../../hooks/useNotification';
+import { useEffect } from 'react';
+import apiClient from '../../services/apiClient';
 
 const ICON_MAP = {
     DashboardOutlined: <DashboardOutlined />,
@@ -55,6 +57,9 @@ export default function AppLayout() {
     const { isAllowed, isReady } = useRouteGuard('/login');
     const { message } = useNotification();
 
+
+
+
     const { mutate: logout } = useLogout({
         mutationOptions: {
             onSuccess: () => {
@@ -66,6 +71,26 @@ export default function AppLayout() {
 
         }
     })
+
+    // useEffect(() => {
+    //     const fetchUserInfo = async () => {
+    //         try {
+    //             const meRes = await apiClient.get("/auth/user_info");
+    //             const { user, roles, permissions } = meRes.data?.data ?? {};
+
+    //             // Update the store
+    //             useAuthStore.getState().setAuth(user, roles, permissions);
+    //         } catch (error) {
+    //             console.error("Failed to fetch user info:", error);
+    //             // Optionally redirect to login or handle error
+    //         }
+    //     };
+
+    //     fetchUserInfo();
+    // }, []); // Empty dependency array means this runs once on mount
+
+
+
     const navigate = useNavigate();
 
     const browserRoutes = useBrowserRoutes();
@@ -113,6 +138,7 @@ export default function AppLayout() {
 
 
 
+
     const siderHeader = (
         <div style={{
             padding: '0 16px',
@@ -132,6 +158,14 @@ export default function AppLayout() {
             </div>
         </div>
     );
+
+
+
+
+    // ... inside AppLayout component
+
+
+
 
     return sider.layoutJSX({ siderHeader, trigger: null });
 }

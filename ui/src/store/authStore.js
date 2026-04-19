@@ -9,10 +9,18 @@ const useAuthStore = create(
       user: null,
       accessToken: null,
       isAuthenticated: false,
+      // roles: [],
+      // permissions: [],
 
-      setAuth: (user, token) => {
+      setAuth: (user, token, roles = [], permissions = []) => {
         sessionStorage.setItem("access_token", token);
-        set({ user, accessToken: token, isAuthenticated: true });
+        set({
+          user,
+          accessToken: token,
+          isAuthenticated: true,
+          roles,
+          permissions,
+        });
       },
 
       clearAuth: () => {
