@@ -127,7 +127,7 @@ export default function Roles() {
     const add = useAdd('tables_metadata', 'table_name');
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
-    const accessDrawer = useDrawer({ resizable: false, width: 1100 });
+    const accessDrawer = useDrawer({ resizable: false, width: 1100, destroyOnClose: true });
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },

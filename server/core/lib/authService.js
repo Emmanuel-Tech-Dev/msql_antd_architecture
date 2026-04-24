@@ -284,7 +284,7 @@ class AuthService {
 
   //login flow
 
-  async login(record) {
+  async login(record, req) {
     const { email, password } = record;
 
     if (!email || !password) {
@@ -336,6 +336,15 @@ class AuthService {
       .where("custom_id", "=", user?.custom_id)
       .execute();
 
+    await utils.activityLogs(
+      user?.custom_id,
+      "Authentication",
+      "success",
+      "Login Successfully",
+      req.ip,
+      req.headers["user-agent"],
+    );
+
     const token = await this.generateAuthTokens(user);
 
     return token;
@@ -376,7 +385,7 @@ class AuthService {
     return result;
   }
 
-  async logout(token) {
+  async logout(token, req) {
     // const { accessToken, refreshToken } = token;
 
     const verifyToken = await this.verifyToken(token, this.refreshTokenSecret);
@@ -413,6 +422,15 @@ class AuthService {
       });
 
       await tokenBlacklist.executeInTransaction();
+
+      await utils.activityLogs(
+        verifyToken?.sub,
+        "Authentication",
+        "success",
+        "LogOut Successfully",
+        req.ip,
+        req.headers["user-agent"],
+      );
     });
   }
 
@@ -535,7 +553,7 @@ class AuthService {
     return token;
   }
 
-  async forgetPassword(user) {
+  async forgetPassword(user, req) {
     const { email } = user;
     const [userExist] = await this.model
       .select(["email", "custom_id"], "admin")
@@ -548,10 +566,6 @@ class AuthService {
         // ip: req?.ip,
         timestamp: new Date().toISOString(),
       });
-      // throw new AppError("ERR_NOT_FOUND", null, {
-      //   message: "Failed to initialize password reset, Try again",
-      //   level: "security",
-      // });
       return true;
     }
 
@@ -618,6 +632,15 @@ class AuthService {
     const subject = "Password Reset";
 
     await this.sendResetLink(userExist?.email, html, subject);
+
+    await utils.activityLogs(
+      userExist?.custom_id,
+      "Password Reset link Request",
+      "Security",
+      "Password Reset link request successful",
+      req.ip,
+      req.headers["user-agent"],
+    );
 
     return true;
   }

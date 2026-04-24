@@ -11,3 +11,18 @@
 .ant-table-pagination-end {
   padding-right: 10px;
 }
+
+/* In your global CSS file */
+.skeleton-box {
+  background-color: #e8e8e8 !important; /* lighter than the default ~#c0c0c0 */
+}
+
+/* If it uses a shimmer/wave animation, also lighten the highlight */
+.skeleton-box::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  ) !important;
+}

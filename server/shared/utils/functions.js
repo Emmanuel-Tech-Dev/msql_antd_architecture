@@ -372,5 +372,24 @@ const utils = {
     // console.log("from utils", route);
     return route;
   },
+
+  async activityLogs(customId, title, type, description, ip, agent) {
+    const Model = require("../../core/model/model");
+
+    await new Model()
+      .insert("user_activity_logs", {
+        user_id: customId,
+        activity_type: title,
+        title: type,
+        description: description,
+        ip_address: ip,
+        user_agent: agent,
+      })
+      .execute();
+
+    console.log("activity hit");
+
+    return;
+  },
 };
 module.exports = utils;

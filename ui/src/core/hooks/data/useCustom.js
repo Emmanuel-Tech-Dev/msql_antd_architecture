@@ -30,10 +30,12 @@ export const useCustomMutation = ({ mutationOptions = {} } = {}) => {
       dataProvider.custom({ url, method, payload, headers, meta }),
 
     onSuccess: (data, variables, context) => {
+      // console.log("mutation onSuccess fired", data);
       mutationOptions.onSuccess?.(data, variables, context);
     },
 
     onError: (error, variables, context) => {
+      //  console.log("mutation onSuccess fired", error);
       mutationOptions.onError?.(error, variables, context);
     },
 

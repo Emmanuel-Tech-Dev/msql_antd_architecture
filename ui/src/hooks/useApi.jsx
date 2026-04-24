@@ -46,6 +46,7 @@ const useApi = (method = 'get', url, options = {}) => {
     });
 
     if (isRead) {
+
         return {
             data: queryResult.data?.data,
             loading: queryResult.isLoading,

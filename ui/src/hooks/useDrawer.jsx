@@ -86,7 +86,7 @@ const useDrawer = (staticConfig = {}) => {
             mask={staticConfig.mask ?? true}
             keyboard={staticConfig.keyboard ?? true}
             zIndex={staticConfig.zIndex ?? 1000}
-            size={staticConfig.size}
+            size={width || staticConfig.size}
             push={staticConfig.push}
             destroyOnClose={staticConfig.destroyOnClose ?? false}
             rootClassName={staticConfig.rootClassName}
@@ -94,7 +94,7 @@ const useDrawer = (staticConfig = {}) => {
             styles={staticConfig.styles}
             //  resizable — uses state so width/height update on drag
             resizable={resizableConfig}
-            width={width}
+
             // dynamic
             title={title}
             extra={extra}

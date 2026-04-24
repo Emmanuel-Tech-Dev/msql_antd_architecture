@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "F:\\Next JS Projects\\msql_antd_architecture\\SERVER\\resources\\logs\\.e39c60c204af3474c7adde9bde817efc09b1b96c-audit.json",
+    "files": [
+        {
+            "date": 1776709690991,
+            "name": "F:\\Next JS Projects\\msql_antd_architecture\\SERVER\\resources\\logs\\combined-2026-04-20.log",
+            "hash": "89af9004cb43a4d3cdbe2e989dc6a6cba6a3e49560ea338c7da4ab26882bc98b"
+        },
+        {
+            "date": 1776756307681,
+            "name": "F:\\Next JS Projects\\msql_antd_architecture\\SERVER\\resources\\logs\\combined-2026-04-21.log",
+            "hash": "4d0082e7c606710884db7233e73969139c43be218be3c4112043a4310e49374e"
+        }
+    ],
+    "hashType": "sha256"
+}

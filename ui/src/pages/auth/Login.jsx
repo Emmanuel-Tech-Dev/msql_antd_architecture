@@ -62,6 +62,10 @@ export default function Login() {
 
                 <Form
                     layout="vertical"
+                    initialValues={{
+                        email: "emmanuelkusi345@gmail.com",
+                        password: "root@user1"
+                    }}
                     onFinish={(values) => mutate(values)}
                     requiredMark={false}
                     size="large"
@@ -78,6 +82,7 @@ export default function Login() {
                             prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
                             placeholder="you@example.com"
                             autoComplete="email"
+                            value={"emmanuelkusi345@gmail.com"}
                         />
                     </Form.Item>
 
@@ -91,6 +96,7 @@ export default function Login() {
                             prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
                             placeholder="••••••••"
                             autoComplete="current-password"
+                            value={"root@user1"}
                         />
                     </Form.Item>
 

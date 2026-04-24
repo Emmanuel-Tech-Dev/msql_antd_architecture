@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "F:\\Next JS Projects\\msql_antd_architecture\\SERVER\\resources\\logs\\.30bdc18062bdfd5a1cec161547a465f601718dc3-audit.json",
+    "files": [
+        {
+            "date": 1776756307514,
+            "name": "F:\\Next JS Projects\\msql_antd_architecture\\SERVER\\resources\\logs\\error-2026-04-21.log",
+            "hash": "a4462d3380f9ed043d52055fbe5377de4469a009b5c15b330cb4e0537afd4e6c"
+        }
+    ],
+    "hashType": "sha256"
+}

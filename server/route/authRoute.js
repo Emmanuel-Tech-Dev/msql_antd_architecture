@@ -5,6 +5,7 @@ const validateRequest = require("../core/middleware/validateRequest");
 const Model = require("../core/model/model");
 const authSchema = require("../schema/auth.schema/createUserScheme");
 const log = require("../shared/helpers/logger");
+const utils = require("../shared/utils/functions");
 class AuthRoute {
   constructor(app) {
     this.app = app;
@@ -78,14 +79,7 @@ class AuthRoute {
     app.post("/auth/login", async (req, res) => {
       const record = req.body;
 
-      const response = await this.auth.login(record);
-
-      // res.cookie("refresh_token", response?.refreshToken, {
-      //   httpOnly: true,
-      //   secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-      //   sameSite: "strict", // Strict CSRF protection
-      //   maxAge: this.refreshttl, // 7 days
-      // });
+      const response = await this.auth.login(record, req);
 
       res
         .status(200)
@@ -106,7 +100,7 @@ class AuthRoute {
   logout(app) {
     app.post("/auth/logout", async (req, res) => {
       const token = req.cookies.refresh_token;
-      await this.auth.logout(token);
+      await this.auth.logout(token, req);
       // res.clearCookie("refresh_token", {
       //   httpOnly: true,
       //   secure: process.env.NODE_ENV === "production",
@@ -168,6 +162,13 @@ class AuthRoute {
         userID: sub,
       });
 
+      await utils.activityLogs(
+        sub,
+        "Security",
+        "User password changed successfull",
+        req.ip,
+        req.headers["user-agent"],
+      );
       // res.cookie("refresh_token", response?.refreshToken, {
       //   httpOnly: true,
       //   secure: process.env.NODE_ENV === "production", // Use secure cookies in production
@@ -196,7 +197,7 @@ class AuthRoute {
       const record = req.body;
       //   {sub}
 
-      const response = await this.auth.forgetPassword(record);
+      const response = await this.auth.forgetPassword(record, req);
       if (response) {
         log.security("Forget Password change init", {
           // userId: user.id,

@@ -19,6 +19,29 @@ const utils = {
     return totalValue;
   },
 
+  getDateAndTime(value) {
+    const date = dayjs(value).format("dddd, MMMM D, hh:mm A");
+    return date;
+  },
+
+  avatarColor(str = "") {
+    const AVATAR_COLORS = [
+      "#4f6ef7",
+      "#10b981",
+      "#f59e0b",
+      "#8b5cf6",
+      "#ef4444",
+      "#06b6d4",
+      "#ec4899",
+      "#14b8a6",
+    ];
+
+    let hash = 0;
+    for (let i = 0; i < str.length; i++)
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  },
+
   getBase64: (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -352,8 +375,16 @@ const utils = {
         futureN: "in # millennia",
       },
     ];
-    const diff =
-      Date.now() - (typeof date === "object" ? date : new Date(date)).getTime();
+    if (!date) return "—";
+
+    const parsed =
+      typeof date === "object"
+        ? date
+        : new Date(String(date).replace(" ", "T")); // MySQL datetime → ISO
+
+    if (isNaN(parsed.getTime())) return "—"; // guard against truly invalid values
+
+    const diff = Date.now() - parsed.getTime();
     const diffAbs = Math.abs(diff);
     for (const unit of units) {
       if (diffAbs < unit.max) {

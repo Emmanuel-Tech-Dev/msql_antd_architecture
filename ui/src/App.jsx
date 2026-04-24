@@ -22,6 +22,7 @@ import Roles from "./pages/admin/Roles";
 import Permissions from "./pages/admin/Permissions";
 import Resources from "./pages/admin/Resources";
 import SystemLogs from "./pages/settings/SystemLogs";
+import { SkeletonProvider } from 'react-skeletonify';
 
 
 
@@ -31,44 +32,53 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        {/* Auth Routes */}
+      <SkeletonProvider
+        config={{
+          animation: "animation-1",
+          borderRadius: "8px",
+          animationSpeed: 2,
+        }}
+      >
+        <Routes>
+          {/* Auth Routes */}
 
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/init_psd_recovery" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
-        <Route path="/reset_password" element={<ResetPassword />} />
-        <Route path="/otp_request" element={<OtpRequest />} />
-        <Route path="/verify_otp" element={<OtpVerify />} />
-        {/* Protected Admin Routes */}
-        <Route path="/admin" element={
-          // <ProtectedRoute>
-          //   <DropdownSidebarLayout />
-          // </ProtectedRoute>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/init_psd_recovery" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
+          <Route path="/reset_password" element={<ResetPassword />} />
+          <Route path="/otp_request" element={<OtpRequest />} />
+          <Route path="/verify_otp" element={<OtpVerify />} />
+          {/* Protected Admin Routes */}
+          <Route path="/admin" element={
+            // <ProtectedRoute>
+            //   <DropdownSidebarLayout />
+            // </ProtectedRoute>
 
-          <AppLayout />
+            <AppLayout />
 
 
 
-        }>
-          <Route index element={<Test />} />
-          <Route path="home" element={<Test />} />
-          <Route path="test" element={<Analytics />} />
-          <Route path="test1" element={<AnalyticsHospital />} />
-          <Route path="test2" element={<AnalyticsSchool />} />
-          <Route path="test3" element={<AnalyticsEcommerce />} />
-          <Route path="management/users" element={<Users />} />
-          <Route path="management/roles&permissions" element={<Roles />} />
-          <Route path="management/permissions" element={<Permissions />} />
-          <Route path="management/resources" element={<Resources />} />
-          <Route path="settings/system_logs" element={<SystemLogs />} />
-          <Route path="404" element={<NotFound />} />
-        </Route>
+          }>
+            <Route index element={<Test />} />
+            <Route path="home" element={<Test />} />
+            <Route path="test" element={<Analytics />} />
+            <Route path="test1" element={<AnalyticsHospital />} />
+            <Route path="test2" element={<AnalyticsSchool />} />
+            <Route path="test3" element={<AnalyticsEcommerce />} />
+            <Route path="management/users" element={<Users />} />
+            <Route path="management/roles&permissions" element={<Roles />} />
+            <Route path="management/permissions" element={<Permissions />} />
+            <Route path="management/resources" element={<Resources />} />
+            <Route path="settings/system_logs" element={<SystemLogs />} />
+            <Route path="404" element={<NotFound />} />
+          </Route>
 
-        <Route path="/404" element={<NotFound />} />
-        <Route path="*" element={<Navigate to="404" replace />} />
-      </Routes>
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<Navigate to="404" replace />} />
+        </Routes>
+
+      </SkeletonProvider>
     </>
   );
 }
