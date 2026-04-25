@@ -368,9 +368,20 @@ const utils = {
 
   async getSystemOpenRoute() {
     const settings = new SettingsManager();
-    const { route } = await settings.get("system.open_routes");
-    // console.log("from utils", route);
-    return route;
+    const openRoutes = await settings.get("system.open_routes");
+
+    // Support both shapes:
+    // 1) { route: ["/a", "/b"] }
+    // 2) ["/a", "/b"]
+    if (Array.isArray(openRoutes)) {
+      return openRoutes;
+    }
+
+    if (openRoutes && Array.isArray(openRoutes.route)) {
+      return openRoutes.route;
+    }
+
+    return [];
   },
 
   async activityLogs(customId, title, type, description, ip, agent) {
@@ -386,8 +397,6 @@ const utils = {
         user_agent: agent,
       })
       .execute();
-
-    console.log("activity hit");
 
     return;
   },

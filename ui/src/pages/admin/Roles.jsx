@@ -127,7 +127,7 @@ export default function Roles() {
     const add = useAdd('tables_metadata', 'table_name');
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
-    const accessDrawer = useDrawer({ resizable: false, width: 1100, destroyOnClose: true });
+    const accessDrawer = useDrawer({ width: 800, destroyOnClose: true });
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
@@ -218,9 +218,12 @@ export default function Roles() {
                                         </p>
                                     </div>
                                     <div className='flex items-start gap-3'>
-                                        <UserLists role_name={record?.role_name} />
+                                        {/* <UserLists role_name={record?.role_name} /> */}
                                         <Card className='w-full' >
-                                            <Tabs items={TABS} />
+                                            <Tabs items={[
+                                                { key: 'admin_permission', label: 'Assign Permissions', children: <PermissionMatrix role_name={record?.role_name} /> },
+                                                { key: 'admin_browser_routes', label: 'Role → Browser Routes', children: "testing" },
+                                            ]} />
                                         </Card>
                                     </div>
                                 </div>

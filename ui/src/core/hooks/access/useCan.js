@@ -1,7 +1,5 @@
 // src/core/hooks/access/useCan.js
 
-import { useMemo } from "react";
-import { useAccessProvider } from "../../providers/AccessProvider";
 import useAuthStore from "../../../store/authStore";
 
 /*

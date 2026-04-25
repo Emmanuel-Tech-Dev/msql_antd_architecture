@@ -6,13 +6,8 @@ import useAuthStore from "../../store/authStore";
 const mysqlOrmAuthProvider = () => ({
   login: async ({ email, password }) => {
     const { data } = await apiClient.post("/auth/login", { email, password });
-    // refresh token set as httpOnly cookie by server
-    // access token returned in body
-    // console.log("Login response data:", data);
-    // return;
-    const { token } = data;
 
-    // if (!token) throw new Error("No access token returned from server");
+    const { token } = data;
 
     const user = { email };
     useAuthStore.getState().setAuth(user, token);
@@ -40,13 +35,35 @@ const mysqlOrmAuthProvider = () => ({
   },
 
   getPermissions: async () => {
-    const { data } = await apiClient.get("/auth/permissions");
-    return { roles: data.roles ?? [], permissions: data.permissions ?? [] };
+    const { data } = await apiClient.get("/auth/auth_user");
+    const payload = data?.data ?? {};
+    const roles = (payload.role ?? []).map((r) =>
+      typeof r === "string" ? r : r?.role_id,
+    );
+    const permissions = payload.assignedPermission ?? [];
+    const resources = payload.resources ?? [];
+    const user = payload.user ?? null;
+
+    useAuthStore.getState().setAuthMeta({
+      user,
+      roles,
+      permissions,
+      resources,
+    });
+
+    return {
+      data: payload,
+      user,
+      roles,
+      permissions,
+      resources,
+    };
   },
 
   refreshToken: async () => {
     const { data } = await apiClient.post("/auth/refresh");
     const { token } = data;
+
     const user = useAuthStore.getState().getUser();
     useAuthStore.getState().setAuth(user, token);
     return { token };

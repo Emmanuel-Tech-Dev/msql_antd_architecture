@@ -145,6 +145,34 @@ export default function UserInfo({ user: payload }) {
 
     console.log(data)
 
+
+    // "create:admin"        → action=create,  resource=Admin
+    // "read:admin_resources"→ action=read,    resource=Admin Resources  
+    // "read:roles"          → action=read,    resource=Roles
+
+    const permsByResource = (data?.permissions ?? []).reduce((acc, p) => {
+        const [action, ...resourceParts] = (p.permission ?? '').split(':');
+        if (!resourceParts.length) return acc;
+
+        // "admin_resources" → "Admin Resources", "admin" → "Admin", "roles" → "Roles"
+        const key = resourceParts
+            .join(':')                        // rejoin in case resource had colons
+            .split('_')                       // split snake_case
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))  // capitalise each word
+            .join(' ');
+
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(action);
+        return acc;
+    }, {});
+
+    // Result:
+    // {
+    //   "Admin":           ["create", "delete"],
+    //   "Admin Resources": ["read"],
+    //   "Roles":           ["read"],
+    // }
+
     return (
         <SkeletonWrapper loading={loading || !data}>
             <div
@@ -418,32 +446,33 @@ export default function UserInfo({ user: payload }) {
 
                     {/* Effective access */}
                     <SectionTitle style={{ marginBottom: 10 }}>
-                        Effective access <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 9 }}>(read-only · computed from roles)</span>
+                        Effective access{' '}
+                        <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 9 }}>
+                            (read-only · computed from roles)
+                        </span>
                     </SectionTitle>
 
-                    {user.access.map((row, i) => (
+                    {Object.entries(permsByResource).map(([resource, actions], i, arr) => (
                         <div
-                            key={row.resource}
+                            key={resource}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 8,
                                 padding: '6px 0',
-                                borderBottom: i < user.access.length - 1 ? '0.5px solid #f3f4f6' : 'none',
+                                borderBottom: i < arr.length - 1 ? '0.5px solid #f3f4f6' : 'none',
                             }}
                         >
-                            <span style={{ fontSize: 11, color: '#6b7280', width: 80, flexShrink: 0 }}>{row.resource}</span>
+                            <span style={{ fontSize: 11, color: '#6b7280', width: 100, flexShrink: 0 }}>
+                                {resource}
+                            </span>
                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                                {row.perms.filter(Boolean).map((p) => (
-                                    <PermPill key={p} label={p} granted />
-                                ))}
-                                {(row.denied || []).map((p) => (
-                                    <PermPill key={p} label={p} granted={false} />
+                                {actions.map((a) => (
+                                    <PermPill key={a} label={a} granted />
                                 ))}
                             </div>
                         </div>
                     ))}
-
 
                 </div>
             </div>

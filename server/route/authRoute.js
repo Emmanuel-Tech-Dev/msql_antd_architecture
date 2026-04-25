@@ -1,6 +1,7 @@
 const AuthService = require("../core/lib/authService");
 const SettingsManager = require("../core/lib/systemSettings");
 const authMiddleWare = require("../core/middleware/authMiddleWare");
+const { authorization } = require("../core/middleware/authorization");
 const validateRequest = require("../core/middleware/validateRequest");
 const Model = require("../core/model/model");
 const authSchema = require("../schema/auth.schema/createUserScheme");
@@ -21,58 +22,124 @@ class AuthRoute {
     this.verifyResetToken(app);
     this.resetPassword(app);
     this.googleOAuth(app);
-    this.getUserInfo(app);
-
-    this.init();
+    this.getAuthUser(app);
 
     return this;
   }
 
-  async init() {
-    this.refreshTTL = await this.settings.get("auth.jwt.refresh_ttl");
+  async getRefreshTtl() {
+    if (!this.refreshttl) {
+      this.refreshttl = await this.settings.get("auth.jwt.refresh_ttl");
+    }
+    return this.refreshttl;
   }
 
-  getUserInfo(app) {
-    app.get("/auth/user_info", authMiddleWare, async (req, res) => {
-      console.log("User info request received", { user: req.user });
-      // return;
-      const userId = req.user.sub;
+  getAuthUser(app) {
+    app.get(
+      "/auth/auth_user",
+      authMiddleWare,
+      authorization,
+      async (req, res) => {
+        const userId = req.user.sub;
+        let role = Array.isArray(req.roles) ? req.roles : [];
+        let perm = Array.isArray(req.permissions) ? req.permissions : [];
+        let resources = [];
 
-      const [user] = await new Model()
-        .select(
-          ["custom_id", "name", "email", "phone_no", "avatar", "status"],
-          "admin",
-        )
-        .where("custom_id", "=", userId)
-        .execute();
+        // Ensure roles always available
+        if (!role.length) {
+          role = await new Model()
+            .select(["user_id", "role_id"], "admin_user_roles")
+            .where("user_id", "=", userId)
+            .execute();
+        }
 
-      if (!user) throw new AppError("ERR_USER_NOT_FOUND");
+        const roleNames = role
+          .map((r) => (typeof r === "string" ? r : r?.role_id))
+          .filter(Boolean);
 
-      const userRoles = await new Model()
-        .select(["role_id"], "admin_user_roles")
-        .where("user_id", "=", userId)
-        .execute();
-
-      const roleIds = userRoles.map((r) => r.role_id);
-
-      const perms = roleIds.length
-        ? await new Model()
+        // Ensure permissions always available
+        if (!perm.length && roleNames.length) {
+          const perms = await new Model()
             .select(["permission"], "admin_role_permissions")
-            .whereIn("role_id", roleIds)
-            .execute()
-        : [];
+            .whereIn("role_id", roleNames)
+            .execute();
+          perm = perms.map((p) => p.permission);
+        }
 
-      const permissions = perms.map((p) => p.permission);
+        // Browser routes for UI context should come from admin_role_browser_routes.
+        // Dev role can access all browser routes once authenticated.
+        const isDev = roleNames.some(
+          (r) => String(r).trim().toLowerCase() === "dev",
+        );
 
-      res.status(200).json({
-        status: "ok",
-        data: {
-          user,
-          roles: roleIds,
-          permissions,
-        },
-      });
-    });
+        if (isDev) {
+          resources = await new Model()
+            .select(["resource_path", "resource", "icon"], "admin_resources")
+            .where("resource_type", "=", "BROWSER_ROUTE")
+            .execute();
+        } else if (roleNames.length) {
+          try {
+            const placeholders = roleNames.map(() => "?").join(", ");
+            resources = await new Model().raw(
+              `SELECT DISTINCT ar.resource_path, ar.resource, ar.icon
+               FROM admin_resources ar
+               INNER JOIN admin_role_browser_routes arbr
+                 ON arbr.resource_id = ar.resource
+               WHERE ar.resource_type = 'BROWSER_ROUTE'
+                 AND arbr.role_id IN (${placeholders})
+               ORDER BY ar.\`order\` ASC`,
+              roleNames,
+            );
+
+            // Safety fallback for naming mismatches or empty assignments.
+            if (!Array.isArray(resources) || resources.length === 0) {
+              resources = perm.length
+                ? await new Model()
+                    .select(
+                      ["resource_path", "resource", "icon"],
+                      "admin_resources",
+                    )
+                    .where("resource_type", "=", "BROWSER_ROUTE")
+                    .whereIn("resource", perm)
+                    .execute()
+                : [];
+            }
+          } catch (error) {
+            // Compatibility fallback: old permission/resource mapping.
+            resources = perm.length
+              ? await new Model()
+                  .select(
+                    ["resource_path", "resource", "icon"],
+                    "admin_resources",
+                  )
+                  .where("resource_type", "=", "BROWSER_ROUTE")
+                  .whereIn("resource", perm)
+                  .execute()
+              : [];
+          }
+        }
+
+        const [user] = await new Model()
+          .select(
+            ["custom_id", "name", "email", "phone_no", "avatar", "status"],
+            "admin",
+          )
+          .where("custom_id", "=", userId)
+          .execute();
+
+        if (!user) throw new AppError("ERR_USER_NOT_FOUND");
+
+        res.status(200).json({
+          status: "ok",
+          data: {
+            user,
+            role,
+            assignedPermission: perm,
+            resources,
+          },
+        });
+      },
+    );
   }
 
   login(app) {
@@ -80,38 +147,46 @@ class AuthRoute {
       const record = req.body;
 
       const response = await this.auth.login(record, req);
-
-      res
-        .status(200)
-        .cookie("refresh_token", response?.refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-          sameSite: "strict", // Strict CSRF protection
-          maxAge: this.refreshttl, // 7 days
-        })
-        .json({
-          status: "ok",
-          message: "Operation Successfull!",
-          token: response?.accessToken,
-        });
+      const refreshttl = await this.getRefreshTtl();
+      -(
+        // console.log("Testing login refresh Token", refreshttl);
+        res
+          .status(200)
+          .cookie("refresh_token", response?.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/",
+            maxAge: refreshttl,
+          })
+          .json({
+            status: "ok",
+            message: "Operation Successfull!",
+            token: response?.accessToken,
+          })
+      );
     });
   }
 
   logout(app) {
     app.post("/auth/logout", async (req, res) => {
       const token = req.cookies.refresh_token;
-      await this.auth.logout(token, req);
-      // res.clearCookie("refresh_token", {
-      //   httpOnly: true,
-      //   secure: process.env.NODE_ENV === "production",
-      //   sameSite: "strict",
-      // });
 
-      res.status(201).clearCookie("refresh_token").json({
-        status: "ok",
-        message: "Operation Successfull!",
-        detalis: "User logout",
-      });
+      await this.auth.logout(token, req);
+
+      res
+        .status(200)
+        .clearCookie("refresh_token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+        })
+        .json({
+          status: "ok",
+          message: "Operation Successfull!",
+          detalis: "User logout",
+        });
     });
   }
 
@@ -134,15 +209,25 @@ class AuthRoute {
   refreshToken(app) {
     app.post("/auth/refresh", async (req, res) => {
       const token = req.cookies.refresh_token;
-      //  console.log("Refresh token request received", { token });
+
+      if (!token) {
+        return res.status(401).json({
+          status: "error",
+          message: "No refresh token provided",
+        });
+      }
+
+      const refreshttl = await this.getRefreshTtl();
+
       const response = await this.auth.refreshToken(token);
       res
         .status(200)
         .cookie("refresh_token", response?.refreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production", // Use secure cookies in production
-          sameSite: "strict", // Strict CSRF protection
-          maxAge: this.refreshttl, // 7 days
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+          maxAge: refreshttl,
         })
         .json({
           status: "ok",
@@ -166,7 +251,7 @@ class AuthRoute {
         sub,
         "Security",
         "User password changed successfull",
-        req.ip,
+        req.path,
         req.headers["user-agent"],
       );
       // res.cookie("refresh_token", response?.refreshToken, {
@@ -176,13 +261,15 @@ class AuthRoute {
       //   maxAge: this.refreshttl, // 7 days
       // });
 
+      const refreshttl = await this.getRefreshTtl();
+
       res
         .status(200)
         .cookie("refresh_token", response?.refreshToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Use secure cookies in production
           sameSite: "strict", // Strict CSRF protection
-          maxAge: this.refreshttl, // 7 days
+          maxAge: refreshttl, // 7 days
         })
         .json({
           status: "ok",
@@ -275,13 +362,15 @@ class AuthRoute {
       //   maxAge: this.refreshttl, // 7 days
       // });
 
+      const refreshttl = await this.getRefreshTtl();
+
       res
         .status(200)
         .cookie("refresh_token", response?.refreshToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Use secure cookies in production
           sameSite: "strict", // Strict CSRF protection
-          maxAge: this.refreshttl, // 7 days
+          maxAge: refreshttl, // 7 days
         })
         .json({
           status: "ok",

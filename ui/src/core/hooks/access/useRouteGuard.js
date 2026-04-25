@@ -5,6 +5,26 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "../../../store/authStore";
 import { useResourceStore } from "../../provider/ResourceProvider";
 
+function normalizePath(path) {
+  if (!path) return "/";
+  const cleaned = String(path).trim();
+  if (cleaned.length > 1 && cleaned.endsWith("/")) {
+    return cleaned.slice(0, -1);
+  }
+  return cleaned;
+}
+
+function isPublicBrowserRoute(route) {
+  const flag = route?.is_public;
+  if (typeof flag === "boolean") return flag;
+  if (typeof flag === "number") return flag === 1;
+  if (typeof flag === "string") {
+    const lowered = flag.trim().toLowerCase();
+    return lowered === "1" || lowered === "true";
+  }
+  return false;
+}
+
 const useRouteGuard = (loginPath = "/login") => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,7 +38,10 @@ const useRouteGuard = (loginPath = "/login") => {
   const isReady = isAuthenticated ? storeIsReady : true;
 
   // 1. Find the current route registry entry
-  const route = browserRoutes.find((r) => r.resource_path === location.pathname);
+  const currentPath = normalizePath(location.pathname);
+  const route = browserRoutes.find(
+    (r) => normalizePath(r.resource_path) === currentPath,
+  );
 
   // 2. Determine if the user is allowed to be here (Synchronous calculation for gating)
   let isAllowed = false;
@@ -33,14 +56,20 @@ const useRouteGuard = (loginPath = "/login") => {
   } else if (!route) {
     // Missing route
     isAllowed = false;
-    target = isAuthenticated ? "/admin/404" : loginPath;
-  } else if (route.is_public) {
-    // Public route
-    isAllowed = true;
+    if (isAuthenticated && browserRoutes.length > 0) {
+      const firstPublic = browserRoutes.find((r) => isPublicBrowserRoute(r));
+      target = firstPublic?.resource_path || browserRoutes[0]?.resource_path || "/admin/404";
+    } else {
+      target = isAuthenticated ? "/admin/404" : loginPath;
+    }
   } else if (!isAuthenticated) {
-    // Private route, but not logged in
+    // Any admin/browser route still requires an authenticated session.
+    // "Public" here means accessible to any authenticated user.
     isAllowed = false;
     target = loginPath;
+  } else if (isPublicBrowserRoute(route)) {
+    // Public route for authenticated users
+    isAllowed = true;
   } else {
     // Authenticated and route exists in their allowed browserRoutes
     isAllowed = true;

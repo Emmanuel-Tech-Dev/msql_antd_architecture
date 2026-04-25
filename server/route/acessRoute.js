@@ -38,17 +38,13 @@ class AccessRoute {
 
       //First step is to fetch all permissions in the system
 
-      const allPermissions = await new Model()
-        .select(["*"], "admin_permissions")
-        .execute();
-
       const assigned = await new Model()
         .select(["permission"], "admin_role_permissions")
         .where("role_id", "=", role_name)
         .execute();
       //Second is to fetch all this permissions assigned to a role
 
-      res.json({ success: true, data: { allPermissions, assigned } });
+      res.json({ success: true, data: { assigned } });
     });
   }
 

@@ -24,6 +24,10 @@ const authMiddleWare = async (req, res, next) => {
 
   const tokenIssuer = await auth.tokenIssuerInit();
 
+  if (!token || token === "Bearer undefined" || token === "Bearer null") {
+    throw new AppError("ERR_TOKEN_INVALID", "No valid token provided");
+  }
+
   if (!token) {
     throw new AppError("ERR_TOKEN_INVALID", null, {
       message: "Authenication failed! Try again later",

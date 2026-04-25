@@ -18,6 +18,9 @@ import useLogout from '../../core/hooks/auth/useLogout';
 import useNotification from '../../hooks/useNotification';
 import { useEffect } from 'react';
 import apiClient from '../../services/apiClient';
+import mysqlOrmAuthProvider from '../../core/provider/mysqlOrmAuthProvider';
+import useIdentity from '../../core/hooks/auth/useIdentity';
+import usePermissions from '../../core/hooks/auth/usePermissions';
 
 const ICON_MAP = {
     DashboardOutlined: <DashboardOutlined />,
@@ -57,6 +60,8 @@ export default function AppLayout() {
     const { isAllowed, isReady } = useRouteGuard('/login');
     const { message } = useNotification();
 
+    const identity = usePermissions()
+
 
 
 
@@ -64,30 +69,26 @@ export default function AppLayout() {
         mutationOptions: {
             onSuccess: () => {
                 message.success('Logged out successfully');
+                navigate('/login', { replace: true });
             },
             onError: (err) => {
                 message.error(err?.message || 'Failed to logout. Please try again.');
+                navigate('/login', { replace: true });
             }
 
         }
     })
 
-    // useEffect(() => {
-    //     const fetchUserInfo = async () => {
-    //         try {
-    //             const meRes = await apiClient.get("/auth/user_info");
-    //             const { user, roles, permissions } = meRes.data?.data ?? {};
+    async function run() {
+        const data = await identity
+        console.log(data)
+    }
 
-    //             // Update the store
-    //             useAuthStore.getState().setAuth(user, roles, permissions);
-    //         } catch (error) {
-    //             console.error("Failed to fetch user info:", error);
-    //             // Optionally redirect to login or handle error
-    //         }
-    //     };
+    useEffect(() => {
 
-    //     fetchUserInfo();
-    // }, []); // Empty dependency array means this runs once on mount
+        run()
+    }, []); // Empty dependency array means this runs once on mount
+
 
 
 

@@ -34,24 +34,19 @@ function clearPermissionCache(userId) {
   }
 }
 
-// endpoints accessible to any authenticated user
-// bootstrap needs auth but not role-based authorization
-const OPEN_TO_AUTHENTICATED = [
-  "/api/v1/bootstrap",
-  "/api/v1/extra_meta_options",
-  "/api/v1/logs",
-  "/api/v1/logs/files",
-  "/api/admin_permissions/table",
-];
-
 const authorization = async (req, res, next) => {
   // console.log(await settings.get("system.open_routes"));
   try {
     const requestedPath = req.path;
     const requestedMethod = req.method;
-    const openEndpoints = await utils.getSystemOpenRoute();
+    const openEndpointsRaw = await utils.getSystemOpenRoute();
+    const openEndpoints = Array.isArray(openEndpointsRaw)
+      ? openEndpointsRaw
+      : [];
+    // const isAuthUserEndpoint = requestedPath === "/auth/auth_user";
 
     // 2. open endpoints — authenticated but no role check needed
+    // /auth/auth_user is a special case: we need roles/permissions/resources attached.
     if (openEndpoints.some((p) => requestedPath.startsWith(p))) {
       return next();
     }
@@ -155,9 +150,9 @@ const authorization = async (req, res, next) => {
     }
 
     // 5. attach to request for downstream use
-    req.userRoles = userRoles;
-    req.userPermissions = permissionNames;
-    req.userResources = resources;
+    req.roles = userRoles;
+    req.permissions = permissionNames;
+    req.resources = resources;
 
     next();
   } catch (error) {

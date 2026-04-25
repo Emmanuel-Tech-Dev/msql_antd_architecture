@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import useTableApi from "../hooks/useTableApi";
-import { Button, Calendar, Input, Space, Table } from "antd";
+import { Alert, Button, Calendar, Card, Input, Space, Tag, Typography } from "antd";
 import { useState } from "react";
 import CustomTable from "../components/CustomTable";
 import useDelete from "../hooks/useDelete";
@@ -17,6 +17,8 @@ import useAdd from "../hooks/useAdd";
 import Settings from "../utils/Settings";
 import useEdit from "../hooks/useEdit";
 import ValuesStore from "../store/values-store"
+import useCan from "../core/hooks/access/useCan";
+import useAuthStore from "../store/authStore";
 
 
 
@@ -127,6 +129,13 @@ export default function Test() {
 
     const drawer = useDrawer({ resizable: true, width: 500 });
     const modal = useModal({ draggable: true, width: 300 });
+    const assignedPermissions = useAuthStore((s) => s.permissions);
+
+    // useCan demo checks (reads assignedPermission from auth_user -> authStore.permissions)
+    const canReadUsers = useCan("read:user");
+    const canCreateUsers = useCan("create:user");
+    const canReadRoles = useCan("read:roles");
+    const canCreateRoles = useCan("create:roles");
 
 
 
@@ -300,6 +309,41 @@ export default function Test() {
 
     return (
         <>
+            <Card
+                title="useCan Permission Demo"
+                style={{ marginBottom: 16 }}
+            >
+                <Space direction="vertical" style={{ width: "100%" }}>
+                    <Typography.Text>
+                        Current assigned permissions from auth store: {assignedPermissions?.length ?? 0}
+                    </Typography.Text>
+                    <Space wrap>
+                        <Tag color={canReadUsers ? "green" : "red"}>
+                            read:user: {String(canReadUsers)}
+                        </Tag>
+                        <Tag color={canCreateUsers ? "green" : "red"}>
+                            create:user: {String(canCreateUsers)}
+                        </Tag>
+                        <Tag color={canReadRoles ? "green" : "red"}>
+                            read:roles: {String(canReadRoles)}
+                        </Tag>
+                        <Tag color={canCreateRoles ? "green" : "red"}>
+                            create:roles: {String(canCreateRoles)}
+                        </Tag>
+                    </Space>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="These values come from auth_user.assignedPermission via auth store."
+                    />
+                    <Space wrap>
+                        {(assignedPermissions ?? []).map((perm) => (
+                            <Tag key={perm}>{perm}</Tag>
+                        ))}
+                    </Space>
+                </Space>
+            </Card>
+
             <Button onClick={() => drawer.openDrawer({
                 title: 'Edit User',
                 content:

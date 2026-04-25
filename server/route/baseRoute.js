@@ -291,7 +291,7 @@ class BaseRoute {
       const { sql } = req.body;
       // console.log(sql);
       const result = await new Model().setSql(sql).execute();
-      console.log(result);
+
       res.json({
         details: result,
       });

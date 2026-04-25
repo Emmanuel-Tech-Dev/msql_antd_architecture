@@ -422,16 +422,16 @@ class AuthService {
       });
 
       await tokenBlacklist.executeInTransaction();
-
-      await utils.activityLogs(
-        verifyToken?.sub,
-        "Authentication",
-        "success",
-        "LogOut Successfully",
-        req.ip,
-        req.headers["user-agent"],
-      );
     });
+
+    await utils.activityLogs(
+      verifyToken?.sub,
+      "Authentication",
+      "success",
+      "LogOut Successfully",
+      req.path,
+      req.headers["user-agent"],
+    );
   }
 
   async refreshToken(token) {
@@ -441,7 +441,7 @@ class AuthService {
       throw new AppError("ERR_INVALID_TOKEN");
     }
 
-    // 1️⃣ Check blacklist (by jti)
+    // 1. Check blacklist (by jti)
     const [blacklisted] = await this.model
       .select(["id"], "token_blacklist")
       .where("jti", "=", decoded.jti)
@@ -452,7 +452,7 @@ class AuthService {
       throw new AppError("ERR_TOKEN_REVOKED");
     }
 
-    // 2️⃣ Check token_version
+    // 2. Check token_version matches
     const [user] = await this.model
       .select(["token_version"], "admin_credentials")
       .where("admin_custom_id", "=", decoded.sub)
@@ -462,7 +462,15 @@ class AuthService {
       throw new AppError("ERR_TOKEN_EXPIRED");
     }
 
-    // 3️⃣ Blacklist old refresh token
+    // 3. Generate new tokens FIRST \u2014 if this throws, the old token is still
+    //    valid so the user is not locked out. Only blacklist the old token
+    //    AFTER we have successfully produced the replacement.
+    const newtoken = await this.generateAuthTokens({
+      custom_id: decoded.sub,
+      token_version: user.token_version,
+    });
+
+    // 4. Blacklist old refresh token now that we know the new one is ready.
     await this.model
       .insert("token_blacklist", {
         user_custom_id: decoded.sub,
@@ -471,14 +479,9 @@ class AuthService {
       })
       .execute();
 
-    // 4️⃣ Issue new tokens
-    const newtoken = await this.generateAuthTokens({
-      custom_id: decoded.sub,
-      token_version: user.token_version,
-    });
-
     return newtoken;
   }
+
 
   async changePassword(record, req) {
     const { oldPassword, newpassword, sub } = record;
