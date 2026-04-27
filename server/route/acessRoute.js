@@ -1,4 +1,5 @@
 const Model = require("../core/model/model");
+const { clearPermissionCache } = require("../core/middleware/authorization");
 
 class AccessRoute {
   constructor(app) {
@@ -6,6 +7,7 @@ class AccessRoute {
     this.getUsersByRole(app);
     this.getPermissions(app);
     this.getUserInfo(app);
+    this.savePermissions(app);
 
     return this;
   }
@@ -190,6 +192,65 @@ class AccessRoute {
           routes, // [{ id, resource, resource_path, icon, category, order }]
         },
       });
+    });
+  }
+
+  savePermissions(app) {
+    app.post("/access/permissions/save", async (req, res) => {
+      try {
+        const { role, permissions } = req.body;
+        // permissions = full effective list e.g. ["create:admin", "read:roles"]
+
+        // 1. Get currently assigned permissions for this role
+        const existing = await new Model()
+          .select(["permission"], "admin_role_permissions")
+          .where("role_id", "=", role)
+          .execute();
+
+        const existingSet = new Set(existing.map((r) => r.permission));
+        const incomingSet = new Set(permissions);
+
+        // 2. Diff — what needs to be inserted vs deleted
+        const toInsert = permissions.filter((p) => !existingSet.has(p));
+        const toDelete = [...existingSet].filter((p) => !incomingSet.has(p));
+
+        // 3. Run both in parallel
+        await Promise.all([
+          toInsert.length > 0
+            ? new Model().raw(
+                `INSERT INTO admin_role_permissions (role_id, permission)
+                         VALUES ${toInsert.map(() => "(?, ?)").join(", ")}`,
+                toInsert.flatMap((p) => [role, p]),
+              )
+            : Promise.resolve(),
+
+          toDelete.length > 0
+            ? new Model().raw(
+                `DELETE FROM admin_role_permissions
+                         WHERE role_id = ? AND permission IN (${toDelete.map(() => "?").join(", ")})`,
+                [role, ...toDelete],
+              )
+            : Promise.resolve(),
+        ]);
+
+        // 4. Clear the permission cache for all users with this role
+        // so authorization middleware picks up changes immediately
+        const affected = await new Model()
+          .select(["user_id"], "admin_user_roles")
+          .where("role_id", "=", role)
+          .execute();
+
+        affected.forEach((u) => clearPermissionCache(u.user_id));
+
+        res.json({
+          success: true,
+          inserted: toInsert.length,
+          deleted: toDelete.length,
+        });
+      } catch (error) {
+        console.error("[savePermissions]", error);
+        res.status(500).json({ success: false, message: error.message });
+      }
     });
   }
 }

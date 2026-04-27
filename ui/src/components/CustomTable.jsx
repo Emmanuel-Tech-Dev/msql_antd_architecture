@@ -4,6 +4,7 @@ import React from 'react'
 import utils from '../utils/function_utils'
 
 const CustomTable = ({ tableConfig, columns }) => {
+
     return (
         <Card className='' styles={{
             body: {
@@ -25,7 +26,7 @@ const CustomTable = ({ tableConfig, columns }) => {
 
                     <Space>
                         <div className='flex gap-2 items-center'>
-                            <Button icon={<ReloadOutlined />} onClick={() => tableConfig.runRequest()} />
+                            <Button icon={<ReloadOutlined spin={tableConfig?.loading} />} onClick={() => tableConfig.runRequest()} />
                             <Button icon={<ExportOutlined />} />
 
 

@@ -143,7 +143,7 @@ export default function UserInfo({ user: payload }) {
     }, []);
 
 
-    console.log(data)
+    // console.log(data)
 
 
     // "create:admin"        → action=create,  resource=Admin

@@ -6,16 +6,6 @@
     "auditLog": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\.7b910cd4f95cc4c211c8a5adafd716eab91d2716-audit.json",
     "files": [
         {
-            "date": 1775911250093,
-            "name": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\combined-2026-04-11.log",
-            "hash": "eedc7e3182da104bf5d5703d44bd009adb2a2cd57c9fe5831da58114a70d8dab"
-        },
-        {
-            "date": 1775980977563,
-            "name": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\combined-2026-04-12.log",
-            "hash": "aad3deff0ca9ffc18408dd18e5957ce126769db304b60543384e96e3341408dc"
-        },
-        {
             "date": 1776066572439,
             "name": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\combined-2026-04-13.log",
             "hash": "87fcccfabe1f029b2c1a15524f9be80a40b02cb085a7bac6394eb0e6e8e5b457"
@@ -69,6 +59,11 @@
             "date": 1777109409654,
             "name": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\combined-2026-04-25.log",
             "hash": "526d5a896f4ccec08764b045db0285ee63c92a17bb9b520c8d99a7d6523db2f7"
+        },
+        {
+            "date": 1777273604691,
+            "name": "F:\\Next JS Projects\\msql_antd_architecture\\server\\resources\\logs\\combined-2026-04-27.log",
+            "hash": "645e5afe4f821787878e525bd635b9eae1c26d4150c9c7463fe4129babeeea7e"
         }
     ],
     "hashType": "sha256"

@@ -1,6 +1,10 @@
-import { useEffect } from 'react';
-import { Button, Card, Divider, Space, Tabs, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, InfoOutlined } from '@ant-design/icons';
+// src/pages/admin/Roles.jsx
+import { useEffect, useRef, useState } from 'react';
+import { Button, Card, Divider, Space, Tabs } from 'antd';
+import {
+    PlusOutlined, EditOutlined, DeleteOutlined,
+    ReloadOutlined, SaveOutlined,
+} from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
 import useAdd from '../../hooks/useAdd';
@@ -12,141 +16,32 @@ import { PageHeader } from '../../components/PageHeader';
 import UserLists from '../../components/access/UserLists';
 import PermissionMatrix from '../../components/access/PermissionsMetrix';
 
-
-
-
-function UserRolesTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
-    const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_user_roles' });
-
-    const table = useTableApi(
-        { pagination: { current: 1, pageSize: 10 } },
-        { manual: false },
-        'id',  // PK is 'd' not 'id' in this table
-        {
-            table: 'admin_user_roles',
-            defaultLimit: 10,
-            maxLimit: 100,
-            searchable: ['user_id', 'role_id'],
-        }
-    );
-
-    useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
-        }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
-
-    function openAdd() {
-        add.setTblName('admin_user_roles');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
-    }
-
-    function openEdit(record) {
-        const key = 'editUserRole';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_user_roles');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
-    }
-
-    const columns = [
-        {
-            title: 'User ID',
-            dataIndex: 'user_id',
-            key: 'user_id',
-            ...table.getColumnSearchProps('user_id'),
-        },
-        {
-            title: 'Role',
-            dataIndex: 'role_id',
-            key: 'role_id',
-            render: (val) => <Tag color="purple">{val}</Tag>,
-            ...table.getColumnFilterProps('role_id', 'admin_user_roles'),
-        },
-        {
-            title: 'Actions',
-            key: 'actions',
-            width: 100,
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => openEdit(record)}
-                    />
-                    {confirm(
-                        record.d,  // PK is 'd'
-                        'Remove this role from user?',
-                        <Button size="small" danger icon={<DeleteOutlined />} />,
-                    )}
-                </Space>
-            ),
-        },
-    ];
-
-    return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
-                >
-                    Assign Role to User
-                </Button>
-            </div>
-            <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Assign Role to User', () => add.save('admin_user_roles'))}
-            {edit.editModal('Edit Role Assignment', () => edit.save(undefined, edit.record?.d, 'admin_user_roles'))}
-        </div>
-    );
-}
-
-
-
-
-
-
-const TABS = [
-    // { key: 'definitions', label: 'Roles', children: <RolesList /> },
-    // { key: 'user_roles', label: 'User → Roles', children: <UserRolesTab /> },
-    // { key: 'admin_roles_permission', label: 'Role → Permission', children: <RolePermissionsTab /> },
-    { key: 'admin_permission', label: 'Assign Permissions', children: <PermissionMatrix /> },
-    { key: 'admin_browser_routes', label: 'Role → Browser Routes', children: "testing" },
-];
-
 export default function Roles() {
     const valuesStore = ValuesStore();
     const add = useAdd('tables_metadata', 'table_name');
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
-    const accessDrawer = useDrawer({ width: 800, destroyOnClose: true });
+
+    const accessDrawer = useDrawer({ width: 500, destroyOnClose: true });
+
+    // ── These live in Roles — re-render on every change ──────────────────
+    // matrixRef.current always points to the latest PermissionMatrix instance
+    const matrixRef = useRef(null);
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false)
+
+    // ── Track which role is open so footer always has the right label ─────
+    const [activeRole, setActiveRole] = useState('');
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
         { manual: false },
         'id',
-        {
-            table: 'admin_roles',
-            defaultLimit: 10,
-            maxLimit: 100,
-            searchable: ['role_name'],
-        }
+        { table: 'admin_roles', defaultLimit: 10, maxLimit: 100, searchable: ['role_name'] }
     );
 
-
-
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
-        }
+        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) table.runRequest();
     }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
 
     function openAdd() {
@@ -165,141 +60,138 @@ export default function Roles() {
         edit.setSaveCompleted(false);
     }
 
+    function openManage(record) {
+        setIsDirty(false);
+        setActiveRole(record.role_name);
+
+        accessDrawer.openDrawer({
+            title: `Manage Access — ${record.role_name}`,
+            // ── NO footer here — it's passed live to drawerJSX() below ───
+            content: (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    {/* <UserLists role_name={record.role_name} /> */}
+                    <Card style={{ flex: 1 }}>
+                        <Tabs items={[
+                            {
+                                key: 'permissions',
+                                label: 'Permissions',
+                                children: (
+                                    <PermissionMatrix
+                                        key={record.role_name}
+                                        ref={matrixRef}
+                                        role_name={record.role_name}
+                                        onDirtyChange={setIsDirty}
+                                        onSavingChange={setIsSaving}
+                                    />
+                                ),
+                            },
+                            {
+                                key: 'browser_routes',
+                                label: 'Browser Routes',
+                                children: (
+                                    <div style={{ padding: 24, color: '#6b7280', fontSize: 13 }}>
+                                        Browser route management coming soon.
+                                    </div>
+                                ),
+                            },
+                        ]} />
+                    </Card>
+                </div>
+            ),
+        });
+    }
+
+    // ── Live footer — built fresh every render ────────────────────────────
+    // Because this is JSX in the render body (not inside a useCallback or
+    // openDrawer closure), it always reads the current isDirty and matrixRef.
+    // Passed via drawerJSX overrides so the Drawer receives it live.
+    const liveFooter = (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
+                Role: <strong>{activeRole}</strong>
+            </span>
+            <Space>
+                <Button
+                    icon={<ReloadOutlined />}
+                    disabled={!isDirty}
+                    onClick={() => matrixRef.current?.reset()}
+                >
+                    Reset
+                </Button>
+                <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={() => matrixRef.current?.save()}
+                    style={{ background: '#001529' }}
+                    loading={isSaving}
+                >
+                    Save Configuration
+                </Button>
+            </Space>
+        </div>
+    );
+
     const columns = [
-        // {
-        //     title: 'ID',
-        //     dataIndex: 'id',
-        //     key: 'id',
-        //     width: 80,
-        //     sorter: true,
-        // },
         {
             title: 'Role Name',
             dataIndex: 'role_name',
             key: 'role_name',
             sorter: true,
             ...table.getColumnSearchProps('role_name'),
+            render: (val) => <strong>{val}</strong>,
         },
         {
             title: 'Description',
             dataIndex: 'description',
             key: 'description',
-            render: (val) => val ?? '—',
+            render: (val) => <span style={{ color: '#6b7280', fontSize: 13 }}>{val ?? '—'}</span>,
         },
         {
             title: 'Actions',
             key: 'actions',
-            width: 100,
+            width: 220,
             render: (_, record) => (
                 <Space>
-                    <Button
-                        // size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => openEdit(record)}
-                    />
+                    <Button icon={<EditOutlined />} onClick={() => openEdit(record)} />
                     {confirm(
                         record.id,
                         'Delete this role?',
                         <Button danger icon={<DeleteOutlined />} />,
                     )}
-
                     <Divider type="vertical" />
-                    <Button
-                        type='default'
-
-                        onClick={() => accessDrawer.openDrawer({
-                            title: "Manage Access for " + record?.role_name,
-                            content: <>
-                                <div>
-                                    <div style={{ marginBottom: 20 }}>
-                                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Access Control</h2>
-                                        <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
-                                            Manage system roles and permissions
-                                        </p>
-                                    </div>
-                                    <div className='flex items-start gap-3'>
-                                        {/* <UserLists role_name={record?.role_name} /> */}
-                                        <Card className='w-full' >
-                                            <Tabs items={[
-                                                { key: 'admin_permission', label: 'Assign Permissions', children: <PermissionMatrix role_name={record?.role_name} /> },
-                                                { key: 'admin_browser_routes', label: 'Role → Browser Routes', children: "testing" },
-                                            ]} />
-                                        </Card>
-                                    </div>
-                                </div>
-                            </>
-                        })}
-                        variant="outlined"
-
-                    >
+                    <Button variant="outlined" onClick={() => openManage(record)}>
                         Manage Access
                     </Button>
-
                 </Space>
             ),
         },
     ];
 
-
-
-
     return (
         <div>
             <PageHeader
                 header="Access Control"
-                items={[
-                    { title: ' Manage system roles and permissions' },
-                    // { title: 'Roles' },
-                ]}
+                items={[{ title: 'Manage system roles and permissions' }]}
+            >
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={openAdd}
+                    style={{ background: '#141414', borderColor: '#141414' }}
+                >
+                    Add Role
+                </Button>
+            </PageHeader>
 
-                children={
-                    <>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={openAdd}
-                            style={{ background: '#141414', borderColor: '#141414' }}
-                        >
-                            Add Role
-                        </Button>
-                    </>
-                }
-            />
-
-            <div className='mt-6'>
+            <div className="mt-6">
                 <CustomTable tableConfig={table} columns={columns} />
             </div>
-
 
             {add.addModal('Add Role', () => add.save('admin_roles'))}
             {edit.editModal('Edit Role', () => edit.save(undefined, edit.record?.id, 'admin_roles'))}
 
-            {accessDrawer.drawerJSX()}
+            {/* ── footer passed as live override — reads current isDirty + matrixRef ── */}
+            {accessDrawer.drawerJSX({ footer: liveFooter })}
         </div>
     );
 }
-
-
-
-
-
-// export default function Roles() {
-//     return (
-//         <div>
-//             <div style={{ marginBottom: 20 }}>
-//                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Roles</h2>
-//                 <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
-//                     Manage system and user roles
-//                 </p>
-//             </div>
-//             <Card>
-//                 <Tabs items={TABS} />
-//             </Card>
-
-
-
-
-
-//         </div>
-//     );
-// }
