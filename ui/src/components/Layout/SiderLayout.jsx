@@ -349,6 +349,7 @@ function SiderProfile({
 
                             <div style={{ overflow: 'hidden' }}>
                                 <Typography.Text
+
                                     strong
                                     style={{
                                         display: 'block',
@@ -1143,7 +1144,7 @@ export default function SiderLayout({
             <Layout
                 style={{
                     minHeight: '100vh',
-                    background: colors.contentBg,
+                    // background: colors.contentBg,
                     ...layoutStyle,
                 }}
             >
@@ -1159,12 +1160,12 @@ export default function SiderLayout({
                             top: 0,
                             height: '100vh',
                             overflow: 'hidden',
-                            background: colors.siderBg,
+                            // background: colors.siderBg,
                             borderRight: `1px solid ${colors.border}`,
-                            boxShadow:
-                                theme === 'dark'
-                                    ? '8px 0 30px rgba(0,0,0,0.35)'
-                                    : '8px 0 30px rgba(15,23,42,0.08)',
+                            // boxShadow:
+                            //     theme === 'dark'
+                            //         ? '8px 0 30px rgba(0,0,0,0.35)'
+                            //         : '8px 0 30px rgba(15,23,42,0.08)',
                             ...siderStyle,
                         }}
                     >

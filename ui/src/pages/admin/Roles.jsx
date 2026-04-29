@@ -22,7 +22,7 @@ export default function Roles() {
     const edit = useEdit('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
 
-    const accessDrawer = useDrawer({ width: 500, destroyOnClose: true });
+    const accessDrawer = useDrawer({ width: 800, destroyOnClose: true });
 
     // ── These live in Roles — re-render on every change ──────────────────
     // matrixRef.current always points to the latest PermissionMatrix instance

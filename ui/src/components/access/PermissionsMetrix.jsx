@@ -1,10 +1,8 @@
 // src/components/access/PermissionsMetrix.jsx
 import { useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Row, Col, Checkbox, Typography, Divider, Skeleton, Space, Badge } from 'antd';
+import { Table, Checkbox, Typography, Divider, Skeleton, Badge } from 'antd';
 import useApi from '../../hooks/useApi';
 import ValuesStore from '../../store/values-store';
-import useCreate from '../../core/hooks/data/useCreate';
-import { useCustom } from '../../core/hooks/data/useCustom';
 import useNotification from '../../hooks/useNotification';
 import { SkeletonWrapper } from 'react-skeletonify';
 
@@ -12,7 +10,7 @@ const { Text, Title } = Typography;
 
 // ── forwardRef so Roles.jsx can call matrixRef.current.reset() / .save() ──
 const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDirtyChange, onSavingChange }, ref) {
-    const { message } = useNotification()
+    const { message } = useNotification();
     const valuesStore = ValuesStore();
     const { data, loading, run } = useApi('get', `/access/permissions/${role_name}`);
 
@@ -23,13 +21,12 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
             setRemoved(new Set());
             onDirtyChange?.(false);
             onSavingChange?.(false);
-            message.success(`New permissions assigned to ${role_name}`)
-            run()
-
+            message.success(`New permissions assigned to ${role_name}`);
+            run();
         },
         onError: (err) => {
             message.error('Save failed');
-            console.log(err)
+            console.log(err);
         },
     });
 
@@ -39,22 +36,6 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
     const originalAssigned = useMemo(() => {
         if (!data?.data?.assigned) return null;
         return new Set(data.data.assigned.map(a => a.permission));
-    }, [data]);
-
-    // ── All permissions from valuesStore (bootstrapped at login) ─────────
-    const groups = useMemo(() => {
-        const perms = valuesStore.getValue('permissions');
-        if (!perms) return {};
-        return perms.reduce((acc, p) => {
-            const [, resource = 'general'] = (p.permission_name ?? '').split(':');
-            const label = resource
-                .split('_')
-                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(' ');
-            if (!acc[label]) acc[label] = [];
-            acc[label].push(p);
-            return acc;
-        }, {});
     }, [data]);
 
     // ── Delta tracking — no setState in effects ───────────────────────────
@@ -77,8 +58,8 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
     }, [isDirty]);
 
     useEffect(() => {
-        onSavingChange?.(saving)
-    }, [saving])
+        onSavingChange?.(saving);
+    }, [saving]);
 
     const handleToggle = (permName, checked) => {
         if (checked) {
@@ -91,7 +72,6 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
     };
 
     // ── Expose reset() and save() to parent via ref ───────────────────────
-    // Parent (Roles.jsx) calls matrixRef.current.reset() from footer button
     useImperativeHandle(ref, () => ({
         reset: () => {
             setAdded(new Set());
@@ -104,12 +84,103 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
             };
 
             console.log('Saving configuration:', payload);
-            runSave(payload)
+            runSave(payload);
             return payload;
         },
         isDirty,
         assignedCount: assignedSet.size,
     }), [isDirty, assignedSet, role_name]);
+
+    // ── Build Table Data Source from ValuesStore ──────────────────────────
+    const dataSource = useMemo(() => {
+        const perms = valuesStore.getValue('permissions');
+        if (!perms) return [];
+
+        const map = {};
+
+        perms.forEach(p => {
+            const [action, resource = 'general'] = (p.permission_name ?? '').split(':');
+            const label = resource
+                .split('_')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+
+            if (!map[resource]) {
+                map[resource] = {
+                    key: resource,
+                    resourceLabel: label,
+                    permissions: {} // stores the exact permission string (e.g., { create: 'create:users' })
+                };
+            }
+
+            map[resource].permissions[action] = p.permission_name;
+        });
+
+        // Sort alphabetically by resource for consistent UI rendering
+        return Object.values(map).sort((a, b) => a.resourceLabel.localeCompare(b.resourceLabel));
+    }, [valuesStore]);
+
+    // Helper to render the checkbox cell
+    const renderCheckbox = (record, action) => {
+        const permName = record.permissions[action];
+        console.log('Rendering checkbox for', record.resourceLabel, action, '->', permName);
+
+        // If the resource doesn't support this action (e.g., no 'delete:reports' exists), show a dash
+        if (!permName) return <Text type="secondary" style={{ opacity: 0.3 }}>-</Text>;
+
+        return (
+            <Checkbox
+                checked={assignedSet.has(permName)}
+                onChange={e => handleToggle(permName, e.target.checked)}
+            />
+        );
+    };
+
+    const columns = [
+        {
+            title: 'Resource',
+            dataIndex: 'resourceLabel',
+            key: 'resourceLabel',
+            render: text => (
+                <Text strong style={{
+                    textTransform: 'uppercase',
+                    color: '#1677ff',
+                    fontSize: 12,
+                    letterSpacing: '0.5px'
+                }}>
+                    {text}
+                </Text>
+            ),
+        },
+        {
+            title: 'Create',
+            key: 'create',
+            align: 'center',
+            width: 120,
+            render: (_, record) => renderCheckbox(record, 'create'),
+        },
+        {
+            title: 'Read',
+            key: 'read',
+            align: 'center',
+            width: 120,
+            render: (_, record) => renderCheckbox(record, 'read'),
+        },
+        {
+            title: 'Edit',
+            key: 'edit',
+            align: 'center',
+            width: 120,
+            render: (_, record) => renderCheckbox(record, 'edit'),
+        },
+        {
+            title: 'Delete',
+            key: 'delete',
+            align: 'center',
+            width: 120,
+            render: (_, record) => renderCheckbox(record, 'delete'),
+        }
+    ];
 
     if (loading || !originalAssigned) {
         return <Skeleton active paragraph={{ rows: 10 }} />;
@@ -142,50 +213,17 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
 
                 <Divider style={{ margin: '0 0 20px' }} />
 
-                {/* Permission groups — this scrolls inside the drawer body */}
-                {Object.entries(groups).map(([group, perms]) => (
-                    <div key={group} style={{ marginBottom: 28 }}>
-                        <Text
-                            strong
-                            style={{
-                                textTransform: 'uppercase',
-                                color: '#1677ff',
-                                fontSize: 11,
-                                letterSpacing: '1px',
-                                display: 'block',
-                                marginBottom: 10,
-                            }}
-                        >
-                            {group}
-                        </Text>
+                {/* Table replacing the previous Row/Col grid layout */}
+                <Table
+                    columns={columns}
+                    dataSource={dataSource}
+                    pagination={false}
+                    size="small"
 
-                        <Row gutter={[12, 12]}>
-                            {perms.map(p => {
-                                const isChecked = assignedSet.has(p.permission_name);
-                                const action = (p.permission_name ?? '').split(':')[0];
-                                return (
-                                    <Col span={6} key={p.permission_name}>
-                                        <Space align="start">
-                                            <Checkbox
-                                                checked={isChecked}
-                                                onChange={e => handleToggle(p.permission_name, e.target.checked)}
-                                            />
-                                            <Text
-                                                strong
-                                                style={{ textTransform: 'capitalize', fontSize: 13 }}
-                                            >
-                                                {action}
-                                            </Text>
-                                        </Space>
-                                    </Col>
-                                );
-                            })}
-                        </Row>
-                    </div>
-                ))}
+                    rowClassName={() => 'permission-matrix-row'}
+                />
             </div>
         </SkeletonWrapper>
-
     );
 });
 
