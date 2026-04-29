@@ -288,9 +288,14 @@ class BaseRoute {
   getExtraMetaList(app) {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
       // console.log(req.body);
-      const { sql } = req.body;
-      // console.log(sql);
-      const result = await new Model().setSql(sql).execute();
+      const { sql, col, tblName } = req.body;
+     
+      let result;
+      if (col && tblName) {
+        result = await new Model().select(["id", col], tblName).execute();
+      } else {
+        result = await new Model().setSql(sql).execute();
+      }
 
       res.json({
         details: result,

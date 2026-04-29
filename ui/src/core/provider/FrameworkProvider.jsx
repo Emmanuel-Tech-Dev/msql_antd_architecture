@@ -42,10 +42,12 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
     const authBrowserResources = useAuthStore((s) => s.resources);
     const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname);
 
+    console.log(authMetaLoaded)
+
     const { error: authUserError } = useQuery({
         queryKey: ['auth_user'],
         queryFn: () => authProvider.getPermissions(),
-        enabled: !isPublicRoute && isAuthenticated && !authMetaLoaded,
+        enabled: !isPublicRoute && isAuthenticated && authMetaLoaded,
         staleTime: 60 * 1000,
         retry: false,
     });

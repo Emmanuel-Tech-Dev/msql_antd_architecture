@@ -438,18 +438,18 @@ class AuthService {
     const decoded = await this.verifyToken(token, this.refreshTokenSecret);
 
     if (!decoded || decoded.type !== "refresh") {
-      throw new AppError("ERR_INVALID_TOKEN");
+      throw new AppError(" ERR_BAD_REQUEST");
     }
 
     // 1. Check blacklist (by jti)
     const [blacklisted] = await this.model
-      .select(["id"], "token_blacklist")
+      .select(["jti"], "token_blacklist")
       .where("jti", "=", decoded.jti)
       .where("token_type", "=", "refresh")
       .execute();
 
     if (blacklisted) {
-      throw new AppError("ERR_TOKEN_REVOKED");
+      throw new AppError("ERR_BAD_REQUEST");
     }
 
     // 2. Check token_version matches
@@ -459,18 +459,9 @@ class AuthService {
       .execute();
 
     if (!user || user.token_version !== decoded.token_version) {
-      throw new AppError("ERR_TOKEN_EXPIRED");
+      throw new AppError("ERR_BAD_REQUEST");
     }
 
-    // 3. Generate new tokens FIRST \u2014 if this throws, the old token is still
-    //    valid so the user is not locked out. Only blacklist the old token
-    //    AFTER we have successfully produced the replacement.
-    const newtoken = await this.generateAuthTokens({
-      custom_id: decoded.sub,
-      token_version: user.token_version,
-    });
-
-    // 4. Blacklist old refresh token now that we know the new one is ready.
     await this.model
       .insert("token_blacklist", {
         user_custom_id: decoded.sub,
@@ -479,9 +470,15 @@ class AuthService {
       })
       .execute();
 
+    const newtoken = await this.generateAuthTokens({
+      custom_id: decoded.sub,
+      token_version: user.token_version,
+    });
+
+    // 4. Blacklist old refresh token now that we know the new one is ready.
+
     return newtoken;
   }
-
 
   async changePassword(record, req) {
     const { oldPassword, newpassword, sub } = record;

@@ -87,7 +87,7 @@ class AuthRoute {
                  ON arbr.resource_id = ar.resource
                WHERE ar.resource_type = 'BROWSER_ROUTE'
                  AND arbr.role_id IN (${placeholders})
-               ORDER BY ar.\`order\` ASC`,
+               ORDER BY ar.display_order ASC`,
               roleNames,
             );
 

@@ -55,7 +55,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
 
 
 
- 
+
 
   const getColumnSearchProps = useCallback(
     (dataIndex) => ({
@@ -151,7 +151,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams, run }) => {
       try {
         const res = await apiRequest(
           "get",
-          `${Settings.baseUrl}/api/${resource}/filters`,
+          `/api/${resource}/filters`,
           null,
           { headers: { "x-table-config": JSON.stringify({ col: dataIndex }) } },
         );

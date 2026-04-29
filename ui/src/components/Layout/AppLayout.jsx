@@ -39,7 +39,7 @@ const resolveIcon = (iconString) => ICON_MAP[iconString] ?? <AppstoreOutlined />
 
 // initConfig — layout structure decisions, never change after mount
 const SIDER_INIT = {
-    variant: 'default', //none , default, sider, top
+    variant: 'premium', //none , default, sider, top
     width: 220,
     collapsedWidth: 80,
     breakpoint: 'lg',
@@ -81,7 +81,7 @@ export default function AppLayout() {
 
     async function run() {
         const data = await identity
-        console.log(data)
+        // console.log(data)
     }
 
     useEffect(() => {

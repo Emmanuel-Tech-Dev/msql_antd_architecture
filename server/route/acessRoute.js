@@ -8,6 +8,7 @@ class AccessRoute {
     this.getPermissions(app);
     this.getUserInfo(app);
     this.savePermissions(app);
+    this.toggleUserStatus(app);
 
     return this;
   }
@@ -251,6 +252,32 @@ class AccessRoute {
         console.error("[savePermissions]", error);
         res.status(500).json({ success: false, message: error.message });
       }
+    });
+  }
+
+  toggleUserStatus(app) {
+    app.post("/access/user/toggle_status", async (req, res) => {
+      const { custom_id } = req.body;
+
+      const [user] = await new Model()
+        .select(["status"], "admin")
+        .where("custom_id", "=", custom_id)
+        .execute();
+
+      if (!user) {
+        throw new AppError("User not found");
+      }
+
+      const newStatus = user.status ? 0 : 1;
+
+      await new Model()
+        .update("admin", { status: newStatus })
+        .where("custom_id", "=", custom_id)
+        .execute();
+
+      return res
+        .status(200)
+        .json({ message: "Operation successfull!", status: "ok" });
     });
   }
 }

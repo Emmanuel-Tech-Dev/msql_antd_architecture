@@ -12,6 +12,7 @@ import {
     PlusOutlined, EditOutlined, DeleteOutlined,
     EllipsisOutlined, UserOutlined, ReloadOutlined,
     ExportOutlined, FilterOutlined,
+    StopOutlined,
 } from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
@@ -23,6 +24,7 @@ import ValuesStore from '../../store/values-store';
 import useNotification from '../../hooks/useNotification';
 import UserInfo from '../../components/userInfo/UserInfo';
 import utils from '../../utils/function_utils';
+import useApi from '../../hooks/useApi';
 
 const { Text } = Typography;
 
@@ -50,6 +52,7 @@ export default function Users() {
 
     const userDrawer = useDrawer({ width: 820, destroyOnClose: true });
 
+
     /* ── table ──────────────────────────────────────────────── */
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
@@ -61,10 +64,21 @@ export default function Users() {
             maxLimit: 100,
             searchable: ['name', 'email'],
             filterable: ['status'],
+            //joinOn: 
         }
     );
 
+    //use account deactivation 
+    const { run, loading } = useApi("post", "/access/user/toggle_status", {
+        onSuccess: () => {
+            message.success(`User account deactivated successfully`)
+            userDrawer.closeDrawer()
+            table.runRequest()
+        }
+    });
+
     useEffect(() => { table.setAllowSelection(true); }, []);
+
 
 
 
@@ -117,6 +131,22 @@ export default function Users() {
                 </div>
             ),
             content: <UserInfo user={record} />,
+            extra: <>
+
+                <Button
+                    icon={<StopOutlined />}
+                    block
+                    danger={record?.status}
+                    type='primary'
+                    style={{ fontSize: 12 }}
+                    onClick={(e) => run({ custom_id: record?.custom_id })}
+                    loading={loading}
+                >
+                    {record?.status == 0 ? "Activate account" : "Deactivate account"}
+                </Button>
+
+            </>
+
         });
     }
 
@@ -234,7 +264,11 @@ export default function Users() {
             dataIndex: 'status',
             key: 'status',
             width: 100,
-            ...table.getColumnFilterProps('status', 'admin'),
+            filters: [
+                { text: 'Active', value: 1 },
+                { text: 'Inactive', value: 0 },
+            ],
+            // ...table.getColumnFilterProps('status', 'admin'),
             render: (val) => (
                 <Badge
                     status={val === 1 ? 'success' : 'default'}

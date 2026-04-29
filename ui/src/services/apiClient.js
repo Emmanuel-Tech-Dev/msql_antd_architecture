@@ -95,7 +95,6 @@ apiClient.interceptors.response.use(
   },
 );
 
-
 export const apiRequest = async (
   method = "get",
   url,

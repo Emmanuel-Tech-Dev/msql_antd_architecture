@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Tag, Button, Tooltip, Divider, Avatar, Badge, Empty } from 'antd';
+import { Tag, Button, Tooltip, Divider, Avatar, Badge, Empty, Select } from 'antd';
 import {
     UserOutlined,
     PlusOutlined,
@@ -15,6 +15,7 @@ import { SkeletonWrapper } from 'react-skeletonify';
 import useApi from '../../hooks/useApi';
 import utils from '../../utils/function_utils';
 import { useRef } from 'react';
+import useGlobalSelect from '../../hooks/useGlobalSelect';
 
 
 /* ─── mock data ────────────────────────────────────────────────── */
@@ -127,10 +128,11 @@ function PermPill({ label, granted }) {
 /* ─── main component ────────────────────────────────────────────── */
 export default function UserInfo({ user: payload }) {
     const [activeFilter, setActiveFilter] = useState('All');
-    const [roles, setRoles] = useState(user?.roles);
+    const [roles, setRoles] = useState(payload?.roles || []);
 
     const removeRole = (label) => setRoles((r) => r.filter((x) => x.label !== label));
 
+    const selectJsx = useGlobalSelect("role_name", "admin_roles")
     // AFTER — fires exactly once, even in StrictMode
     const { run, loading, data: rawData } = useApi("get", `/access/user_info/${payload?.custom_id}`,)
     const data = rawData?.data
@@ -172,6 +174,18 @@ export default function UserInfo({ user: payload }) {
     //   "Admin Resources": ["read"],
     //   "Roles":           ["read"],
     // }
+
+    function handleRoleAdd() {
+        console.log(selectJsx.selected)
+    }
+
+    useEffect(() => {
+        // selectJsx.setStyles({
+
+        // })
+
+        //  selectJsx.setPlaceHolder("Testing Global Selection")
+    }, [])
 
     return (
         <SkeletonWrapper loading={loading || !data}>
@@ -294,7 +308,7 @@ export default function UserInfo({ user: payload }) {
                                         background: '#fff',
                                     }}
                                 >
-                                    <PlusOutlined style={{ fontSize: 10, color: '#6b7280' }} />
+                                    <PlusOutlined style={{ fontSize: 10, color: '#6b7280' }} onClick={handleRoleAdd} />
                                 </div>
                             </Tooltip>
                         </div>
@@ -326,42 +340,34 @@ export default function UserInfo({ user: payload }) {
                         </div>
 
                         <div
-                            style={{
-                                border: '0.5px dashed #d1d5db',
-                                borderRadius: 8,
-                                padding: '6px 10px',
-                                fontSize: 11,
-                                color: '#9ca3af',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                cursor: 'pointer',
-                                background: '#fff',
-                            }}
+
                         >
-                            <PlusOutlined style={{ fontSize: 10 }} />
-                            <span>Assign a role...</span>
-                            <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.6 }}>select ▾</span>
+
+
+
+
+
+                            {selectJsx.SelectJsx({
+                                placeholder: "Add role", style: {
+                                    width: '100%', border: '0.5px dashed #d1d5db',
+                                    borderRadius: 8,
+                                    padding: '6px 10px',
+                                    fontSize: 11,
+                                    color: '#9ca3af',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    cursor: 'pointer',
+                                    background: '#fff',
+                                }
+                            })}
                         </div>
                     </div>
 
                     <Divider style={{ margin: '0 0 14px' }} />
 
                     {/* Action buttons */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 'auto' }}>
-                        <Button icon={<EditOutlined />} block style={{ fontSize: 12 }}>
-                            Edit profile
-                        </Button>
-                        <Button
-                            icon={<StopOutlined />}
-                            block
-                            danger
-                            type='primary'
-                            style={{ fontSize: 12 }}
-                        >
-                            Deactivate account
-                        </Button>
-                    </div>
+
                 </div>
 
                 {/* ── RIGHT COLUMN ────────────────────────────────────────── */}

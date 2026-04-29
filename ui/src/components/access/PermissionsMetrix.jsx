@@ -25,6 +25,7 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
             onSavingChange?.(false);
             message.success(`New permissions assigned to ${role_name}`)
             run()
+
         },
         onError: (err) => {
             message.error('Save failed');

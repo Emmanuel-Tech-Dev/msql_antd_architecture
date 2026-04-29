@@ -16,7 +16,7 @@ function ResourcesList() {
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_resources' });
 
     const table = useTableApi(
-        { pagination: { current: 1, pageSize: 100 } },
+        { pagination: { current: 1, pageSize: 20 } },
         { manual: false },
         'id',
         {
@@ -63,6 +63,7 @@ function ResourcesList() {
             dataIndex: 'resource_type',
             key: 'resource_type',
             // render: (val) => val ?? '—',
+            ...table.getColumnFilterProps("resource_type", "system_resources")
         }, {
             title: 'resource_path',
             dataIndex: 'resource_path',

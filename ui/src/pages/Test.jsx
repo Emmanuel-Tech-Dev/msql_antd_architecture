@@ -313,7 +313,7 @@ export default function Test() {
                 title="useCan Permission Demo"
                 style={{ marginBottom: 16 }}
             >
-                <Space direction="vertical" style={{ width: "100%" }}>
+                <Space orientation="vertical" style={{ width: "100%" }}>
                     <Typography.Text>
                         Current assigned permissions from auth store: {assignedPermissions?.length ?? 0}
                     </Typography.Text>
@@ -334,7 +334,7 @@ export default function Test() {
                     <Alert
                         type="info"
                         showIcon
-                        message="These values come from auth_user.assignedPermission via auth store."
+                        title="These values come from auth_user.assignedPermission via auth store."
                     />
                     <Space wrap>
                         {(assignedPermissions ?? []).map((perm) => (
@@ -343,18 +343,20 @@ export default function Test() {
                     </Space>
                 </Space>
             </Card>
+            {
+                canReadRoles && (<Button onClick={() => drawer.openDrawer({
+                    title: 'Edit User',
+                    content:
+                        "Teststseteshshs",
+                    extra: (
+                        <Space>
+                            <Button onClick={drawer.closeDrawer}>Cancel</Button>
+                            {/* <Button type="primary" onClick={handleSave}>Save</Button> */}
+                        </Space>
+                    ),
+                })}>Testing Click</Button>)
+            }
 
-            <Button onClick={() => drawer.openDrawer({
-                title: 'Edit User',
-                content:
-                    "Teststseteshshs",
-                extra: (
-                    <Space>
-                        <Button onClick={drawer.closeDrawer}>Cancel</Button>
-                        {/* <Button type="primary" onClick={handleSave}>Save</Button> */}
-                    </Space>
-                ),
-            })}>Testing Click</Button>
 
             <Button onClick={() => modal.openModal({
                 title: 'Drag me',        // ← hover title to drag
