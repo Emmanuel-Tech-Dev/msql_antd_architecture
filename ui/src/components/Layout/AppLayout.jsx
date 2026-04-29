@@ -50,8 +50,7 @@ const SIDER_INIT = {
     bottomKey: '/admin/settings/system_logs',
     defaultHeader: true,
     defaultFooter: false,
-    showSiderProfile: true,
-    showSiderLogout: true,
+
 };
 
 export default function AppLayout() {
@@ -118,10 +117,14 @@ export default function AppLayout() {
             email: user?.email ?? '',
         },
         notificationCount: 0,
+        defaultHeader: false,
+        showSiderProfile: true,
+        showSiderLogout: true,
         onLogout: () => {
             logout()
         },
         onProfile: () => navigate('/profile'),
+
     });
 
     // NOW we can return early after all hooks are declared
@@ -154,9 +157,9 @@ export default function AppLayout() {
                     Admin Panel
                 </Typography.Text>
             }
-            <div style={{ marginLeft: 'auto' }}>
+            {/* <div style={{ marginLeft: 'auto' }}>
                 <ThemeToggle />
-            </div>
+            </div> */}
         </div>
     );
 

@@ -29,7 +29,7 @@ import {
 } from 'antd';
 import {
     BellOutlined, DownOutlined, LogoutOutlined,
-    MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined,
+    MenuFoldOutlined, MenuUnfoldOutlined, NotificationOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate } from 'react-router-dom';
 
@@ -298,6 +298,191 @@ function DefaultHeader({
                 </Dropdown>
             </Space>
         </div>
+    );
+}
+
+
+
+function SiderProfile({
+    collapsed,
+    toggle,
+    colors,
+    token,
+    user,
+    notificationCount,
+    onProfile,
+    onLogout,
+    navigate,
+}) {
+    const handleProfile = () =>
+        onProfile ? onProfile() : navigate('/profile');
+
+    const handleLogout = () =>
+        onLogout ? onLogout() : navigate('/');
+
+    const profileItems = [
+        ...(collapsed
+            ? [
+                {
+                    key: 'user-info',
+                    disabled: true,
+                    label: (
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                padding: '8px 4px',
+                                // minWidth: 220,
+                            }}
+                        >
+                            <Avatar
+                                size={42}
+                                style={{
+                                    // background: colors.accent,
+                                    // color: colors.accentText,
+                                    flexShrink: 0,
+                                }}
+                            >
+                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </Avatar>
+
+                            <div style={{ overflow: 'hidden' }}>
+                                <Typography.Text
+                                    strong
+                                    style={{
+                                        display: 'block',
+                                        // color: colors.textPrimary,
+                                    }}
+                                >
+                                    {user?.name || 'Guest User'}
+                                </Typography.Text>
+
+                                <Typography.Text
+                                    style={{
+                                        display: 'block',
+                                        fontSize: 12,
+                                        // color: colors.textMuted,
+                                    }}
+                                >
+                                    {user?.email || 'No email'}
+                                </Typography.Text>
+                            </div>
+                        </div>
+                    ),
+                },
+                { type: 'divider' },
+            ]
+            : []),
+
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: 'Profile',
+            onClick: handleProfile,
+        },
+        {
+            key: 'notifications',
+            icon: <BellOutlined />,
+            label: 'Notifications',
+            onClick: handleProfile,
+        },
+        {
+            type: 'divider',
+        },
+        {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: 'Logout',
+            danger: true,
+            onClick: handleLogout,
+        },
+    ];
+
+    return (
+        <Dropdown
+            menu={{ items: profileItems }}
+            trigger={['click']}
+            placement="topRight"
+        >
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: collapsed ? 'center' : 'space-between',
+                    gap: 12,
+                    cursor: 'pointer',
+                    padding: collapsed ? '8px' : '10px 14px',
+                    borderRadius: 18,
+                    transition: 'all 0.25s ease',
+                    background:
+                        'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
+                    border: `1px solid ${colors.border}`,
+                }}
+            >
+                <Badge
+                    dot
+                    color="#52c41a"
+                    offset={[-3, 30]}
+                >
+                    <Avatar
+                        size={collapsed ? 35 : 46}
+                        style={{
+                            background: colors.accent,
+                            color: colors.accentText,
+                            flexShrink: 0,
+                        }}
+                    >
+                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </Avatar>
+                </Badge>
+
+                {!collapsed && (
+                    <>
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <Typography.Text
+                                strong
+                                style={{
+                                    display: 'block',
+                                    color: colors.textPrimary,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                {user?.name || 'Guest User'}
+                            </Typography.Text>
+
+                            <Typography.Text
+                                style={{
+                                    display: 'block',
+                                    fontSize: 12,
+                                    color: colors.textMuted,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                {user?.email || 'No email'}
+                            </Typography.Text>
+                        </div>
+
+                        <DownOutlined
+                            style={{
+                                fontSize: 12,
+                                color: colors.textMuted,
+                            }}
+                        />
+                    </>
+                )}
+            </div>
+        </Dropdown>
     );
 }
 
@@ -796,6 +981,8 @@ export default function SiderLayout({
         collapsible, toggle,
     };
 
+    //  console.log('SiderLayout props:', { sharedLayoutProps, sharedSiderProps });
+
     const resolvedHeader = header ?? (defaultHeader
         ? <DefaultHeader
             collapsed={collapsed}
@@ -951,6 +1138,7 @@ export default function SiderLayout({
     // ─────────────────────────────────────────────────────────────
 
     if (variant === 'premium') {
+        //    console.log('Rendering Premium SiderLayout with props:', { showSiderProfile, showSiderLogout, user, appName, notificationCount });
         return (
             <Layout
                 style={{
@@ -1011,17 +1199,7 @@ export default function SiderLayout({
                                     {siderHeader}
                                 </div>
 
-                                {!collapsed && (
-                                    <Button
-                                        type="text"
-                                        icon={<MenuFoldOutlined />}
-                                        onClick={toggle}
-                                        style={{
-                                            color: colors.textMuted,
-                                            borderRadius: 10,
-                                        }}
-                                    />
-                                )}
+
                             </div>
 
                             {/* Menu */}
@@ -1055,102 +1233,22 @@ export default function SiderLayout({
                             >
                                 {/* User Card */}
                                 {showSiderProfile && (
-                                    <div
-                                        onClick={() =>
-                                            onProfile
-                                                ? onProfile()
-                                                : navigate('/profile')
-                                        }
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 12,
-                                            padding: collapsed
-                                                ? '10px'
-                                                : '12px',
-                                            borderRadius: 16,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.25s ease',
-                                            marginBottom: 10,
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background =
-                                                colors.itemHover;
-                                            e.currentTarget.style.transform =
-                                                'translateY(-2px)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background =
-                                                'transparent';
-                                            e.currentTarget.style.transform =
-                                                'translateY(0)';
-                                        }}
-                                    >
-                                        <Badge
-                                            dot
-                                            color="#52c41a"
-                                            offset={[-4, 30]}
-                                        >
-                                            <Avatar
-                                                size={collapsed ? 38 : 42}
-                                                style={{
-                                                    background: `linear-gradient(135deg, ${colors.accent}, #722ed1)`,
-                                                    color: '#fff',
-                                                    fontWeight: 700,
-                                                    boxShadow:
-                                                        '0 8px 20px rgba(0,0,0,0.15)',
-                                                }}
-                                            >
-                                                {user?.name
-                                                    ?.charAt(0)
-                                                    ?.toUpperCase()}
-                                            </Avatar>
-                                        </Badge>
-
-                                        {!collapsed && (
-                                            <div
-                                                style={{
-                                                    flex: 1,
-                                                    minWidth: 0,
-                                                }}
-                                            >
-                                                <Typography.Text
-                                                    strong
-                                                    style={{
-                                                        display: 'block',
-                                                        color:
-                                                            colors.textPrimary,
-                                                        fontSize: 14,
-                                                        whiteSpace: 'nowrap',
-                                                        overflow: 'hidden',
-                                                        textOverflow:
-                                                            'ellipsis',
-                                                    }}
-                                                >
-                                                    {user?.name}
-                                                </Typography.Text>
-
-                                                <Typography.Text
-                                                    style={{
-                                                        display: 'block',
-                                                        fontSize: 12,
-                                                        color:
-                                                            colors.textMuted,
-                                                        whiteSpace: 'nowrap',
-                                                        overflow: 'hidden',
-                                                        textOverflow:
-                                                            'ellipsis',
-                                                    }}
-                                                >
-                                                    {user?.email}
-                                                </Typography.Text>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <SiderProfile
+                                        collapsed={collapsed}
+                                        toggle={toggle}
+                                        colors={colors}
+                                        token={token}
+                                        appName={appName}
+                                        user={user}
+                                        notificationCount={notificationCount}
+                                        onProfile={onProfile}
+                                        onLogout={onLogout}
+                                        navigate={navigate}
+                                    />
                                 )}
 
                                 {/* Logout Button */}
-                                {showSiderLogout && (
+                                {/* {showSiderLogout && (
                                     <Button
                                         danger
                                         block
@@ -1168,13 +1266,29 @@ export default function SiderLayout({
                                     >
                                         {!collapsed && 'Logout'}
                                     </Button>
-                                )}
+                                )} */}
+
+
+                                <Button
+                                    type="text"
+                                    icon={<MenuFoldOutlined />}
+                                    onClick={toggle}
+                                    style={{
+                                        color: colors.textMuted,
+                                        borderRadius: 10,
+                                        textAlign: 'center',
+                                        width: '100%',
+                                        marginTop: 12,
+
+                                    }}
+                                />
+
                             </div>
                         </div>
                     </Sider>
 
                     <Layout style={{ flex: 1, minWidth: 0 }}>
-                        {resolvedHeader && (
+                        {showSiderProfile ? " " : resolvedHeader && (
                             <Header
                                 style={{
                                     padding: 0,
