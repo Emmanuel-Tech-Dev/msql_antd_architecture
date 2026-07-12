@@ -1,135 +1,177 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { ConfigProvider, theme } from 'antd'
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { ConfigProvider, theme } from 'antd';
+import { useStore as useValuesStore } from '../store/values-store';
+import { resolveSiderConfig } from '../core/config/siderConfig';
 
-const ThemeCtx = createContext({ isDark: false, toggle: () => { } })
+const ThemeCtx = createContext({
+    isDark: false,
+    mode: 'light',
+    toggle: () => {},
+    clearPreference: () => {},
+});
+
+const CSS_VARIABLES = {
+    '--color-accent': 'accent',
+    '--color-accent-hover': 'accent',
+    '--color-bg-base': 'contentBg',
+    '--color-bg-container': 'surfaceBg',
+    '--color-bg-elevated': 'elevatedBg',
+    '--color-bg-sunken': 'contentBg',
+    '--color-border': 'strongBorder',
+    '--color-border-subtle': 'border',
+    '--color-border-strong': 'strongBorder',
+    '--color-text-primary': 'bodyText',
+    '--color-text-secondary': 'secondaryText',
+    '--color-text-tertiary': 'secondaryText',
+    '--color-success': 'success',
+    '--color-warning': 'warning',
+    '--color-error': 'error',
+};
 
 export function ThemeProvider({ children }) {
-    const [isDark, setIsDark] = useState(
-        () => typeof window !== 'undefined' && localStorage.getItem('theme') === 'dark'
-    )
+    const rows = useValuesStore((state) => state.ui_settings);
+    const storedAppearance = useMemo(() => resolveSiderConfig(rows ?? []), [rows]);
+    const configuredMode = storedAppearance.application.colorMode;
+    const [preference, setPreference] = useState(() => localStorage.getItem('theme-preference'));
+    const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     useEffect(() => {
-        const saved = localStorage.getItem('theme') ?? 'light'
-        apply(saved === 'dark')
-    }, [])
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        const update = (event) => setSystemDark(event.matches);
+        media.addEventListener?.('change', update);
+        return () => media.removeEventListener?.('change', update);
+    }, []);
 
-    const apply = useCallback((dark) => {
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-        localStorage.setItem('theme', dark ? 'dark' : 'light')
-        setIsDark(dark)
-    }, [])
+    const mode = preference === 'light' || preference === 'dark'
+        ? preference
+        : configuredMode === 'system'
+            ? (systemDark ? 'dark' : 'light')
+            : configuredMode;
+    const isDark = mode === 'dark';
+    const appearance = useMemo(() => {
+        if (!isDark) return storedAppearance;
+        return {
+            ...storedAppearance,
+            colors: {
+                ...storedAppearance.colors,
+                headerBg: '#141210',
+                contentBg: '#0e0d0b',
+                surfaceBg: '#1c1a17',
+                elevatedBg: '#141210',
+                bodyText: '#f0ede8',
+                secondaryText: '#a89f94',
+                border: '#1e1c18',
+                strongBorder: '#2e2b26',
+            },
+        };
+    }, [isDark, storedAppearance]);
 
-    const toggle = useCallback(() => apply(!isDark), [isDark, apply])
+    useEffect(() => {
+        const root = document.documentElement;
+        root.dataset.theme = mode;
+        root.dataset.density = appearance.application.density;
+        root.dataset.motion = appearance.application.motionEnabled ? 'enabled' : 'reduced';
+        Object.entries(CSS_VARIABLES).forEach(([variable, colorKey]) => {
+            root.style.setProperty(variable, appearance.colors[colorKey]);
+        });
+        root.style.setProperty('--font-size-base', `${appearance.application.fontSize}px`);
+        root.style.setProperty('--app-radius', `${appearance.application.borderRadius}px`);
+        root.style.setProperty('--app-control-height', `${appearance.application.controlHeight}px`);
+        root.style.setProperty('--app-content-padding', `${appearance.content.padding}px`);
+        root.style.setProperty('--app-content-max-width', `${appearance.content.maxWidth}px`);
+    }, [appearance, mode]);
+
+    const toggle = useCallback(() => {
+        const next = isDark ? 'light' : 'dark';
+        localStorage.setItem('theme-preference', next);
+        setPreference(next);
+    }, [isDark]);
+
+    const clearPreference = useCallback(() => {
+        localStorage.removeItem('theme-preference');
+        setPreference(null);
+    }, []);
+
+    const algorithms = useMemo(() => {
+        const selected = [isDark ? theme.darkAlgorithm : theme.defaultAlgorithm];
+        if (appearance.application.density === 'compact') selected.push(theme.compactAlgorithm);
+        return selected;
+    }, [appearance.application.density, isDark]);
+
+    const tableSpacing = useMemo(() => {
+        if (appearance.application.density === 'compact') {
+            return { block: 9, inline: 12 };
+        }
+        if (appearance.application.density === 'spacious') {
+            return { block: 16, inline: 22 };
+        }
+        return { block: 13, inline: 18 };
+    }, [appearance.application.density]);
+
+    const themeConfig = useMemo(() => ({
+        algorithm: algorithms,
+        token: {
+            colorPrimary: appearance.colors.accent,
+            colorLink: appearance.colors.accent,
+            colorBgBase: appearance.colors.contentBg,
+            colorBgContainer: appearance.colors.surfaceBg,
+            colorBgElevated: appearance.colors.elevatedBg,
+            colorBgLayout: appearance.colors.contentBg,
+            colorBorder: appearance.colors.strongBorder,
+            colorBorderSecondary: appearance.colors.border,
+            colorText: appearance.colors.bodyText,
+            colorTextSecondary: appearance.colors.secondaryText,
+            colorSuccess: appearance.colors.success,
+            colorWarning: appearance.colors.warning,
+            colorError: appearance.colors.error,
+            borderRadius: appearance.application.borderRadius,
+            controlHeight: appearance.application.controlHeight,
+            fontSize: appearance.application.fontSize,
+            motion: appearance.application.motionEnabled,
+            fontFamily: 'var(--font-body)',
+        },
+        components: {
+            Button: { primaryShadow: 'none' },
+            Card: { borderRadiusLG: appearance.application.borderRadius + 2 },
+            Layout: {
+                bodyBg: appearance.colors.contentBg,
+                headerBg: appearance.colors.headerBg,
+                siderBg: appearance.colors.siderBg,
+            },
+            Menu: {
+                darkItemBg: appearance.colors.siderBg,
+                darkItemSelectedBg: appearance.colors.itemActive,
+                darkItemColor: appearance.colors.textPrimary,
+                darkItemSelectedColor: appearance.colors.accentText,
+            },
+            Table: {
+                headerBg: appearance.colors.elevatedBg,
+                borderColor: appearance.colors.strongBorder,
+                cellPaddingBlock: tableSpacing.block,
+                cellPaddingInline: tableSpacing.inline,
+                cellPaddingBlockMD: tableSpacing.block,
+                cellPaddingInlineMD: tableSpacing.inline,
+                cellPaddingBlockSM: Math.max(8, tableSpacing.block - 3),
+                cellPaddingInlineSM: Math.max(10, tableSpacing.inline - 4),
+            },
+        },
+    }), [appearance, algorithms, tableSpacing]);
+
+    const contextValue = useMemo(
+        () => ({ isDark, mode, configuredMode, toggle, clearPreference, appearance }),
+        [appearance, clearPreference, configuredMode, isDark, mode, toggle],
+    );
 
     return (
-        <ThemeCtx.Provider value={{ isDark, toggle }}>
+        <ThemeCtx.Provider value={contextValue}>
             <ConfigProvider
-                wave={{ disabled: true }}
-                theme={{
-                    algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-                    token: {
-                        colorPrimary: 'var(--color-accent)',
-                        colorLink: 'var(--color-accent)',
-                        colorBgBase: 'var(--color-bg-base)',
-                        colorBgContainer: 'var(--color-bg-container)',
-                        colorBgElevated: 'var(--color-bg-elevated)',
-                        colorBgLayout: 'var(--color-bg-base)',
-                        colorBgSpotlight: 'var(--color-bg-sunken)',
-                        colorBorder: 'var(--color-border)',
-                        colorBorderSecondary: 'var(--color-border-subtle)',
-                        colorText: 'var(--color-text-primary)',
-                        colorTextSecondary: 'var(--color-text-secondary)',
-                        colorTextTertiary: 'var(--color-text-tertiary)',
-                        colorTextDisabled: 'var(--color-text-disabled)',
-                        colorSuccess: 'var(--color-success)',
-                        colorWarning: 'var(--color-warning)',
-                        colorError: 'var(--color-error)',
-                        colorInfo: 'var(--color-info)',
-                        fontFamily: 'var(--font-body)',
-                        // borderRadius: 4,
-                        // borderRadiusLG: 12,
-                        // borderRadiusSM: 2,
-                    },
-                    components: {
-                        Checkbox: {
-                            colorPrimary: 'var(--color-accent)',
-                            colorPrimaryHover: 'var(--color-accent-hover)',
-                            colorBgContainer: 'var(--color-bg-container)',
-                            colorBorder: 'var(--color-border-strong)',
-                        },
-                        Radio: {
-                            colorPrimary: 'var(--color-accent)',
-                            colorPrimaryHover: 'var(--color-accent-hover)',
-                            colorBgContainer: 'var(--color-bg-container)',
-                            colorBorder: 'var(--color-border-strong)',
-                        },
-                        Switch: {
-                            colorPrimary: 'var(--color-accent)',
-                            colorPrimaryHover: 'var(--color-accent-hover)',
-                        },
-                        Slider: {
-                            colorPrimary: 'var(--color-accent)',
-                            handleColor: 'var(--color-accent)',
-                            handleActiveColor: 'var(--color-accent-hover)',
-                            trackBg: 'var(--color-accent)',
-                            trackHoverBg: 'var(--color-accent-hover)',
-                            railBg: 'var(--color-border)',
-                            dotActiveBorderColor: 'var(--color-accent)',
-                        },
-                        Tree: {
-                            colorPrimary: 'var(--color-accent)',
-                            colorBgContainer: 'var(--color-bg-container)',
-                            nodeSelectedBg: 'var(--color-accent-muted)',
-                            nodeHoverBg: 'var(--color-accent-muted)',
-                        },
-                        // Table: {
-                        //     headerBg: 'var(--color-bg-sunken)',
-                        //     headerColor: 'var(--color-text-tertiary)',
-                        //     rowHoverBg: 'var(--color-accent-light)',
-                        //     rowSelectedBg: 'var(--color-accent-light)',
-                        //     rowSelectedHoverBg: 'var(--color-accent-light)',
-                        //     borderColor: 'var(--color-border)',
-                        //     footerBg: 'var(--color-bg-sunken)',
-                        // },
-                        Select: {
-                            optionSelectedBg: 'var(--color-accent-muted)',
-                            optionActiveBg: 'var(--color-bg-sunken)',
-                            optionSelectedColor: 'var(--color-accent)',
-                        },
-                        // Input: {
-                        //     activeBorderColor: 'var(--color-accent)',
-                        //     hoverBorderColor: 'var(--color-border-strong)',
-                        //     activeShadow: '0 0 0 3px var(--color-accent-muted)',
-                        // },
-                        // Button: {
-                        //     colorPrimary: 'var(--color-accent)',
-                        //     colorPrimaryHover: 'var(--color-accent-hover)',
-                        //     primaryShadow: 'none',
-                        //     defaultShadow: 'none',
-                        // },
-                        Tabs: {
-                            inkBarColor: 'var(--color-accent)',
-                            itemSelectedColor: 'var(--color-accent)',
-                            itemHoverColor: 'var(--color-accent-hover)',
-                        },
-                        Progress: {
-                            defaultColor: 'var(--color-accent)',
-                            remainingColor: 'var(--color-bg-sunken)',
-                        },
-                        Pagination: {
-                            itemActiveBg: 'var(--color-accent)',
-                        },
-                        DatePicker: {
-                            cellActiveWithRangeBg: 'var(--color-accent-muted)',
-                            cellHoverBg: 'var(--color-bg-sunken)',
-                        },
-                    },
-                }}
+                componentSize={appearance.application.density === 'spacious' ? 'large' : 'middle'}
+                theme={themeConfig}
             >
                 {children}
             </ConfigProvider>
         </ThemeCtx.Provider>
-    )
+    );
 }
 
-export default ThemeCtx
+export default ThemeCtx;

@@ -89,6 +89,11 @@ function assignRole(permission, role = "SuperAdmin") {
   );
 }
 
+function assignPrivilegedRoles(permission) {
+  assignRole(permission, "SuperAdmin");
+  assignRole(permission, "dev");
+}
+
 for (const table of defaultTables) {
   const permRead = `read:${table}`;
   const permCreate = `create:${table}`;
@@ -100,10 +105,10 @@ for (const table of defaultTables) {
   addPermission(permUpdate, `Update access for ${table}`);
   addPermission(permDelete, `Delete access for ${table}`);
 
-  assignRole(permRead);
-  assignRole(permCreate);
-  assignRole(permUpdate);
-  assignRole(permDelete);
+  assignPrivilegedRoles(permRead);
+  assignPrivilegedRoles(permCreate);
+  assignPrivilegedRoles(permUpdate);
+  assignPrivilegedRoles(permDelete);
 
   const defs = [
     {
@@ -165,14 +170,14 @@ for (const table of defaultTables) {
     {
       permission: permUpdate,
       resource: `update:${table}:by_id`,
-      path: `/api/${table}`,
+      path: `/api/${table}/:id`,
       method: "PUT",
       description: `Update ${table} by id`,
     },
     {
       permission: permDelete,
       resource: `delete:${table}:by_id`,
-      path: `/api/${table}`,
+      path: `/api/${table}/:id`,
       method: "DELETE",
       description: `Delete ${table} by id`,
     },
@@ -198,7 +203,7 @@ ${permissionRows.join(",\n")};
 
 -- 2) API resources
 INSERT IGNORE INTO admin_resources
-  (resource, resource_type, resource_path, http_method, description, icon, is_public, \`order\`, createdAt, updatedAt, category)
+  (resource, resource_type, resource_path, http_method, description, icon, is_public, display_order, createdAt, updatedAt, category)
 VALUES
 ${resourceRows.join(",\n")};
 

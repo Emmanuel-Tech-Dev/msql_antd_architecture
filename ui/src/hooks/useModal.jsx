@@ -74,8 +74,10 @@ const useModal = (staticConfig = {}) => {
         closeModal();
     }, [onCancel, closeModal]);
 
+
+    // console.log(staticConfig.okButtonProps)
     // ─── JSX ──────────────────────────────────────────────────────────────
-    const modalJSX = useCallback((overrides = {}) => (
+    const modalJSX = useCallback((overrides = {}, localContent) => (
         <Modal
             // ✅ static
             width={staticConfig.width ?? 320}
@@ -122,6 +124,7 @@ const useModal = (staticConfig = {}) => {
             {...overrides}
         >
             {content}
+            {localContent}
         </Modal>
     ), [
         open, title, content, footer, loading, confirmLoading,

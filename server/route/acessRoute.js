@@ -1,14 +1,19 @@
 const Model = require("../core/model/model");
 const { clearPermissionCache } = require("../core/middleware/authorization");
+const AppError = require("../shared/helpers/AppError");
+const authorizationEvents = require("../core/lib/authorizationEvents");
 
 class AccessRoute {
   constructor(app) {
     this.app = app;
     this.getUsersByRole(app);
     this.getPermissions(app);
+    this.getRoutes(app);
     this.getUserInfo(app);
     this.savePermissions(app);
+    this.saveRoutes(app);
     this.toggleUserStatus(app);
+    this.assignedRoles(app);
 
     return this;
   }
@@ -44,6 +49,49 @@ class AccessRoute {
       const assigned = await new Model()
         .select(["permission"], "admin_role_permissions")
         .where("role_id", "=", role_name)
+        .execute();
+      //Second is to fetch all this permissions assigned to a role
+
+      res.json({ success: true, data: { assigned } });
+    });
+  }
+
+  getRoutes(app) {
+    app.get("/access/routes/:role_name", async (req, res) => {
+      const { role_name } = req.params;
+
+      //First step is to fetch all routes in the system
+
+      const assigned = await new Model()
+        .multiSelect([
+          {
+            table: "admin_role_browser_routes",
+            columns: ["resource"],
+          },
+          { table: "admin_resources", columns: ["resource_path"] },
+        ])
+        .join(
+          "INNER",
+          "admin_resources",
+          "admin_role_browser_routes.resource",
+          "admin_resources.resource",
+        )
+        .where(
+          [
+            {
+              column: "admin_role_browser_routes.role_id",
+              operator: "=",
+              value: role_name,
+            },
+            {
+              column: "admin_resources.resource_type",
+              operator: "=",
+              value: "BROWSER_ROUTE",
+            },
+          ],
+          "=",
+          "AND",
+        )
         .execute();
       //Second is to fetch all this permissions assigned to a role
 
@@ -140,13 +188,13 @@ class AccessRoute {
            ar.resource_path,
            ar.icon,
            ar.category,
-           ar.\`order\`
+           ar.display_order
          FROM admin_resources ar
          INNER JOIN admin_role_permissions arp ON arp.permission = ar.resource
          INNER JOIN admin_user_roles aur        ON aur.role_id   = arp.role_id
          WHERE aur.user_id = ?
            AND ar.resource_type = 'BROWSER_ROUTE'
-         ORDER BY ar.\`order\` ASC`,
+         ORDER BY ar.display_order ASC`,
         [custom_id],
       );
 
@@ -190,14 +238,14 @@ class AccessRoute {
           stats, // { logins_30d, pwd_resets, permissions, routes }
           activities, // top 5 rows from user_activity_logs
           permissions, // [{ permission: "read:user" }, ...]
-          routes, // [{ id, resource, resource_path, icon, category, order }]
+          routes, // [{ id, resource, resource_path, icon, category, display_order }]
         },
       });
     });
   }
 
   savePermissions(app) {
-    app.post("/access/permissions/save", async (req, res) => {
+    app.post("/access/permissions/save", async (req, res, next) => {
       try {
         const { role, permissions } = req.body;
         // permissions = full effective list e.g. ["create:admin", "read:roles"]
@@ -242,6 +290,10 @@ class AccessRoute {
           .execute();
 
         affected.forEach((u) => clearPermissionCache(u.user_id));
+        authorizationEvents.publish(
+          affected.map((user) => user.user_id),
+          "permissions-changed",
+        );
 
         res.json({
           success: true,
@@ -249,8 +301,69 @@ class AccessRoute {
           deleted: toDelete.length,
         });
       } catch (error) {
-        console.error("[savePermissions]", error);
-        res.status(500).json({ success: false, message: error.message });
+        return next(error);
+      }
+    });
+  }
+
+  saveRoutes(app) {
+    app.post("/access/routes/save", async (req, res, next) => {
+      try {
+        const { role, routes } = req.body;
+        // routes = full effective list e.g. ["Dashboard", "Users", "Settings"]
+
+        // 1. Get currently assigned routes for this role
+        const existing = await new Model()
+          .select(["resource"], "admin_role_browser_routes")
+          .where("role_id", "=", role)
+          .execute();
+
+        const existingSet = new Set(existing.map((r) => r.resource));
+        const incomingSet = new Set(routes);
+
+        // 2. Diff — what needs to be inserted vs deleted
+        const toInsert = routes.filter((r) => !existingSet.has(r));
+        const toDelete = [...existingSet].filter((r) => !incomingSet.has(r));
+
+        // 3. Run both in parallel
+        await Promise.all([
+          toInsert.length > 0
+            ? new Model().raw(
+                `INSERT INTO admin_role_browser_routes (role_id, resource)
+                         VALUES ${toInsert.map(() => "(?, ?)").join(", ")}`,
+                toInsert.flatMap((r) => [role, r]),
+              )
+            : Promise.resolve(),
+
+          toDelete.length > 0
+            ? new Model().raw(
+                `DELETE FROM admin_role_browser_routes
+                         WHERE role_id = ? AND resource IN (${toDelete.map(() => "?").join(", ")})`,
+                [role, ...toDelete],
+              )
+            : Promise.resolve(),
+        ]);
+
+        // 4. Clear the permission cache for all users with this role
+        // so authorization middleware picks up changes immediately
+        const affected = await new Model()
+          .select(["user_id"], "admin_user_roles")
+          .where("role_id", "=", role)
+          .execute();
+
+        affected.forEach((u) => clearPermissionCache(u.user_id));
+        authorizationEvents.publish(
+          affected.map((user) => user.user_id),
+          "routes-changed",
+        );
+
+        res.json({
+          success: true,
+          inserted: toInsert.length,
+          deleted: toDelete.length,
+        });
+      } catch (error) {
+        return next(error);
       }
     });
   }
@@ -274,6 +387,39 @@ class AccessRoute {
         .update("admin", { status: newStatus })
         .where("custom_id", "=", custom_id)
         .execute();
+
+      return res
+        .status(200)
+        .json({ message: "Operation successfull!", status: "ok" });
+    });
+  }
+
+  assignedRoles(app) {
+    app.post("/access/assign/roles", async (req, res) => {
+      const { custom_id, role } = req.body;
+
+      // console.log("Assigning role", role, "to user", custom_id);
+      // return;
+
+      // 1. Check if user exists
+      const [existingRoles] = await new Model()
+        .select(["user_id"], "admin_user_roles")
+        .where("user_id", "=", custom_id)
+        .execute();
+
+      if (existingRoles) {
+        await new Model()
+          .update("admin_user_roles", { role_id: role })
+          .where("user_id", "=", custom_id)
+          .execute();
+      } else {
+        await new Model()
+          .insert("admin_user_roles", { user_id: custom_id, role_id: role })
+          .execute();
+      }
+
+      clearPermissionCache(custom_id);
+      authorizationEvents.publish([custom_id], "roles-changed");
 
       return res
         .status(200)

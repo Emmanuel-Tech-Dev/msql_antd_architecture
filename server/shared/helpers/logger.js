@@ -8,9 +8,12 @@ const utils = require("../utils/functions");
 // Environment configuration with validation
 const ENV = process.env.NODE_ENV || "development";
 const LOG_LEVEL =
-  process.env.LOG_LEVEL || (ENV === "production" ? "info" : "debug");
+  process.env.LOG_LEVEL || (ENV === "production" ? "http" : "debug");
 const LOG_PATH =
   process.env.LOG_PATH || path.join(__dirname, "../../resources/logs");
+const LOG_RETENTION = process.env.LOG_RETENTION || "14d";
+const LOG_MAX_SIZE = process.env.LOG_MAX_SIZE || "20m";
+const LOG_CONSOLE = process.env.LOG_CONSOLE !== "false";
 
 // Log type definitions with metadata
 const LOG_TYPES = Object.freeze({
@@ -24,7 +27,7 @@ const LOG_TYPES = Object.freeze({
   },
   critical: {
     file: "critical-%DATE%.log",
-    level: "critical",
+    level: "error",
     category: "security",
   },
   performance: {
@@ -34,6 +37,12 @@ const LOG_TYPES = Object.freeze({
   },
   app: { file: "app-%DATE%.log", level: "info", category: "app" },
 });
+
+// Winston pipes each transport through the logger EventEmitter. The combined,
+// exception, rejection, optional console, and bounded category transports can
+// legitimately exceed Node's default limit of 10 listeners.
+const MAX_LOGGER_TRANSPORTS =
+  3 + Number(LOG_CONSOLE) + Object.keys(LOG_TYPES).length;
 
 class LoggerService {
   constructor() {
@@ -56,9 +65,11 @@ class LoggerService {
     try {
       await fs.promises.mkdir(LOG_PATH, { recursive: true }); // check if directory exist;
 
-      const structuredFormat = winston.format.combine(
+      const baseFormat = winston.format.combine(
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
         winston.format.errors({ stack: true }),
+      );
+      const structuredFormat = winston.format.combine(
         winston.format.metadata({
           fillExcept: ["message", "level", "timestamp", "label"],
         }),
@@ -81,18 +92,17 @@ class LoggerService {
 
       this.logger = winston.createLogger({
         level: LOG_LEVEL,
-        format: structuredFormat,
+        format: baseFormat,
         defaultMeta: { service: "api", environment: ENV },
         transports: [],
         exitOnError: false,
       });
+      this.logger.setMaxListeners(MAX_LOGGER_TRANSPORTS);
 
-      if (ENV !== "production") {
+      if (LOG_CONSOLE) {
         this.logger.add(
           new winston.transports.Console({
-            format: consoleFormat,
-            handleExceptions: true,
-            handleRejections: true,
+            format: ENV === "production" ? structuredFormat : consoleFormat,
           }),
         );
       }
@@ -103,30 +113,33 @@ class LoggerService {
           filename: path.join(LOG_PATH, "combined-%DATE%.log"),
           datePattern: "YYYY-MM-DD",
           zippedArchive: true,
-          maxSize: "20m",
-          maxFiles: "14d",
+          maxSize: LOG_MAX_SIZE,
+          maxFiles: LOG_RETENTION,
           format: structuredFormat,
         }),
       );
 
-      // Exception and rejection handlers
-      // this.logger.exceptions.handle(
-      //   new winston.transports.DailyRotateFile({
-      //     filename: path.join(LOG_PATH, "exceptions-%DATE%.log"),
-      //     datePattern: "YYYY-MM-DD",
-      //     maxSize: "20m",
-      //     maxFiles: "14d",
-      //   })
-      // );
+      this.logger.exceptions.handle(
+        new winston.transports.DailyRotateFile({
+          filename: path.join(LOG_PATH, "exceptions-%DATE%.log"),
+          datePattern: "YYYY-MM-DD",
+          zippedArchive: true,
+          maxSize: LOG_MAX_SIZE,
+          maxFiles: LOG_RETENTION,
+          format: structuredFormat,
+        }),
+      );
 
-      // this.logger.rejections.handle(
-      //   new winston.transports.DailyRotateFile({
-      //     filename: path.join(LOG_PATH, "rejections-%DATE%.log"),
-      //     datePattern: "YYYY-MM-DD",
-      //     maxSize: "20m",
-      //     maxFiles: "14d",
-      //   })
-      // );
+      this.logger.rejections.handle(
+        new winston.transports.DailyRotateFile({
+          filename: path.join(LOG_PATH, "rejections-%DATE%.log"),
+          datePattern: "YYYY-MM-DD",
+          zippedArchive: true,
+          maxSize: LOG_MAX_SIZE,
+          maxFiles: LOG_RETENTION,
+          format: structuredFormat,
+        }),
+      );
     } catch (err) {
       console.error("Failed to initialize logger:", err);
       throw new Error(`Logger initialization failed: ${err.message}`);
@@ -141,14 +154,19 @@ class LoggerService {
     if (this.transports.has(type)) return;
 
     const config = LOG_TYPES[type];
+    const typeFilter = winston.format((info) =>
+      (info.logType ?? info.metadata?.logType) === type ? info : false,
+    );
     const transport = new winston.transports.DailyRotateFile({
       filename: path.join(LOG_PATH, config.file),
       datePattern: "YYYY-MM-DD",
       zippedArchive: true,
-      maxSize: "20m",
-      maxFiles: "14d",
+      maxSize: LOG_MAX_SIZE,
+      maxFiles: LOG_RETENTION,
       level: config.level,
-      format: winston.format.json(),
+      format: winston.format.combine(typeFilter(), winston.format.metadata({
+        fillExcept: ["message", "level", "timestamp", "label"],
+      }), winston.format.json()),
     });
 
     this.logger.add(transport);
@@ -164,10 +182,21 @@ class LoggerService {
     try {
       this.ensureTransport(type);
       const config = LOG_TYPES[type];
+      let safeMetadata;
+      try {
+        safeMetadata = utils.redactSensitiveData(metadata, [
+          "code",
+          "challengeToken",
+          "set-cookie",
+        ]);
+      } catch {
+        safeMetadata = { metadataSerializationFailed: true };
+      }
 
       this.logger.log(config.level, message, {
         category: config.category,
-        ...metadata,
+        logType: type,
+        ...safeMetadata,
       });
     } catch (err) {
       console.error("Logging error:", err);
@@ -206,18 +235,25 @@ class LoggerService {
   }
 
   smartError(error, context = {}, level) {
-    const status = error.status || error.statusCode || context.status || 500;
-    const hint = error.errorCode || context.hint;
+    const status = error?.statusCode || context.statusCode || 500;
+    const hint = error?.errorCode || context.hint;
     const errorInfo = this._findErrorCodeByStatus(status, hint);
-    const filteredContext = utils.removePasswordFromObject(context?.body);
+    const safeContext = utils.redactSensitiveData(context, [
+      "code",
+      "challengeToken",
+    ]);
     const metadata = {
+      ...safeContext,
       errorCode: error?.errorCode || "UNKNOWN",
       status: error?.status || status,
-      statusCode: error.statusCode,
+      statusCode: error?.statusCode,
       errorMessage: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined,
-      correlationId: utils.generateCustomId("corr", 8),
-      ...filteredContext,
+      stack:
+        error instanceof Error && Number(status) >= 500
+          ? error.stack
+          : undefined,
+      requestId:
+        safeContext.requestId ?? utils.generateCustomId("request", 12),
     };
 
     // Remove hint from metadata to avoid clutter
@@ -287,6 +323,9 @@ class LoggerService {
       return new Promise((resolve) => {
         this.logger.close(() => {
           this.initialized = false;
+          this.initPromise = null;
+          this.transports.clear();
+          this.logger = null;
           resolve();
         });
       });

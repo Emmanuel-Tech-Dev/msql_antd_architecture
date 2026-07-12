@@ -27,6 +27,7 @@ import {
     Layout, Menu, Typography, theme as antTheme,
     Avatar, Badge, Button, Dropdown, Space, Tooltip,
 } from 'antd';
+import { useEffect, useState } from 'react';
 import {
     BellOutlined, DownOutlined, LogoutOutlined,
     MenuFoldOutlined, MenuUnfoldOutlined, NotificationOutlined, UserOutlined,
@@ -68,15 +69,41 @@ function resolveColors(theme, token, overrides = {}) {
     return { ...defaults, ...overrides };
 }
 
+function getUserInitials(name = '') {
+    return String(name)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('') || 'U';
+}
+
+function UserAvatar({ user, ...props }) {
+    return (
+        <Avatar src={user?.avatar || undefined} {...props}>
+            {getUserInitials(user?.name)}
+        </Avatar>
+    );
+}
+
 // ─── SiderMenu ────────────────────────────────────────────────────────────────
 
-function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys }) {
+function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys, onMenuClick }) {
+    const [menuOpenKeys, setMenuOpenKeys] = useState(openKeys);
+
+    useEffect(() => {
+        setMenuOpenKeys(openKeys);
+    }, [openKeys]);
+
     return (
         <Menu
             theme={theme}
             mode="inline"
             selectedKeys={selectedKeys}
-            defaultOpenKeys={openKeys}
+            openKeys={menuOpenKeys}
+            onOpenChange={setMenuOpenKeys}
+            onClick={onMenuClick}
             items={processedSiderItems}
             style={{
                 marginTop: 8,
@@ -122,12 +149,11 @@ function SiderBottomSection({
                     onMouseEnter={(e) => e.currentTarget.style.background = colors.itemHover}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                    <Avatar
+                    <UserAvatar
+                        user={user}
                         size={32}
                         style={{ backgroundColor: colors.accent, color: colors.accentText, flexShrink: 0 }}
-                    >
-                        {user?.name?.charAt(0)?.toUpperCase()}
-                    </Avatar>
+                    />
                     {!collapsed && (
                         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, overflow: 'hidden', minWidth: 0 }}>
                             <Typography.Text style={{
@@ -181,6 +207,7 @@ function SiderNode({
     reverseArrow, theme, width, headerHeight, siderStyle,
     onCollapse, siderHeader, trigger, token, colors,
     processedSiderItems, selectedKeys, openKeys,
+    onMenuClick,
     user, showSiderProfile, showSiderLogout,
     onProfile, onLogout, navigate,
 }) {
@@ -218,12 +245,13 @@ function SiderNode({
                         {siderHeader}
                     </div>
                 )}
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
                     <SiderMenu
                         theme={theme}
                         processedSiderItems={processedSiderItems}
                         selectedKeys={selectedKeys}
                         openKeys={openKeys}
+                        onMenuClick={onMenuClick}
                     />
                 </div>
                 <SiderBottomSection
@@ -263,6 +291,7 @@ function DefaultHeader({
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Button
+                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                     type="text"
                     icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                     onClick={toggle}
@@ -282,9 +311,7 @@ function DefaultHeader({
                         cursor: 'pointer', padding: '4px 8px',
                         borderRadius: token.borderRadius,
                     }}>
-                        <Avatar style={{ backgroundColor: colors.accent, color: colors.accentText }}>
-                            {user?.name?.charAt(0)?.toUpperCase()}
-                        </Avatar>
+                        <UserAvatar user={user} style={{ backgroundColor: colors.accent, color: colors.accentText }} />
                         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
                             <Typography.Text style={{ fontSize: 13, fontWeight: 500, color: colors.textPrimary }}>
                                 {user?.name}
@@ -336,16 +363,15 @@ function SiderProfile({
                                 // minWidth: 220,
                             }}
                         >
-                            <Avatar
+                            <UserAvatar
+                                user={user}
                                 size={42}
                                 style={{
                                     // background: colors.accent,
                                     // color: colors.accentText,
                                     flexShrink: 0,
                                 }}
-                            >
-                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                            </Avatar>
+                            />
 
                             <div style={{ overflow: 'hidden' }}>
                                 <Typography.Text
@@ -413,7 +439,7 @@ function SiderProfile({
                     justifyContent: collapsed ? 'center' : 'space-between',
                     gap: 12,
                     cursor: 'pointer',
-                    padding: collapsed ? '8px' : '10px 14px',
+                    padding: '8px',
                     borderRadius: 18,
                     transition: 'all 0.25s ease',
                     background:
@@ -426,16 +452,15 @@ function SiderProfile({
                     color="#52c41a"
                     offset={[-3, 30]}
                 >
-                    <Avatar
-                        size={collapsed ? 35 : 46}
+                    <UserAvatar
+                        user={user}
+                        size={35}
                         style={{
                             background: colors.accent,
                             color: colors.accentText,
                             flexShrink: 0,
                         }}
-                    >
-                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                    </Avatar>
+                    />
                 </Badge>
 
                 {!collapsed && (
@@ -556,7 +581,7 @@ function IconRailLayout({
                 )}
 
                 {/* Rail items */}
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', padding: '6px 0' }}>
+                <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', padding: '6px 0' }}>
                     {processedSiderItems.map((item) => {
                         // Skip group headers in rail mode — flatten them
                         if (item.type === 'group') {
@@ -605,7 +630,8 @@ function IconRailLayout({
                         flexShrink: 0,
                     }}>
                         <Tooltip title={user?.name} placement="right">
-                            <Avatar
+                            <UserAvatar
+                                user={user}
                                 size={32}
                                 onClick={() => onProfile ? onProfile() : navigate('/profile')}
                                 style={{
@@ -613,9 +639,7 @@ function IconRailLayout({
                                     color: colors.accentText,
                                     cursor: 'pointer',
                                 }}
-                            >
-                                {user?.name?.charAt(0)?.toUpperCase()}
-                            </Avatar>
+                            />
                         </Tooltip>
                     </div>
                 )}
@@ -638,8 +662,8 @@ function IconRailLayout({
                     </Header>
                 )}
                 <Content style={{
-                    margin: '10px',
-                    padding: '10px',
+                    margin: '10px auto',
+                    // padding: '10px',
                     minHeight: 'calc(100vh - 112px)',
                     backgroundColor: colors.contentBg,
                     ...contentStyle,
@@ -692,6 +716,7 @@ function RailIcon({ item, isActive, colors, token }) {
 
 function FloatingLayout({
     colors, token, processedSiderItems, selectedKeys, openKeys,
+    onMenuClick,
     theme, collapsed, collapsedWidth, width,
     siderHeader, headerHeight, siderStyle, contentStyle, layoutStyle,
     user, showSiderProfile, showSiderLogout,
@@ -760,12 +785,13 @@ function FloatingLayout({
                             {siderHeader}
                         </div>
                     )}
-                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                    <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
                         <SiderMenu
                             theme={theme}
                             processedSiderItems={processedSiderItems}
                             selectedKeys={selectedKeys}
                             openKeys={openKeys}
+                            onMenuClick={onMenuClick}
                         />
                     </div>
                     <SiderBottomSection
@@ -798,8 +824,8 @@ function FloatingLayout({
                         </Header>
                     )}
                     <Content style={{
-                        margin: '10px',
-                        padding: '10px',
+                        margin: '10px auto',
+                        // padding: '10px',
                         minHeight: 'calc(100vh - 112px)',
                         ...contentStyle,
                     }}>
@@ -919,9 +945,7 @@ function TopNavLayout({
                             cursor: 'pointer', padding: '4px 8px',
                             borderRadius: token.borderRadius,
                         }}>
-                            <Avatar style={{ backgroundColor: colors.accent, color: colors.accentText }}>
-                                {user?.name?.charAt(0)?.toUpperCase()}
-                            </Avatar>
+                            <UserAvatar user={user} style={{ backgroundColor: colors.accent, color: colors.accentText }} />
                             <DownOutlined style={{ fontSize: 10, color: colors.textMuted }} />
                         </div>
                     </Dropdown>
@@ -929,8 +953,8 @@ function TopNavLayout({
             </Header>
 
             <Content style={{
-                margin: '10px',
-                padding: '10px',
+                margin: '10px auto',
+                // padding: '10px',
                 minHeight: 'calc(100vh - 112px)',
                 ...contentStyle,
             }}>
@@ -952,7 +976,7 @@ export default function SiderLayout({
     defaultHeader, defaultFooter,
     processedSiderItems, processedHeaderItems,
     selectedKeys, openKeys,
-    onCollapse, toggle, siderHeader, header, footer, trigger,
+    onCollapse, toggle, onMenuClick, siderHeader, header, footer, trigger,
     // New: color overrides passed from SIDER_INIT via AppLayout
     colors: colorOverrides,
 }) {
@@ -966,13 +990,13 @@ export default function SiderLayout({
         collapsed, collapsedWidth, collapsible, breakpoint,
         reverseArrow, theme, width, headerHeight, siderStyle,
         onCollapse, siderHeader, trigger, token, colors,
-        processedSiderItems, selectedKeys, openKeys,
+        processedSiderItems, selectedKeys, openKeys, onMenuClick,
         user, showSiderProfile, showSiderLogout,
         onProfile, onLogout, navigate,
     };
 
     const sharedLayoutProps = {
-        colors, token, processedSiderItems, selectedKeys, openKeys,
+        colors, token, processedSiderItems, selectedKeys, openKeys, onMenuClick,
         theme, collapsed, collapsedWidth, width,
         siderHeader, headerHeight, siderStyle, contentStyle, layoutStyle,
         user, showSiderProfile, showSiderLogout,
@@ -1048,7 +1072,7 @@ export default function SiderLayout({
                 <SiderNode {...sharedSiderProps} />
                 <Layout style={{ flex: 1, minWidth: 0 }}>
                     <Content style={{
-                        margin: '10px', padding: '10px',
+                        margin: '10px auto', // padding: '10px',
                         minHeight: '100vh',
                         backgroundColor: colors.contentBg,
                         ...contentStyle,
@@ -1083,7 +1107,7 @@ export default function SiderLayout({
                         </Header>
                     )}
                     <Content style={{
-                        margin: '10px', padding: '10px',
+                        margin: '10px auto', // padding: '10px',
                         minHeight: 'calc(100vh - 112px)',
                         backgroundColor: colors.contentBg,
                         ...contentStyle,
@@ -1119,7 +1143,8 @@ export default function SiderLayout({
                             </Header>
                         )}
                         <Content style={{
-                            margin: '10px', padding: '10px',
+                            margin: '10px auto',
+                            // padding: '10px',
                             minHeight: 'calc(100vh - 112px)',
                             backgroundColor: colors.contentBg,
                             ...contentStyle,
@@ -1160,7 +1185,7 @@ export default function SiderLayout({
                             top: 0,
                             height: '100vh',
                             overflow: 'hidden',
-                            // background: colors.siderBg,
+                            background: colors.siderBg,
                             borderRight: `1px solid ${colors.border}`,
                             // boxShadow:
                             //     theme === 'dark'
@@ -1205,6 +1230,7 @@ export default function SiderLayout({
 
                             {/* Menu */}
                             <div
+                                className="app-sider-scrollbar"
                                 style={{
                                     flex: 1,
                                     overflowY: 'auto',
@@ -1217,6 +1243,7 @@ export default function SiderLayout({
                                     processedSiderItems={processedSiderItems}
                                     selectedKeys={selectedKeys}
                                     openKeys={openKeys}
+                                    onMenuClick={onMenuClick}
                                 />
                             </div>
 
@@ -1271,8 +1298,9 @@ export default function SiderLayout({
 
 
                                 <Button
+                                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                                     type="text"
-                                    icon={<MenuFoldOutlined />}
+                                    icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                                     onClick={toggle}
                                     style={{
                                         color: colors.textMuted,
@@ -1289,7 +1317,7 @@ export default function SiderLayout({
                     </Sider>
 
                     <Layout style={{ flex: 1, minWidth: 0 }}>
-                        {showSiderProfile ? " " : resolvedHeader && (
+                        {resolvedHeader && (
                             <Header
                                 style={{
                                     padding: 0,
@@ -1308,9 +1336,10 @@ export default function SiderLayout({
                         )}
 
                         <Content
+                            className="app-workspace-content"
                             style={{
-                                margin: '12px',
-                                padding: '16px',
+                                margin: '10px auto',
+                                // padding: '16px',
                                 minHeight: 'calc(100vh - 112px)',
                                 backgroundColor: colors.contentBg,
                                 borderRadius: 18,

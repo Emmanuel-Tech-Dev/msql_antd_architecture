@@ -3,7 +3,7 @@ import './index.css'
 import "react-skeletonify/dist/index.css";
 
 import AppLayout from "./components/Layout/AppLayout";
-import { Navigate, Route, Router, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Test from "./pages/Test";
 import Test2 from "./pages/Test2";
 import { Analytics } from "./pages/Analytics/Analytics";
@@ -16,12 +16,15 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import OtpRequest from "./pages/auth/OtpRequest";
 import OtpVerify from "./pages/auth/OtpVerify";
-import NotFound from "./pages/NotFound";
+import NotFound404 from "./components/feedback/NotFound404";
 import Users from "./pages/admin/Users";
 import Roles from "./pages/admin/Roles";
 import Permissions from "./pages/admin/Permissions";
 import Resources from "./pages/admin/Resources";
 import SystemLogs from "./pages/settings/SystemLogs";
+import DatabaseBackup from "./pages/settings/DatabaseBackup";
+import AppearanceSettings from "./pages/settings/AppearanceSettings";
+import ProfileSettings from "./pages/settings/ProfileSettings";
 import { SkeletonProvider } from 'react-skeletonify';
 
 
@@ -49,6 +52,8 @@ export default function App() {
           <Route path="/reset_password" element={<ResetPassword />} />
           <Route path="/otp_request" element={<OtpRequest />} />
           <Route path="/verify_otp" element={<OtpVerify />} />
+          <Route path="/auth/otp/request-login/*" element={<Navigate to="/otp_request" replace />} />
+          <Route path="/auth/otp/verify-login/*" element={<Navigate to="/verify_otp" replace />} />
           {/* Protected Admin Routes */}
           <Route path="/admin" element={
             // <ProtectedRoute>
@@ -71,11 +76,15 @@ export default function App() {
             <Route path="management/permissions" element={<Permissions />} />
             <Route path="management/resources" element={<Resources />} />
             <Route path="settings/system_logs" element={<SystemLogs />} />
-            <Route path="404" element={<NotFound />} />
+            <Route path="settings/database_backup" element={<DatabaseBackup />} />
+            <Route path="settings/appearance" element={<AppearanceSettings />} />
+            <Route path="profile" element={<ProfileSettings />} />
+            <Route path="404" element={<NotFound404 />} />
+            <Route path="*" element={<NotFound404 />} />
           </Route>
 
-          <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="404" replace />} />
+          <Route path="/404" element={<NotFound404 />} />
+          <Route path="*" element={<NotFound404 />} />
         </Routes>
 
       </SkeletonProvider>

@@ -2,16 +2,12 @@
 
 import qs from "qs";
 import apiClient from "../../services/apiClient";
-
-const normalizeError = (error) => {
-  const res = error?.response?.data;
-  throw {
-    message: res?.message ?? error.message ?? "Request failed",
-    statusCode: error?.response?.status ?? 500,
-    errorCode: res?.errorCode ?? "ERR_UNKNOWN",
-    errors: res?.details?.errors ?? [],
-  };
-};
+import {
+  normalizeListResponse,
+  normalizeRecordResponse,
+  toDataProviderError,
+  unwrapResponseEnvelope,
+} from "../data/contracts";
 
 const buildQueryParams = ({ pagination, filters, sorters } = {}) => {
   const params = {};
@@ -28,9 +24,10 @@ const buildQueryParams = ({ pagination, filters, sorters } = {}) => {
     });
   }
 
-  if (sorters?.field) {
-    params.sort_by = sorters.field;
-    params.sort_order = sorters.order === "descend" ? "desc" : "asc";
+  const sorter = Array.isArray(sorters) ? sorters[0] : sorters;
+  if (sorter?.field && sorter?.order) {
+    params.sort_by = sorter.field;
+    params.sort_order = sorter.order === "descend" ? "desc" : "asc";
   }
 
   return qs.stringify(params, { encodeValuesOnly: true });
@@ -49,27 +46,30 @@ const mysqlOrmProvider = (baseUrl) => ({
     try {
       const queryString = buildQueryParams({ pagination, filters, sorters });
       const tableConfig = meta?.mysql?.tableConfig;
+
+      const customEndpoint = tableConfig?.endpoint;
+      const resolvedPath = customEndpoint ?? `api/${resource}/table`;
       const headers = tableConfig
         ? {
             "x-table-config": JSON.stringify({
               ...tableConfig,
-              table: resource,
+              table: tableConfig.table || resource || "",
             }),
           }
         : {};
 
+      const url = joinUrl(baseUrl, resolvedPath);
       const { data } = await apiClient.get(
-        `${joinUrl(baseUrl, `api/${resource}/table`)}?${queryString}`,
+        queryString ? `${url}?${queryString}` : url,
         { headers },
       );
 
-      return {
-        data: data.data?.result ?? [],
-        total: data.data?.pagination?.total ?? 0,
-        pagination: data.data?.pagination,
-      };
+      return normalizeListResponse(data, {
+        page: pagination?.current ?? 1,
+        limit: pagination?.pageSize ?? 20,
+      });
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
@@ -78,9 +78,9 @@ const mysqlOrmProvider = (baseUrl) => ({
       const { data } = await apiClient.get(
         joinUrl(baseUrl, `api/${resource}/${id}`),
       );
-      return { data: data.data };
+      return normalizeRecordResponse(data);
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
@@ -93,9 +93,9 @@ const mysqlOrmProvider = (baseUrl) => ({
       const { data } = await apiClient.get(
         `${joinUrl(baseUrl, `api/${resource}/table`)}?${queryString}`,
       );
-      return { data: data.data?.result ?? [] };
+      return normalizeListResponse(data);
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
@@ -107,16 +107,16 @@ const mysqlOrmProvider = (baseUrl) => ({
           variables,
           { headers: { "Content-Type": "multipart/form-data" } },
         );
-        return { data };
+        return normalizeRecordResponse(data);
       }
 
       const { data } = await apiClient.post(
         joinUrl(baseUrl, `api/${resource}`),
         variables,
       );
-      return { data };
+      return normalizeRecordResponse(data);
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
@@ -126,9 +126,9 @@ const mysqlOrmProvider = (baseUrl) => ({
         joinUrl(baseUrl, `api/${resource}/${id}`),
         variables,
       );
-      return { data };
+      return normalizeRecordResponse(data);
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
@@ -137,13 +137,13 @@ const mysqlOrmProvider = (baseUrl) => ({
       const { data } = await apiClient.delete(
         joinUrl(baseUrl, `api/${resource}/${id}`),
       );
-      return { data };
+      return normalizeRecordResponse(data);
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 
-  custom: async ({ url, method = "get", payload, headers }) => {
+  custom: async ({ url, method = "get", payload, headers, unwrap = false }) => {
     try {
       // if url is already absolute use it directly
       // otherwise join cleanly with baseUrl
@@ -158,9 +158,12 @@ const mysqlOrmProvider = (baseUrl) => ({
         headers: headers ?? {},
       });
 
-      return { data };
+      return {
+        data: unwrap ? unwrapResponseEnvelope(data) : data,
+        raw: data,
+      };
     } catch (e) {
-      normalizeError(e);
+      throw toDataProviderError(e);
     }
   },
 });

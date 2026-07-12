@@ -4,8 +4,6 @@ const AuthService = require("../lib/authService");
 const Model = require("../model/model");
 
 const PUBLIC_ENDPOINTS = [
-  "/api/v1/bootstrap",
-  "/api/v1/extra_meta_options",
   "/auth/user_info",
 ];
 

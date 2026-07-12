@@ -1,20 +1,30 @@
 // src/core/providers/FrameworkProvider.jsx
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { DataProviderContext, validateProvider } from './DataProvider';
 import { AuthProviderContext, validateAuthProvider } from './AuthProvider';
 import { AccessProviderContext, createAccessProvider } from './AccessProvider';
 import { ResourceProviderContext, useResourceStore, mergeResources } from './ResourceProvider';
 import { FrameworkContext } from './FrameworkContext';
-import useValuesStore from '../../store/values-store';
+import { useStore as useValuesStore } from '../../store/values-store';
 import queryClient from '../queryClient';
 import queryKeys from '../queryKeys';
 import { useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
+import useAuthorizationEvents from '../hooks/auth/useAuthorizationEvents';
+import TopProgress from '../../components/feedback/TopProgress';
 
 
-const PUBLIC_ROUTES = ["/login", "/init_psd_recovery", "/reset-password", "/register", "otp-request", "/otp-verify"];
+const PUBLIC_ROUTES = [
+    "/login",
+    "/init_psd_recovery",
+    "/reset-password",
+    "/reset_password",
+    "/register",
+    "/otp_request",
+    "/verify_otp",
+];
 
 function isPublicBrowserRoute(route) {
     const flag = route?.is_public;
@@ -27,28 +37,42 @@ function isPublicBrowserRoute(route) {
     return false;
 }
 
-function hasDevRole(roles = []) {
-    return (roles ?? []).some((r) => String(r).trim().toLowerCase() === "dev");
+function hasPrivilegedRole(roles = []) {
+    return (roles ?? []).some((role) => {
+        const normalized = String(role?.role_id ?? role).trim().toLowerCase();
+        return normalized === "superadmin" || normalized === "dev";
+    });
 }
 
 function FrameworkBootstrap({ dataProvider, authProvider, resources, children }) {
     const setRegistry = useResourceStore((s) => s.setRegistry);
+    const resetRegistry = useResourceStore((s) => s.resetRegistry);
+    const appliedBootstrapRef = useRef(null);
 
-    const valuesStore = useValuesStore();
+    const setBootstrapValues = useValuesStore((state) => state.setRuntimeValues);
     const location = useLocation();
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const roles = useAuthStore((s) => s.roles);
     const authMetaLoaded = useAuthStore((s) => s.authMetaLoaded);
     const authBrowserResources = useAuthStore((s) => s.resources);
     const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname);
+    useAuthorizationEvents(isAuthenticated && !isPublicRoute);
 
-    console.log(authMetaLoaded)
+    useEffect(() => {
+        if (!isAuthenticated || !authMetaLoaded) {
+            appliedBootstrapRef.current = null;
+            resetRegistry();
+        }
+    }, [authMetaLoaded, isAuthenticated, resetRegistry]);
 
-    const { error: authUserError } = useQuery({
+    // console.log(authMetaLoaded)
+
+    const { error: authUserError, dataUpdatedAt: authUserUpdatedAt } = useQuery({
         queryKey: ['auth_user'],
         queryFn: () => authProvider.getPermissions(),
-        enabled: !isPublicRoute && isAuthenticated && authMetaLoaded,
-        staleTime: 60 * 1000,
+        enabled: !isPublicRoute && isAuthenticated,
+        staleTime: 0, // Always refetch when component remounts
+        gcTime: 5 * 60 * 1000, // Keep cached for 5 minutes
         retry: false,
     });
 
@@ -69,33 +93,60 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
 
 
 
-    const { data, error: bootstrapError } = useQuery({
+    const { data, error: bootstrapError, dataUpdatedAt: bootstrapUpdatedAt } = useQuery({
         queryKey: queryKeys.bootstrap(),
         queryFn: () => dataProvider.custom({
             url: 'api/v1/bootstrap',
             method: 'post',
             payload: {
                 tables: [
-                    { table: 'tables_metadata', storeName: 'tables_metadata', fields: ['*'] },
-                    { table: 'admin_resources', storeName: 'admin_resources', fields: ['*'] },
-                    { table: 'admin_permissions', storeName: 'permissions', fields: ['*'] },
+                    {
+                        table: 'tables_metadata',
+                        storeName: 'tables_metadata',
+                        fields: ['*'],
+                        limit: 2000,
+                    },
+                    {
+                        table: 'admin_resources',
+                        storeName: 'admin_resources',
+                        fields: ['*'],
+                        limit: 1000,
+                    },
+                    {
+                        table: 'admin_permissions',
+                        storeName: 'permissions',
+                        fields: ['*'],
+                        limit: 1000,
+                    },
+                    {
+                        table: 'ui_settings',
+                        storeName: 'ui_settings',
+                        fields: ['id', 'setting_key', 'setting_value', 'description', 'is_active', 'version'],
+                        filters: [
+                            { column: 'setting_key', operator: '=', value: 'layout.sider' },
+                            { column: 'is_active', operator: '=', value: 1 },
+                        ],
+                        limit: 10,
+                    },
                 ],
             },
         }),
         enabled: !isPublicRoute && isAuthenticated,
-        staleTime: Infinity,
+        staleTime: 0, // Always refetch when component remounts
+        gcTime: 5 * 60 * 1000, // Keep cached for 5 minutes
     });
 
     useEffect(() => {
-        if (!data) return;
+        if (!data || !authMetaLoaded) return;
+
+        // The tracked values store changes identity after setValue(). Without
+        // this guard, the effect can apply the same bootstrap payload again on
+        // route changes and enter React's maximum-update-depth loop (#185).
+        const bootstrapSignature = `${bootstrapUpdatedAt}:${authUserUpdatedAt}:${isAuthenticated}`;
+        if (appliedBootstrapRef.current === bootstrapSignature) return;
+        appliedBootstrapRef.current = bootstrapSignature;
 
         const bootstrapData = data?.data?.data ?? {};
-
-        const tablesMetadata = bootstrapData.tables_metadata ?? [];
-        valuesStore.setValue('tables_metadata', tablesMetadata);
-
-        const permissions = bootstrapData.permissions ?? [];
-        valuesStore.setValue('permissions', permissions);
 
         const adminResources = bootstrapData.admin_resources ?? [];
         const { resources: mergedResources, browserRoutes: allBrowserRoutes } = mergeResources(
@@ -136,12 +187,13 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
 
         const browserRoutes = !isAuthenticated
             ? publicRoutes
-            : hasDevRole(roles)
+            : hasPrivilegedRole(roles)
                 ? allBrowserRoutes
                 : [...publicRoutes, ...allowedPrivateRoutes];
 
+        setBootstrapValues({ ...bootstrapData, routes: allBrowserRoutes });
         setRegistry({ resources: mergedResources, browserRoutes });
-    }, [data, isAuthenticated, roles, authBrowserResources, resources, setRegistry, valuesStore]);
+    }, [data, bootstrapUpdatedAt, authUserUpdatedAt, authMetaLoaded, isAuthenticated, roles, authBrowserResources, resources, setBootstrapValues, setRegistry]);
 
     if (bootstrapError) {
         console.error('[Framework] Bootstrap failed:', bootstrapError.message);
@@ -168,6 +220,7 @@ export default function FrameworkProvider({
 
     return (
         <QueryClientProvider client={queryClient}>
+            <TopProgress />
             <DataProviderContext.Provider value={dataProvider}>
                 <AuthProviderContext.Provider value={authProvider}>
                     <AccessProviderContext.Provider value={accessProvider}>

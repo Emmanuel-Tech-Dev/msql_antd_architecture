@@ -4,9 +4,12 @@ import { useState, useMemo, useRef } from 'react';
 import useDraggable from './useDraggable';
 import Settings from "../utils/Settings"
 import utils from '../utils/function_utils';
+import { legacySqlToLookup } from '../utils/lookup_utils';
+import { useDataProvider } from '../core/provider/DataProvider';
 
 const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, showFormAddBtn = true, type = 'default') => {
     const draggable = useDraggable();
+    const dataProvider = useDataProvider();
     const [formJSX, setFormJSX] = useState();
     const [childrenBottom, setChildrenBottom] = useState(undefined);
     const [childrenTop, setChildrenTop] = useState(undefined);
@@ -137,7 +140,7 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
                     const groupBy = p?.groupBy;
                     const endpoint = p?.endpoint;
                     const endpointResKey = p?.endpoint_result_key;
-                    const requestTo = endpoint ? endpoint : 'get_extra_meta_options';
+                    const requestTo = endpoint ? endpoint : '/api/v1/extra_meta_options';
                     let options = undefined;
                     for (let placeholder in sqlPlaceHolders) {
                         sql = sql.replace(placeholder, sqlPlaceHolders[placeholder]);
@@ -151,7 +154,16 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
 
                             if (!extraMetaList.includes(component)) {//for optimization
                                 setExtraMetaList(r => [...r, component]);
-                                const res = await utils.requestWithReauth('post', `${Settings.baseUrl}/${requestTo}`, null, { sql });
+                                const lookupPayload = legacySqlToLookup(sql);
+                                if (!lookupPayload) {
+                                    throw new Error(`Unsupported lookup definition for ${component}`);
+                                }
+                                const { data: res } = await dataProvider.custom({
+                                    url: requestTo,
+                                    method: 'post',
+                                    payload: lookupPayload,
+                                    unwrap: true,
+                                });
                                 if (groupBy) {
                                     const grouped = utils.groupBy(res.details, groupBy);
                                     let final = [];

@@ -1,18 +1,15 @@
 import { useEffect } from 'react';
 import { Button, Space, Tag, Tabs, Card } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
-import useAdd from '../../hooks/useAdd';
-import useEdit from '../../hooks/useEdit';
+import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
-import ValuesStore from '../../store/values-store';
+import AdminPage from '../../components/admin/AdminPage';
 
 // ─── Tab 1: admin_permissions — permission definitions ─────────────────────────
 function PermissionDefinitionsTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_permissions' });
 
     const table = useTableApi(
@@ -26,27 +23,20 @@ function PermissionDefinitionsTab() {
             searchable: ['permission_name'],
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_permissions');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_permissions');
     }
 
     function openEdit(record) {
-        const key = 'editPermDef';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_permissions');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_permissions', record, record.id);
     }
 
     const columns = [
@@ -92,14 +82,12 @@ function PermissionDefinitionsTab() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Add Permission
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Add Permission', () => add.save('admin_permissions'))}
-            {edit.editModal('Edit Permission', () => edit.save(undefined, edit.record?.id, 'admin_permissions'))}
+            {recordForm.recordModal({ createTitle: 'Add Permission', editTitle: 'Edit Permission' })}
         </div>
     );
 }
@@ -107,9 +95,7 @@ function PermissionDefinitionsTab() {
 // ─── Tab 2: admin_role_permissions — role → permission assignments ──────────────
 // role_id is the role_name string (FK to admin_roles.role_name)
 function RolePermissionsTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_role_permissions' });
 
     const table = useTableApi(
@@ -123,27 +109,20 @@ function RolePermissionsTab() {
             searchable: ['role_id', 'permission'],
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_role_permissions');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_role_permissions');
     }
 
     function openEdit(record) {
-        const key = 'editRolePerm';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_role_permissions');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_role_permissions', record, record.id);
     }
 
     const columns = [
@@ -190,14 +169,15 @@ function RolePermissionsTab() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Assign Permission to Role
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Assign Permission to Role', () => add.save('admin_role_permissions'))}
-            {edit.editModal('Edit Assignment', () => edit.save(undefined, edit.record?.id, 'admin_role_permissions'))}
+            {recordForm.recordModal({
+                createTitle: 'Assign Permission to Role',
+                editTitle: 'Edit Assignment',
+            })}
         </div>
     );
 }
@@ -213,17 +193,15 @@ const TABS = [
 
 export default function Permissions() {
     return (
-        <div>
-            <div style={{ marginBottom: 20 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Permissions</h2>
-                <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
-                    Manage permissions, role assignments, and resource access
-                </p>
-            </div>
+        <AdminPage
+            eyebrow="ACCESS / CAPABILITIES"
+            title="Permissions"
+            description="Define granular capabilities and inspect how those capabilities are assigned to roles."
+            icon={<KeyOutlined />}
+        >
             <Card>
                 <Tabs items={TABS} />
             </Card>
-
-        </div>
+        </AdminPage>
     );
 }

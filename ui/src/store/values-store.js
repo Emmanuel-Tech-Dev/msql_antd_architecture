@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createTrackedSelector } from "react-tracked";
-import { devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 //SOME STORE KEYS ARE SET DYAMICALLY
 
 const store = (set, get) => ({
@@ -16,11 +16,14 @@ const store = (set, get) => ({
   },
   setValue: (key, value) => {
     localStorage.setItem(key, JSON.stringify(value));
-    set((state) => ({ [key]: value }));
+    set({ [key]: value });
   },
+  // Bootstrap payloads can be large and are already cached by React Query.
+  // Keep them in memory rather than synchronously serializing them to localStorage.
+  setRuntimeValues: (values) => set(() => ({ ...values })),
   setLastAuthorizedPath: (key, value) => {
     localStorage.setItem(key, JSON.stringify(value));
-    set((state) => ({ [key]: value }));
+    set({ [key]: value });
   },
   //   setCurrentRoute: (route) => {
   //     console.log(`setCurrentRoute: ${route}`);

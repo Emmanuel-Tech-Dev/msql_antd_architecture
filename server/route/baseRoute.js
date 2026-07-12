@@ -7,7 +7,6 @@ const { uploadSingle } = require("../core/config/multer");
 const { uploadSingleFile } = require("../core/lib/uploadServices");
 const uploadServices = require("../core/lib/uploadServices");
 const utils = require("../shared/utils/functions");
-const Model = require("../core/model/model");
 
 class BaseRoute {
   constructor(app) {
@@ -17,7 +16,10 @@ class BaseRoute {
 
     this.findAll(app);
     this.findWithParams(app);
-    // this.findOne(app);
+    // Static GET routes must precede /api/:resources/:id.
+    this.getTableData(app);
+    this.getColFilters(app);
+    this.findOne(app);
     this.create(app);
     this.createWithFile(app);
     this.uploadBulkFiles(app);
@@ -25,8 +27,6 @@ class BaseRoute {
     this.update(app);
     this.updateSome(app);
     this.delete(app);
-    this.getTableData(app);
-    this.getColFilters(app);
     this.bootstrap(app);
     this.getExtraMetaList(app);
 
@@ -57,19 +57,14 @@ class BaseRoute {
 
   getTableData(app) {
     app.get("/api/:resources/table", validateTable, async (req, res) => {
-      try {
-        const service = new BaseService(req, res);
-        const data = await service.findAllWithTable();
+      const service = new BaseService(req, res);
+      const data = await service.findAllWithTable();
 
-        res.status(200).json({
-          status: "ok",
-          message: "Operation Successful!",
-          data,
-        });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ status: "error", message: err.message });
-      }
+      res.status(200).json({
+        status: "ok",
+        message: "Operation Successful!",
+        data,
+      });
     });
   }
 
@@ -77,7 +72,7 @@ class BaseRoute {
     app.get("/api/:resources/filters", validateTable, async (req, res) => {
       const service = new BaseService(req, res);
       const data = await service.getColFilters();
-
+      console.log(data, "data");
       res.status(200).json({
         status: "ok",
         message: "Operation Successful!",
@@ -102,22 +97,19 @@ class BaseRoute {
     // app.get("/api/:resources/query", validateTable, handler);
   }
 
-  // findOne(app) {
-  //   app.get("/api/:resources/:id", async (req, res) => {
-  //     const service = new BaseService();
-  //     const data = await service.findOne(req.params);
-  //     if (!data) {
-  //       throw new AppError("ERR_NOT_FOUND");
-  //     }
+  findOne(app) {
+    app.get("/api/:resources/:id", validateTable, async (req, res) => {
+      const service = new BaseService(req, res);
+      const data = await service.findOne(req.params);
+      if (!data) throw new AppError("ERR_NOT_FOUND");
 
-  //     res.status(200).json({
-  //       status: "ok",
-  //       message: "Operation Successfull!",
-  //       // details: "Resource created successfully",
-  //       data: data,
-  //     });
-  //   });
-  // }
+      res.status(200).json({
+        status: "ok",
+        message: "Operation Successful!",
+        data,
+      });
+    });
+  }
 
   create(app) {
     app.post("/api/:resources", validateTable, async (req, res) => {
@@ -130,11 +122,12 @@ class BaseRoute {
         // })
         throw new AppError("ERR_BAD_REQUEST");
       }
-      await service.create(req.body);
+      const data = await service.create(req.body);
 
       res.status(201).json({
         status: "ok",
-        message: "Operation Successfull!",
+        message: "Operation Successful!",
+        data,
         details: "Resource created successfully",
       });
     });
@@ -149,11 +142,12 @@ class BaseRoute {
         throw new AppError("ERR_BAD_REQUEST");
       }
 
-      await service.bulkCreate(req.body);
+      const data = await service.bulkCreate(req.body);
 
       return res.status(201).json({
         status: "ok",
-        message: "Operation Successfull!",
+        message: "Operation Successful!",
+        data,
         details: "Resource created successfully",
       });
     });
@@ -196,11 +190,12 @@ class BaseRoute {
         };
 
         if (!results) throw new AppError("ERR_FILE_UPLOAD_FAILED");
-        await service.create(dataWithFile);
+        const data = await service.create(dataWithFile);
 
         res.status(201).json({
           status: "ok",
-          message: "Operation Successfull!",
+          message: "Operation Successful!",
+          data,
           details: "Resource updated successfully",
         });
       },
@@ -220,11 +215,12 @@ class BaseRoute {
           "Testing",
         );
 
-        await service.bulkCreate(results);
+        const data = await service.bulkCreate(results);
 
         res.status(201).json({
           status: "ok",
-          message: "Operation Successfull!",
+          message: "Operation Successful!",
+          data,
           details: "Resource updated successfully",
         });
       },
@@ -240,11 +236,12 @@ class BaseRoute {
         throw new AppError("ERR_NOT_FOUND");
       }
 
-      await service.updateRecord(req.body);
+      const result = await service.updateRecord(req.body);
 
-      res.status(201).json({
+      res.status(200).json({
         status: "ok",
-        message: "Operation Successfull!",
+        message: "Operation Successful!",
+        data: result,
         details: "Resource updated successfully",
       });
     });
@@ -263,11 +260,12 @@ class BaseRoute {
         throw new AppError("ERR_NOT_FOUND");
       }
 
-      await service.deleteRecord(req.params);
+      const result = await service.deleteRecord(req.params);
 
-      res.status(201).json({
+      res.status(200).json({
         status: "ok",
-        message: "Operation Successfull!",
+        message: "Operation Successful!",
+        data: result,
         details: "Resource deleted successfully",
       });
     });
@@ -287,15 +285,8 @@ class BaseRoute {
 
   getExtraMetaList(app) {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
-      // console.log(req.body);
-      const { sql, col, tblName } = req.body;
-     
-      let result;
-      if (col && tblName) {
-        result = await new Model().select(["id", col], tblName).execute();
-      } else {
-        result = await new Model().setSql(sql).execute();
-      }
+      const service = new BaseService(req, res);
+      const result = await service.lookup(req.body);
 
       res.json({
         details: result,

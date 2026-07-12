@@ -3,52 +3,31 @@
 //         status (tinyint 1=Active 0=Inactive), last_login, forced_password_change
 // Relations: admin_user_roles → admin_roles, admin_credentials
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
+import { Button, Tag, Space, Avatar, Badge, Dropdown, Typography } from 'antd';
 import {
-    Button, Tag, Space, Tooltip, Avatar, Badge,
-    Dropdown, Typography
-} from 'antd';
-import {
-    PlusOutlined, EditOutlined, DeleteOutlined,
-    EllipsisOutlined, UserOutlined, ReloadOutlined,
-    ExportOutlined, FilterOutlined,
-    StopOutlined,
+    PlusOutlined, EditOutlined, EllipsisOutlined, UserOutlined,
+    StopOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
-import useAdd from '../../hooks/useAdd';
-import useEdit from '../../hooks/useEdit';
+import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
 import useDrawer from '../../hooks/useDrawer';
-import ValuesStore from '../../store/values-store';
 import useNotification from '../../hooks/useNotification';
 import UserInfo from '../../components/userInfo/UserInfo';
 import utils from '../../utils/function_utils';
 import useApi from '../../hooks/useApi';
+import AdminPage from '../../components/admin/AdminPage';
 
 const { Text } = Typography;
 
 /* ── helpers ─────────────────────────────────────────────────── */
-function getInitials(name = '') {
-    return name
-        .trim()
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((w) => w[0].toUpperCase())
-        .join('');
-}
-
-
-
 /* ── component ───────────────────────────────────────────────── */
 export default function Users() {
-    const { message, alert, AlertJsx } = useNotification();
-    const valuesStore = ValuesStore();
-
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
-    const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin' });
+    const { message } = useNotification();
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
+    const { saveCompleted: deleteCompleted } = useDelete({ resource: 'admin' });
 
     const userDrawer = useDrawer({ width: 820, destroyOnClose: true });
 
@@ -67,26 +46,28 @@ export default function Users() {
             //joinOn: 
         }
     );
+    const runRequest = table.runRequest;
+    const setAllowSelection = table.setAllowSelection;
 
     //use account deactivation 
     const { run, loading } = useApi("post", "/access/user/toggle_status", {
         onSuccess: () => {
             message.success(`User account deactivated successfully`)
             userDrawer.closeDrawer()
-            table.runRequest()
+            runRequest()
         }
     });
 
-    useEffect(() => { table.setAllowSelection(true); }, []);
+    useEffect(() => { setAllowSelection(true); }, [setAllowSelection]);
 
 
 
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
 
 
@@ -95,19 +76,11 @@ export default function Users() {
 
     /* ── actions ────────────────────────────────────────────── */
     function openAdd() {
-        add.setTblName('admin');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin');
     }
 
     function openEdit(record) {
-        const key = 'editUser';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin', record, record.id);
     }
 
     function openManage(record) {
@@ -139,7 +112,7 @@ export default function Users() {
                     danger={record?.status}
                     type='primary'
                     style={{ fontSize: 12 }}
-                    onClick={(e) => run({ custom_id: record?.custom_id })}
+                    onClick={() => run({ custom_id: record?.custom_id })}
                     loading={loading}
                 >
                     {record?.status == 0 ? "Activate account" : "Deactivate account"}
@@ -150,16 +123,8 @@ export default function Users() {
         });
     }
 
-    function handleDelete(record) {
-        confirm(
-            record.id,
-            'Remove this User?',
-            <Button size="small" danger icon={<DeleteOutlined />} />,
-        )
-    }
-
     /* ── row action menu ────────────────────────────────────── */
-    const rowMenu = useCallback((record) => ({
+    const rowMenu = (record) => ({
         items: [
             {
                 key: 'manage',
@@ -190,7 +155,7 @@ export default function Users() {
             //     },
             // },
         ],
-    }), []);
+    });
 
     /* ── columns ────────────────────────────────────────────── */
     const columns = [
@@ -214,10 +179,10 @@ export default function Users() {
                         {utils.getInitials_v2(record.name)}
                     </Avatar>
                     <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.3 }}>
                             {record.name}
                         </div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                             {record.email}
                         </div>
                     </div>
@@ -241,7 +206,7 @@ export default function Users() {
             key: 'phone_no',
 
             render: (val) => (
-                <span style={{ fontSize: 12, color: val ? '#374151' : '#d1d5db' }}>
+                <span style={{ fontSize: 12, color: val ? 'var(--color-text-secondary)' : 'var(--color-text-disabled)' }}>
                     {val ?? '—'}
                 </span>
             ),
@@ -273,7 +238,7 @@ export default function Users() {
                 <Badge
                     status={val === 1 ? 'success' : 'default'}
                     text={
-                        <span style={{ fontSize: 12, fontWeight: 500, color: val === 1 ? '#059669' : '#9ca3af' }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: val === 1 ? 'var(--color-success)' : 'var(--color-text-tertiary)' }}>
                             {val === 1 ? 'Active' : 'Inactive'}
                         </span>
                     }
@@ -286,7 +251,7 @@ export default function Users() {
             key: 'last_login',
             width: 200,
             render: (val) => (
-                <span style={{ fontSize: 12, color: val ? '#374151' : '#d1d5db' }}>
+                <span style={{ fontSize: 12, color: val ? 'var(--color-text-secondary)' : 'var(--color-text-disabled)' }}>
                     {val
                         ? utils.getDateAndTime(val)
                         : 'Never'}
@@ -332,60 +297,32 @@ export default function Users() {
     ];
 
     /* ── toolbar extras passed to CustomTable ───────────────── */
-    const toolbarExtras = (
-        <Space>
-            <Button icon={<FilterOutlined />} size="small" style={{ fontSize: 12 }}>
-                Filter
-            </Button>
-            <Button icon={<ExportOutlined />} size="small" style={{ fontSize: 12 }}>
-                Export
-            </Button>
-            <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={openAdd}
-                size="small"
-                style={{ fontSize: 12 }}
-            >
-                Add User
-            </Button>
-        </Space>
-    );
-
     /* ── render ─────────────────────────────────────────────── */
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* {AlertJsx} */}
+        <>
+            {/* // <AdminPage
+        //     eyebrow="IDENTITY / DIRECTORY"
+        //     title="Users"
+        //     description="Manage administrator identities, account status, authentication details, and assigned access."
+        //     icon={<TeamOutlined />}
+        //     actions={
+        //         <Button
+        //             type="primary"
+        //             icon={<PlusOutlined />}
+        //             onClick={openAdd}
+        //         >
+        //             Add user
+        //         </Button>
+        //     }
+        // > */}
 
-            {/* Page header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-0.3px' }}>
-                        Users
-                    </h2>
-                    <p style={{ margin: '3px 0 0', fontSize: 13, color: '#6b7280' }}>
-                        Manage system administrators and their access
-                    </p>
-                </div>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openAdd}
-                    style={{ borderRadius: 8 }}
-                >
-                    Add User
-                </Button>
-            </div>
-
-            {/* Table */}
             <CustomTable tableConfig={table} columns={columns} />
-
-            {/* Modals */}
-            {add.addModal('Add User', () => add.save('admin'))}
-            {edit.editModal('Edit User', () => edit.save(undefined, edit.record?.id, 'admin'))}
-
-            {/* User management drawer */}
+            {recordForm.recordModal({ createTitle: 'Add User', editTitle: 'Edit User' })}
             {userDrawer.drawerJSX()}
-        </div>
+
+
+            {/* // </AdminPage> */}
+
+        </>
     );
 }

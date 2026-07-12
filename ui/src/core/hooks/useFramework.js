@@ -1,7 +1,7 @@
 // src/core/hooks/useFramework.js
 
 import { useContext } from "react";
-import { FrameworkContext } from "../providers/FrameworkContext";
+import { FrameworkContext } from "../provider/FrameworkContext";
 
 const useFramework = () => {
   const ctx = useContext(FrameworkContext);

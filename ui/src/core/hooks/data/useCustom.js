@@ -9,14 +9,15 @@ export const useCustom = ({
   method = "get",
   payload,
   headers,
+  unwrap = false,
   meta,
   queryOptions = {},
 }) => {
   const dataProvider = useDataProvider();
 
   return useQuery({
-    queryKey: queryKeys.custom(url, payload),
-    queryFn: () => dataProvider.custom({ url, method, payload, headers, meta }),
+    queryKey: queryKeys.custom(url, method, payload, unwrap),
+    queryFn: () => dataProvider.custom({ url, method, payload, headers, unwrap, meta }),
     enabled: !!url,
     ...queryOptions,
   });
@@ -26,8 +27,9 @@ export const useCustomMutation = ({ mutationOptions = {} } = {}) => {
   const dataProvider = useDataProvider();
 
   return useMutation({
-    mutationFn: ({ url, method = "post", payload, headers, meta }) =>
-      dataProvider.custom({ url, method, payload, headers, meta }),
+    ...mutationOptions,
+    mutationFn: ({ url, method = "post", payload, headers, unwrap = false, meta }) =>
+      dataProvider.custom({ url, method, payload, headers, unwrap, meta }),
 
     onSuccess: (data, variables, context) => {
       // console.log("mutation onSuccess fired", data);
@@ -38,7 +40,5 @@ export const useCustomMutation = ({ mutationOptions = {} } = {}) => {
       //  console.log("mutation onSuccess fired", error);
       mutationOptions.onError?.(error, variables, context);
     },
-
-    ...mutationOptions,
   });
 };

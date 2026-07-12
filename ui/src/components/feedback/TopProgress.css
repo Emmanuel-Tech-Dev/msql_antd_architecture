@@ -1,0 +1,46 @@
+.top-progress {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 10000;
+    height: 3px;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.top-progress > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 16%;
+    background: var(--color-accent, #d4570a);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent, #d4570a) 60%, transparent);
+    transform-origin: left;
+    transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease 80ms;
+}
+
+.top-progress--loading > span {
+    width: 76%;
+    opacity: 1;
+}
+
+.top-progress--loading > span::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    transform: translateX(-100%);
+    animation: top-progress-sheen 900ms ease-in-out infinite;
+}
+
+.top-progress--complete > span {
+    width: 100%;
+    opacity: 0;
+}
+
+@keyframes top-progress-sheen {
+    to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .top-progress > span { transition-duration: 1ms; }
+    .top-progress--loading > span::after { animation: none; }
+}

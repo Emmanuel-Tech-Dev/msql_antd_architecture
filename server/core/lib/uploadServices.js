@@ -4,8 +4,54 @@ const {
   deleteFile,
 } = require("../config/cloudinary");
 const fs = require("fs");
+const AppError = require("../../shared/helpers/AppError");
+
+function hasSupportedImageSignature(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return false;
+  const jpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const png = buffer.subarray(0, 8).equals(
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  );
+  const gif = ["GIF87a", "GIF89a"].includes(buffer.subarray(0, 6).toString("ascii"));
+  const webp = buffer.subarray(0, 4).toString("ascii") === "RIFF"
+    && buffer.subarray(8, 12).toString("ascii") === "WEBP";
+  return jpeg || png || gif || webp;
+}
 
 class UploadService {
+  async uploadProfileAvatar(file, userId) {
+    if (!file?.buffer || !file.mimetype?.startsWith("image/")) {
+      throw new AppError("ERR_VALIDATION_FAILED", "A valid profile image is required");
+    }
+    if (!hasSupportedImageSignature(file.buffer)) {
+      throw new AppError(
+        "ERR_VALIDATION_FAILED",
+        "The uploaded file content is not a supported image",
+      );
+    }
+
+    const safeUserId = String(userId).replace(/[^A-Za-z0-9_-]/g, "_");
+    const result = await uploadFromBuffer(file.buffer, {
+      folder: "mysql-orm/profile-avatars",
+      resource_type: "image",
+      public_id: safeUserId,
+      overwrite: true,
+      invalidate: true,
+      transformation: [
+        { width: 512, height: 512, crop: "fill", gravity: "face" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+    });
+
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+      format: result.format,
+      size: result.bytes,
+      version: result.version,
+    };
+  }
+
   // Upload single file to Cloudinary
   async uploadSingleFile(file, folder = "home/testing folder") {
     const isImage = file.mimetype.startsWith("image/");

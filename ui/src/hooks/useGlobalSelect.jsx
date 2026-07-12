@@ -14,6 +14,7 @@ import { Select, Tag } from 'antd';
 import { useCallback, useRef, useState } from 'react';
 import useApi from './useApi';
 import utils from '../utils/function_utils';
+import { createLookupPayload } from '../utils/lookup_utils';
 
 const useGlobalSelect = (col, tblName, multi = false, groupBy = null) => {
     const [options, setOptions] = useState([]);
@@ -57,10 +58,8 @@ const useGlobalSelect = (col, tblName, multi = false, groupBy = null) => {
     // When groupBy is set, also select that column so we can group on it
     const handleDropdownOpen = useCallback((open) => {
         if (open && !hasFetched.current) {
-            const cols = groupBy
-                ? `id, \`${col}\`, \`${groupBy}\``
-                : `id, \`${col}\``;
-            run({ sql: `SELECT ${cols} FROM \`${tblName}\` LIMIT 500` });
+            const fields = groupBy ? ['id', col, groupBy] : ['id', col];
+            run(createLookupPayload({ table: tblName, fields, limit: 500 }));
         }
     }, [run, col, tblName, groupBy]);
 

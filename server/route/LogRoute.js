@@ -2,6 +2,7 @@
 
 const path = require("path");
 const fs = require("fs");
+const AppError = require("../shared/helpers/AppError");
 
 const LOG_PATH =
   process.env.LOG_PATH || path.join(__dirname, "../resources/logs");
@@ -16,6 +17,17 @@ const LOG_TYPES = [
   "app",
   "combined",
 ];
+const MAX_RANGE_DAYS = Math.min(
+  Number.parseInt(process.env.LOG_QUERY_MAX_DAYS, 10) || 14,
+  30,
+);
+const MAX_PAGE_SIZE = Math.min(
+  Number.parseInt(process.env.LOG_QUERY_MAX_LIMIT, 10) || 200,
+  500,
+);
+const MAX_READ_BYTES_PER_FILE =
+  Number.parseInt(process.env.LOG_QUERY_MAX_BYTES_PER_FILE, 10) || 2 * 1024 * 1024;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // generate all dates between startDate and endDate inclusive
 // both are strings 'YYYY-MM-DD'
@@ -33,9 +45,20 @@ function getDateRange(startDate, endDate) {
   return dates;
 }
 
-function parseLogFile(filepath) {
+async function parseLogFile(filepath) {
+  let handle;
   try {
-    const content = fs.readFileSync(filepath, "utf-8");
+    const stat = await fs.promises.stat(filepath);
+    const bytesToRead = Math.min(stat.size, MAX_READ_BYTES_PER_FILE);
+    const start = Math.max(0, stat.size - bytesToRead);
+    handle = await fs.promises.open(filepath, "r");
+    const buffer = Buffer.alloc(bytesToRead);
+    await handle.read(buffer, 0, bytesToRead, start);
+    let content = buffer.toString("utf-8");
+    if (start > 0) {
+      const firstNewline = content.indexOf("\n");
+      content = firstNewline >= 0 ? content.slice(firstNewline + 1) : "";
+    }
     return content
       .split("\n")
       .filter((line) => line.trim())
@@ -48,6 +71,8 @@ function parseLogFile(filepath) {
       });
   } catch {
     return [];
+  } finally {
+    await handle?.close();
   }
 }
 
@@ -67,7 +92,7 @@ class LogRoute {
   // &search=keyword
   // &level=error
   readLogs(app) {
-    app.get("/api/v1/logs", async (req, res) => {
+    app.get("/api/v1/logs", async (req, res, next) => {
       try {
         const today = new Date().toISOString().split("T")[0];
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -91,6 +116,10 @@ class LogRoute {
           });
         }
 
+        if (!ISO_DATE.test(start) || !ISO_DATE.test(end)) {
+          throw new AppError("ERR_INVALID_INPUT", "Dates must use YYYY-MM-DD");
+        }
+
         // guard against huge ranges — max 30 days
         const startDate = new Date(start);
         const endDate = new Date(end);
@@ -105,12 +134,18 @@ class LogRoute {
           });
         }
 
-        if (diffDays > 30) {
+        if (!Number.isFinite(diffDays) || diffDays > MAX_RANGE_DAYS) {
           return res.status(400).json({
             status: "error",
-            message: "Date range cannot exceed 30 days",
+            message: `Date range cannot exceed ${MAX_RANGE_DAYS} days`,
           });
         }
+
+        const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+        const safeLimit = Math.min(
+          Math.max(1, Number.parseInt(limit, 10) || 50),
+          MAX_PAGE_SIZE,
+        );
 
         // collect entries from all files in range
         const dates = getDateRange(start, end);
@@ -120,7 +155,7 @@ class LogRoute {
           const filepath = path.join(LOG_PATH, `${type}-${date}.log`);
 
           if (fs.existsSync(filepath)) {
-            const parsed = parseLogFile(filepath);
+            const parsed = await parseLogFile(filepath);
             entries.push(...parsed);
           }
         }
@@ -146,17 +181,17 @@ class LogRoute {
         }
 
         const total = entries.length;
-        const startIndex = (Number(page) - 1) * Number(limit);
-        const paginated = entries.slice(startIndex, startIndex + Number(limit));
+        const startIndex = (safePage - 1) * safeLimit;
+        const paginated = entries.slice(startIndex, startIndex + safeLimit);
 
         return res.status(200).json({
           status: "ok",
           data: paginated,
           pagination: {
             total,
-            page: Number(page),
-            limit: Number(limit),
-            pages: Math.ceil(total / Number(limit)),
+            page: safePage,
+            limit: safeLimit,
+            pages: Math.ceil(total / safeLimit),
           },
           meta: {
             datesScanned: dates.length,
@@ -166,17 +201,14 @@ class LogRoute {
           },
         });
       } catch (error) {
-        return res.status(500).json({
-          status: "error",
-          message: error.message,
-        });
+        return next(error);
       }
     });
   }
 
   // GET /api/v1/logs/files
   listLogFiles(app) {
-    app.get("/api/v1/logs/files", async (req, res) => {
+    app.get("/api/v1/logs/files", async (req, res, next) => {
       try {
         if (!fs.existsSync(LOG_PATH)) {
           return res.status(200).json({ status: "ok", data: {} });
@@ -205,9 +237,7 @@ class LogRoute {
 
         return res.status(200).json({ status: "ok", data: grouped });
       } catch (error) {
-        return res
-          .status(500)
-          .json({ status: "error", message: error.message });
+        return next(error);
       }
     });
   }

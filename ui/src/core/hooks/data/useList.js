@@ -5,6 +5,7 @@ import { useDataProvider } from "../../provider/DataProvider";
 import queryKeys from "../../queryKeys";
 
 const useList = ({
+  cacheKey,
   resource,
   pagination,
   filters,
@@ -15,7 +16,12 @@ const useList = ({
   const dataProvider = useDataProvider();
 
   const query = useQuery({
-    queryKey: queryKeys.list(resource, { pagination, filters, sorters }),
+    queryKey: queryKeys.list(cacheKey, resource, {
+      pagination,
+      filters,
+      sorters,
+      tableConfig: meta?.mysql?.tableConfig,
+    }),
     queryFn: () =>
       dataProvider.getList({ resource, pagination, filters, sorters, meta }),
     enabled: !!resource,

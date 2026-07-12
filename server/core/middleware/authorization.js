@@ -1,16 +1,19 @@
-// server/core/middleware/authorization.js
-
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
-const SettingsManager = require("../lib/systemSettings");
 const utils = require("../../shared/utils/functions");
+const {
+  canAccessResource,
+  isPrivilegedSystemRole,
+} = require("../lib/authorizationPolicy");
 
-// simple in-memory cache — keyed by user custom_id
-// invalidated when roles/permissions change (you can call clearPermissionCache(userId) from admin routes)
 const permissionCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-const settings = new SettingsManager();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const AUTHENTICATED_OPEN_ALLOWLIST = new Set([
+  "/api/v1/bootstrap",
+  "/api/v1/extra_meta_options",
+  "/auth/auth_user",
+  "/api/:resources/filters",
+]);
 
 function getCached(userId) {
   const entry = permissionCache.get(userId);
@@ -27,117 +30,107 @@ function setCache(userId, data) {
 }
 
 function clearPermissionCache(userId) {
-  if (userId) {
-    permissionCache.delete(userId);
-  } else {
-    permissionCache.clear();
+  if (userId) permissionCache.delete(userId);
+  else permissionCache.clear();
+}
+
+function matchesOpenEndpoint(pattern, requestedPath) {
+  if (typeof pattern !== "string") return false;
+  if (pattern.endsWith("/*")) {
+    const prefix = pattern.slice(0, -2);
+    return requestedPath === prefix || requestedPath.startsWith(`${prefix}/`);
   }
+  return requestedPath === pattern;
+}
+
+async function loadPermissionContext(userId) {
+  const userRoles = await new Model()
+    .select(["user_id", "role_id"], "admin_user_roles")
+    .where("user_id", "=", userId)
+    .execute();
+
+  if (!userRoles?.length) {
+    throw new AppError("ERR_NO_RESOURCES", null, {
+      message: "User has no roles assigned",
+      level: "access",
+    });
+  }
+
+  const roleIds = userRoles.map((role) => role.role_id);
+  const permissionRows = await new Model()
+    .select(["permission"], "admin_role_permissions")
+    .whereIn("role_id", roleIds)
+    .execute();
+  const permissionNames = permissionRows.map((row) => row.permission);
+
+  // SuperAdmin and dev are explicit privileged system roles. They bypass
+  // endpoint mappings while still carrying declared permissions for UI context.
+  if (isPrivilegedSystemRole(userRoles)) {
+    return { userRoles, permissionNames, resources: [], privileged: true };
+  }
+
+  if (!permissionNames.length) {
+    throw new AppError("ERR_NO_RESOURCES", null, {
+      message: "User roles have no permissions assigned",
+      level: "access",
+    });
+  }
+
+  const permissionResources = await new Model()
+    .select(["resource"], "admin_permission_resources")
+    .whereIn("permission", permissionNames)
+    .execute();
+  const resourceNames = permissionResources.map((row) => row.resource);
+  const resources = resourceNames.length
+    ? await new Model()
+        .select(["*"], "admin_resources")
+        .where("resource_type", "=", "API_ENDPOINT")
+        .whereIn("resource", resourceNames)
+        .execute()
+    : [];
+
+  return { userRoles, permissionNames, resources, privileged: false };
 }
 
 const authorization = async (req, res, next) => {
-  // console.log(await settings.get("system.open_routes"));
   try {
     const requestedPath = req.path;
     const requestedMethod = req.method;
-    const openEndpointsRaw = await utils.getSystemOpenRoute();
-    const openEndpoints = Array.isArray(openEndpointsRaw)
-      ? openEndpointsRaw
-      : [];
-    // const isAuthUserEndpoint = requestedPath === "/auth/auth_user";
-
-    // 2. open endpoints — authenticated but no role check needed
-    // /auth/auth_user is a special case: we need roles/permissions/resources attached.
-    if (openEndpoints.some((p) => requestedPath.startsWith(p))) {
-      return next();
-    }
-
     const user = req.user;
-    if (!user) {
+    if (!user?.sub) {
       throw new AppError("ERR_AUTHENTICATION_REQUIRED", null, {
         message: "Failed to authorize user, token missing or invalid",
         level: "access",
       });
     }
 
-    // 3. load from cache or fetch
-    let cached = getCached(user.sub);
-
-    if (!cached) {
-      // 3a. get roles
-      const userRoles = await new Model()
-        .select(["user_id", "role_id"], "admin_user_roles")
-        .where("user_id", "=", user.sub)
-        .execute();
-
-      if (!userRoles || userRoles.length === 0) {
-        throw new AppError("ERR_NO_RESOURCES", null, {
-          message: "User has no roles assigned",
-          level: "access",
-        });
-      }
-
-      const roleIds = userRoles.map((r) => r.role_id);
-
-      // 3b. get permissions for those roles
-      const perms = await new Model()
-        .select(["permission"], "admin_role_permissions")
-        .whereIn("role_id", roleIds)
-        .execute();
-
-      if (!perms || perms.length === 0) {
-        throw new AppError("ERR_NO_RESOURCES", null, {
-          message: "User roles have no permissions assigned",
-          level: "access",
-        });
-      }
-
-      const permissionNames = perms.map((p) => p.permission);
-
-      // 3c. get resources those permissions can access
-      const permResources = await new Model()
-        .select(["resource"], "admin_permission_resources")
-        .whereIn("permission", permissionNames)
-        .execute();
-
-      if (!permResources || permResources.length === 0) {
-        throw new AppError("ERR_NO_RESOURCES", null, {
-          message: "User permissions have no resources assigned",
-          level: "access",
-        });
-      }
-
-      const resourceNames = permResources.map((r) => r.resource);
-
-      // 3d. get full API endpoint details
-      const resources = await new Model()
-        .select(["*"], "admin_resources")
-        .where("resource_type", "=", "API_ENDPOINT")
-        .whereIn("resource", resourceNames)
-        .execute();
-
-      cached = { userRoles, permissionNames, resources };
-      setCache(user.sub, cached);
+    let context = getCached(user.sub);
+    if (!context) {
+      context = await loadPermissionContext(user.sub);
+      setCache(user.sub, context);
     }
 
-    const { userRoles, permissionNames, resources } = cached;
+    const { userRoles, permissionNames, resources, privileged } = context;
+    req.roles = userRoles;
+    req.permissions = permissionNames;
+    req.resources = resources;
 
-    // 4. check access — supports both exact and prefix matching
-    // /api/admin matches /api/admin, /api/admin/123, /api/admin/123/something
-    const canAccess = resources.some((r) => {
-      const methodMatches =
-        r.http_method === requestedMethod ||
-        r.http_method === "*" ||
-        r.http_method === "ALL";
+    const openEndpointsRaw = await utils.getSystemOpenRoute();
+    const openEndpoints = Array.isArray(openEndpointsRaw)
+      ? openEndpointsRaw
+      : [];
+    const isConfiguredOpen = openEndpoints.some((pattern) =>
+      matchesOpenEndpoint(pattern, requestedPath),
+    );
+    if (isConfiguredOpen && AUTHENTICATED_OPEN_ALLOWLIST.has(requestedPath)) {
+      return next();
+    }
 
-      // exact match
-      if (r.resource_path === requestedPath) return methodMatches;
+    if (privileged) return next();
 
-      // prefix match for parameterized routes
-      // /api/admin matches /api/admin/123
-      if (requestedPath.startsWith(r.resource_path + "/")) return methodMatches;
-
-      return false;
-    });
+    const canAccess = resources.some((resource) =>
+      canAccessResource(resource, requestedMethod, requestedPath),
+    );
 
     if (!canAccess) {
       throw new AppError("ERR_ACCESS_DENIED", null, {
@@ -149,14 +142,9 @@ const authorization = async (req, res, next) => {
       });
     }
 
-    // 5. attach to request for downstream use
-    req.roles = userRoles;
-    req.permissions = permissionNames;
-    req.resources = resources;
-
-    next();
+    return next();
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 

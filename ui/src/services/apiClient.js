@@ -1,16 +1,19 @@
 import axios from "axios";
+import { toDataProviderError } from "../core/data/contracts";
 
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-const subscribeTokenRefresh = (cb) => refreshSubscribers.push(cb);
+const subscribeTokenRefresh = (resolve, reject) =>
+  refreshSubscribers.push({ resolve, reject });
 
 const onRefreshed = () => {
-  refreshSubscribers.forEach((cb) => cb());
+  refreshSubscribers.forEach((subscriber) => subscriber.resolve());
   refreshSubscribers = [];
 };
 
-const onRefreshFailed = () => {
+const onRefreshFailed = (error) => {
+  refreshSubscribers.forEach((subscriber) => subscriber.reject(error));
   refreshSubscribers = [];
 };
 
@@ -35,14 +38,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+    if (!original) return Promise.reject(toDataProviderError(error));
 
     // Never retry auth endpoints — reject immediately so callers get the
     // error right away without being queued behind the subscriber timeout.
     if (
+      original.url?.includes("/auth/login") ||
+      original.url?.includes("/auth/otp/") ||
       original.url?.includes("/auth/refresh") ||
       original.url?.includes("/auth/logout")
     ) {
-      return Promise.reject(error);
+      return Promise.reject(toDataProviderError(error));
     }
 
     if (error.response?.status === 401 && !original._retry) {
@@ -65,12 +71,14 @@ apiClient.interceptors.response.use(
           onRefreshed();
 
           // Directly retry THIS request with the new token.
+          original.headers = original.headers ?? {};
           original.headers.Authorization = `Bearer ${newToken}`;
           return apiClient(original);
         } catch (refreshError) {
-          onRefreshFailed();
+          const normalizedError = toDataProviderError(refreshError);
+          onRefreshFailed(normalizedError);
           sessionStorage.removeItem("access_token");
-          return Promise.reject(refreshError);
+          return Promise.reject(normalizedError);
         } finally {
           isRefreshing = false;
         }
@@ -80,18 +88,29 @@ apiClient.interceptors.response.use(
       // Queue this request to be retried once the in-flight refresh resolves.
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error("Refresh timeout — no response from /auth/refresh"));
+          reject(
+            toDataProviderError(
+              new Error("Refresh timeout — no response from /auth/refresh"),
+            ),
+          );
         }, 10000);
 
-        subscribeTokenRefresh(() => {
-          clearTimeout(timeout);
-          original.headers.Authorization = `Bearer ${sessionStorage.getItem("access_token")}`;
-          resolve(apiClient(original));
-        });
+        subscribeTokenRefresh(
+          () => {
+            clearTimeout(timeout);
+            original.headers = original.headers ?? {};
+            original.headers.Authorization = `Bearer ${sessionStorage.getItem("access_token")}`;
+            resolve(apiClient(original));
+          },
+          (refreshError) => {
+            clearTimeout(timeout);
+            reject(refreshError);
+          },
+        );
       });
     }
 
-    return Promise.reject(error);
+    return Promise.reject(toDataProviderError(error));
   },
 );
 

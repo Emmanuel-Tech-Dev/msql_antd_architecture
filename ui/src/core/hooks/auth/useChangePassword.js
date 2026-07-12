@@ -6,6 +6,7 @@ const useChangePassword = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: (values) => authProvider.changePassword(values),
 
     onSuccess: (data, variables, context) => {
@@ -18,7 +19,6 @@ const useChangePassword = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 

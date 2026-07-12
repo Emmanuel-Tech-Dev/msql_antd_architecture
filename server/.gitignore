@@ -1,3 +1,8 @@
 node_modules
 .env
+resources/logs/*.log
+resources/logs/*.log.gz
+resources/logs/*-audit.json
+resources/backups/*.sql
+resources/backups/*.partial
 

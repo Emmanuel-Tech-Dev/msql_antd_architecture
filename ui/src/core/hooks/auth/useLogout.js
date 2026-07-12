@@ -8,6 +8,7 @@ const useLogout = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: () => authProvider.logout(),
 
     onSuccess: (data, variables, context) => {
@@ -22,7 +23,6 @@ const useLogout = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 

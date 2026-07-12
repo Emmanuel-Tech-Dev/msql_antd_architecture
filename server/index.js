@@ -1,29 +1,25 @@
+require("dotenv").config();
+
 const express = require("express");
 require("express-async-errors"); // This handles async errors automatically!
-const responseTime = require("response-time");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const rateLimiter = require("express-rate-limit");
 const bodyPaser = require("body-parser");
-const morgan = require("morgan");
 const csrf = require("csurf");
 const helmet = require("helmet");
 const http = require("http");
 
 const fs = require("fs");
 const path = require("path");
-const conn = require("./core/config/conn");
-const Model = require("./core/model/model");
 const AppError = require("./shared/helpers/AppError");
 const logger = require("./shared/helpers/logger");
 const BaseRoute = require("./route/baseRoute");
-const uploadServices = require("./core/lib/uploadServices");
-const { uploadSingle } = require("./core/config/multer");
 const authMiddleWare = require("./core/middleware/authMiddleWare");
 const SettingsManager = require("./core/lib/systemSettings");
 const errorHandler = require("./core/middleware/errorHandler");
+const requestLogger = require("./core/middleware/requestLogger");
 const AuthService = require("./core/lib/authService");
-const utils = require("./shared/utils/functions");
 const AuthRoute = require("./route/authRoute");
 const {
   authorization,
@@ -40,8 +36,13 @@ const swaggerJsdoc = require("swagger-jsdoc");
 const specs = require("./core/config/swagger");
 const LogRoute = require("./route/LogRoute");
 const AccessRoute = require("./route/acessRoute");
+const BackupRoute = require("./route/BackupRoute");
+const UiSettingsRoute = require("./route/UiSettingsRoute");
 
 const PORT = process.env.PORT || 3000;
+
+app.disable("x-powered-by");
+app.use(requestLogger(logger));
 
 const limiter = rateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -70,8 +71,6 @@ app.use(limiter);
 app.use(bodyPaser.json());
 
 app.use(bodyPaser.urlencoded({ extended: true }));
-app.use(morgan("dev"));
-app.use(responseTime());
 const allowedOrigins = [
   "http://localhost:3001",
   "http://localhost:5173",
@@ -101,6 +100,7 @@ app.use(
       "X-Requested-With",
       "x-table-config",
     ],
+    exposedHeaders: ["Content-Disposition", "X-Backup-SHA256"],
     optionsSuccessStatus: 200,
   }),
 );
@@ -151,84 +151,14 @@ clearPermissionCache(); // Clear cache on server start to avoid stale permission
 new AuthRoute(app);
 
 app.use(authMiddleWare);
-//app.use(authorization);
+app.use(authorization);
 new LogRoute(app);
+new BackupRoute(app);
+new UiSettingsRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 
 // clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
-
-app.get("/api/", async (req, res) => {
-  try {
-    const set = new AuthService();
-    const reg = utils.genRegNumber();
-    await set.generateAuthTokens({
-      id: 1234,
-      reg_number: reg,
-      email: "test@gmail.ocm",
-    });
-    //return;
-    const [results] = await conn.query("SELECT 1 + 1 AS solution");
-    console.log("The solution is: ", results[0].solution);
-    res.send(`The solution is: ${results[0].solution}`);
-  } catch (err) {
-    console.error("Error executing query:", err);
-    res.status(500).send("Error executing query");
-  }
-});
-
-app.post("/api/v1/joins_data", async (req, res) => {
-  const tableName = req.params.resources;
-  const params = req.query;
-
-  const { tbl1, tbl2 } = req.body;
-  const data = await new Model()
-    .multiSelect([
-      { table: tbl1, columns: ["id", "hall_name"] },
-      { table: tbl2, columns: [] }, // No room columns, just for joining
-    ])
-    .addAggregate("SUM", "rooms.room_capacity", "total_capacity") // Won't work - need custom approach
-    .join("INNER", "rooms", "halls.id", "rooms.hall_id")
-    .groupBy(["halls.id", "halls.hall_name"])
-    .execute();
-  res.json({ success: true, data });
-});
-
-app.post("/api/v1/upload", uploadSingle.array("files", 5), async (req, res) => {
-  try {
-    const file = req.files;
-
-    const results = await uploadServices.uploadMultipleFiles(file, "Testing");
-
-    res.json({
-      results,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      message: "An error occurred while processing your request.",
-    });
-  }
-});
-
-app.get("/api/v1/cache", async (req, res) => {
-  try {
-    const settings = new SettingsManager();
-    const result = settings.getAnalytics();
-
-    return res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      message: "An error occurred while processing your request.",
-    });
-  }
-});
 
 app.post("/auth/create_user", async (req, res) => {
   const record = req.body;
@@ -258,29 +188,34 @@ app.use(errorHandler(logger));
 // GRACEFUL SHUTDOWN
 
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM signal received: closing HTTP server");
+  logger.app("SIGTERM received; shutting down");
   await logger.close();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  console.log("SIGINT signal received: closing HTTP server");
+  logger.app("SIGINT received; shutting down");
   await logger.close();
   process.exit(0);
 });
 
 async function startServer() {
   try {
+    await logger.initialize();
     await settings.preloadAll();
     // console.log(settings);
 
     app.locals.settings = settings;
 
     server.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+      logger.app("Server started", { port: Number(PORT) });
     });
   } catch (error) {
-    console.log("Failed to load settings and start server", error);
+    logger.critical("Server startup failed", {
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+    process.exitCode = 1;
   }
 }
 

@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Tabs, Table, Checkbox, Button, Typography,
+    Tabs, Checkbox, Button, Typography,
     Badge, Space, Card, Row, Col, Tag, Avatar, Divider
 } from 'antd';
 import {
     KeyOutlined, GlobalOutlined, SaveOutlined,
     TeamOutlined, SafetyCertificateOutlined, AppstoreOutlined
 } from '@ant-design/icons';
+import CustomTable from '../CustomTable';
+import useTableApi from '../../hooks/useTableApi';
 
 const { Text, Title } = Typography;
 
@@ -87,6 +89,27 @@ const PermissionMatrix = ({ assigned, onChange }) => {
 
 // ─── COMPONENT 2: BROWSER ROUTES TAB ────────────────────────────────────
 const RoutesTab = ({ assignedIds, onChange }) => {
+    const table = useTableApi(
+        { pagination: { current: 1, pageSize: 20 } },
+        { manual: true },
+        'id',
+    );
+
+    useEffect(() => {
+        table.setRecord(DUMMY_ROUTES);
+    }, [table.setRecord]);
+
+    const tableConfig = useMemo(
+        () => ({
+            ...table,
+            tableProps: {
+                ...table.tableProps,
+                pagination: false,
+            },
+        }),
+        [table],
+    );
+
     const columns = [
         {
             title: 'Status',
@@ -121,7 +144,7 @@ const RoutesTab = ({ assignedIds, onChange }) => {
         }
     ];
 
-    return <Table dataSource={DUMMY_ROUTES} columns={columns} pagination={false} size="small" rowKey="id" />;
+    return <CustomTable tableConfig={tableConfig} columns={columns} />;
 };
 
 // ─── MAIN COMPONENT: ROLE MANAGEMENT DRAWER ─────────────────────────────

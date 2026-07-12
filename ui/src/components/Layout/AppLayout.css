@@ -1,0 +1,132 @@
+.secure-session {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  background-image:
+    linear-gradient(rgba(26, 23, 20, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 23, 20, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.secure-session__mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: white;
+  background: var(--color-accent);
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.secure-session > div:last-child span { display: block; }
+.secure-session > div:last-child span:last-child { margin-top: 2px; font-size: 12px; }
+
+.workspace-brand__mark.ant-avatar {
+  flex-shrink: 0;
+  color: #fff;
+  background: #d4570a;
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.workspace-brand__name.ant-typography {
+  display: block;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.workspace-brand__caption.ant-typography {
+  display: block;
+  margin-top: 3px;
+  color: rgba(226, 218, 208, 0.56);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-header {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 26px;
+}
+
+.workspace-header__context { display: flex; flex-direction: column; line-height: 1.2; }
+
+.workspace-header__eyebrow.ant-typography {
+  color: #9a6b4e;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.workspace-header__title.ant-typography {
+  margin-top: 4px;
+  color: #26211c;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.workspace-header__status { display: flex; align-items: center; gap: 12px; }
+.workspace-header__status .ant-tag { margin: 0; color: #5b5047; background: #f2ece4; }
+
+.workspace-header__collapse.ant-btn {
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.workspace-header__collapse.ant-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.workspace-header__live {
+  color: #6e665e;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.workspace-header__live i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  background: #2d7a4f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(45, 122, 79, 0.12);
+}
+
+.app-workspace-content > * {
+  animation: workspace-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes workspace-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .workspace-header { padding: 0 16px; }
+  .workspace-header__live { display: none; }
+  .workspace-header__title.ant-typography { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-workspace-content > * { animation: none; }
+}
+
+html[data-motion="reduced"] .app-workspace-content > * { animation: none; }

@@ -5,6 +5,7 @@ const useForgotPassword = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: ({ email }) => authProvider.forgotPassword({ email }),
 
     onSuccess: (data, variables, context) => {
@@ -15,7 +16,6 @@ const useForgotPassword = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 

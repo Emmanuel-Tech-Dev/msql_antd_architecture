@@ -8,6 +8,7 @@ const useLogin = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: (credentials) => authProvider.login(credentials),
 
     onSuccess: (data, variables, context) => {
@@ -20,7 +21,6 @@ const useLogin = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 

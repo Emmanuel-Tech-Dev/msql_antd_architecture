@@ -7,20 +7,43 @@ const NodeCache = require("node-cache");
 const { v4: uuidv4 } = require("uuid");
 const otp = require("otp");
 const { customAlphabet } = require("nanoid");
-const SettingsManager = require("../../core/lib/systemSettings");
 
-const ENCRYPTION_KEY = Buffer.from(
-  process.env.ENCRYPTION_KEY,
-  process.env.KEY_HOOK,
-); // Must be 32 bytes
 const IV_LENGTH = 16;
+
+function getEncryptionKey() {
+  const configuredKey = process.env.ENCRYPTION_KEY;
+  const encoding = process.env.KEY_HOOK || "utf8";
+
+  if (!configuredKey) {
+    throw new Error(
+      "ENCRYPTION_KEY is not configured. Set it to a value that decodes to exactly 32 bytes.",
+    );
+  }
+
+  if (!Buffer.isEncoding(encoding)) {
+    throw new Error(`KEY_HOOK must be a valid Buffer encoding; received "${encoding}".`);
+  }
+
+  const key = Buffer.from(configuredKey, encoding);
+  if (key.length !== 32) {
+    throw new Error(
+      `ENCRYPTION_KEY must decode to exactly 32 bytes; received ${key.length} bytes.`,
+    );
+  }
+
+  return key;
+}
 
 const cache = new NodeCache({ stdTTL: 3600 });
 
 const utils = {
   encrypt: (text) => {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+    const cipher = crypto.createCipheriv(
+      "aes-256-cbc",
+      getEncryptionKey(),
+      iv,
+    );
     let encrypted = cipher.update(text, "utf8", "hex");
     encrypted += cipher.final("hex");
     return `${iv.toString("hex")}:${encrypted}`;
@@ -30,7 +53,7 @@ const utils = {
     const [iv, encrypted] = encryptedText.split(":");
     const decipher = crypto.createDecipheriv(
       "aes-256-cbc",
-      ENCRYPTION_KEY,
+      getEncryptionKey(),
       Buffer.from(iv, "hex"),
     );
     let decrypted = decipher.update(encrypted, "hex", "utf8");
@@ -55,33 +78,59 @@ const utils = {
     };
   },
 
-  removePasswordFromObject(data) {
+  redactSensitiveData(data, extraKeys = []) {
+    if (data === undefined || data === null) return data;
+
+    const sensitiveKeys = new Set([
+      "password",
+      "passwordhash",
+      "passwd",
+      "oldpassword",
+      "newpassword",
+      "accesstoken",
+      "refreshtoken",
+      "resettoken",
+      "otp",
+      "otpcode",
+      "otpsecret",
+      "token",
+      "secret",
+      "clientsecret",
+      "apikey",
+      "privatekey",
+      "authorization",
+      "cookie",
+      ...extraKeys.map((key) =>
+        String(key).toLowerCase().replace(/[^a-z0-9]/g, ""),
+      ),
+    ]);
     const clone = structuredClone(data);
 
-    const removePassword = (obj) => {
+    const redact = (obj) => {
       if (obj && typeof obj === "object") {
-        if (obj.password) {
-          delete obj.password;
-        }
-        // Recursively check all properties
         Object.keys(obj).forEach((key) => {
-          if (Array.isArray(obj[key])) {
-            obj[key] = obj[key].map((item) => removePassword(item));
+          const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (sensitiveKeys.has(normalizedKey)) {
+            obj[key] = "[REDACTED]";
+          } else if (Array.isArray(obj[key])) {
+            obj[key] = obj[key].map((item) => redact(item));
           } else if (obj[key] && typeof obj[key] === "object") {
-            removePassword(obj[key]);
+            redact(obj[key]);
           }
         });
       }
       return obj;
     };
 
-    // Handle direct array input
     if (Array.isArray(clone)) {
-      return clone.map((item) => removePassword(item));
+      return clone.map((item) => redact(item));
     }
 
-    // Handle object input
-    return removePassword(clone);
+    return redact(clone);
+  },
+
+  removePasswordFromObject(data) {
+    return this.redactSensitiveData(data);
   },
 
   buildQuery(query, buildJoins) {
@@ -90,7 +139,9 @@ const utils = {
 
     if (joinsClause) {
       // Find where to insert the JOIN clause
-      const fromMatch = finalQuery.match(/FROM\s+\w+/i);
+      const fromMatch = finalQuery.match(
+        /FROM\s+(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:AS\s+)?(?!INNER\b|LEFT\b|RIGHT\b|FULL\b|CROSS\b|JOIN\b|WHERE\b|GROUP\b|HAVING\b|ORDER\b|LIMIT\b|OFFSET\b)[A-Za-z_][A-Za-z0-9_]*)?/i,
+      );
 
       if (fromMatch) {
         const fromEndIndex = fromMatch.index + fromMatch[0].length;
@@ -367,6 +418,7 @@ const utils = {
   },
 
   async getSystemOpenRoute() {
+    const SettingsManager = require("../../core/lib/systemSettings");
     const settings = new SettingsManager();
     const openRoutes = await settings.get("system.open_routes");
 

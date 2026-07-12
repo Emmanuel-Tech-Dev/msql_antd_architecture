@@ -10,12 +10,89 @@ class QueryBuilder {
     this.selectedTables = [];
   }
 
+  quoteIdentifier(identifier) {
+    if (identifier === "*" || identifier === undefined || identifier === null) {
+      return identifier;
+    }
+
+    if (Array.isArray(identifier)) {
+      return identifier.map((item) => this.quoteIdentifier(item));
+    }
+
+    const value = String(identifier).trim();
+    if (!value) {
+      throw new Error("Identifier cannot be empty");
+    }
+
+    if (value === "*") return "*";
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*\.\*$/.test(value)) {
+      const [table] = value.split(".");
+      return `${this.quoteIdentifier(table)}.*`;
+    }
+
+    if (/^`[^`]+`(\.`[^`]+`)*$/.test(value)) {
+      return value;
+    }
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value)) {
+      return value
+        .split(".")
+        .map((part) => `\`${part.replace(/`/g, "``")}\``)
+        .join(".");
+    }
+
+    // Keep explicit SQL expressions available for developer-authored calls
+    // such as COUNT(*), SUM(amount) AS total, and selectRaw().
+    if (/[\s(),]/.test(value)) return value;
+
+    throw new Error(`Invalid SQL identifier: ${value}`);
+  }
+
+  normalizeOperator(operator = "=") {
+    const op = String(operator).trim().toUpperCase();
+    const allowed = new Set([
+      "=",
+      "!=",
+      "<>",
+      ">",
+      ">=",
+      "<",
+      "<=",
+      "LIKE",
+      "NOT LIKE",
+      "IN",
+      "NOT IN",
+    ]);
+
+    if (!allowed.has(op)) {
+      throw new Error(`Invalid SQL operator: ${operator}`);
+    }
+
+    return op;
+  }
+
+  normalizeDirection(direction = "ASC") {
+    return String(direction).toUpperCase() === "DESC" ? "DESC" : "ASC";
+  }
+
+  normalizeLimit(value, label = "limit") {
+    const number = Number.parseInt(value, 10);
+    if (!Number.isInteger(number) || number < 0) {
+      throw new Error(`Invalid ${label}: ${value}`);
+    }
+    return number;
+  }
+
   // SELECT columns
   select(columns = "*", table) {
+    const fromClause = table ? ` FROM ${this.quoteIdentifier(table)}` : "";
     if (Array.isArray(columns)) {
-      this.query = `SELECT ${columns.join(", ")} from ${table}`;
+      this.query = `SELECT ${columns
+        .map((column) => this.quoteIdentifier(column))
+        .join(", ")}${fromClause}`;
     } else {
-      this.query = `SELECT ${columns} from ${table}`;
+      this.query = `SELECT ${this.quoteIdentifier(columns)}${fromClause}`;
     }
 
     return this;
@@ -23,7 +100,7 @@ class QueryBuilder {
 
   // FROM table
   from(table) {
-    this.query += ` FROM ${table}`;
+    this.query += ` FROM ${this.quoteIdentifier(table)}`;
     return this;
   }
 
@@ -45,8 +122,8 @@ class QueryBuilder {
       const conditionStrings = [];
 
       for (let condition of conditions) {
-        const col = condition.column;
-        const op = condition.operator || operator;
+        const col = this.quoteIdentifier(condition.column);
+        const op = this.normalizeOperator(condition.operator || operator);
         const val = condition.value;
 
         conditionStrings.push(`${col} ${op} ?`);
@@ -68,18 +145,18 @@ class QueryBuilder {
         this.query += `${whereClause}(${conditionStrings.join(` ${logic} `)})`;
       }
 
-      console.log(this.query);
       return this;
     }
 
     // Handle single condition
-    const column = columnOrConditions;
+    const column = this.quoteIdentifier(columnOrConditions);
+    const op = this.normalizeOperator(operator);
     const value = valueOrLogic;
 
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} ${operator} ?`;
+      this.query += ` AND ${column} ${op} ?`;
     } else {
-      this.query += ` WHERE ${column} ${operator} ?`;
+      this.query += ` WHERE ${column} ${op} ?`;
     }
 
     this.params.push(value);
@@ -99,8 +176,8 @@ class QueryBuilder {
       const conditionStrings = [];
 
       conditions.forEach((condition) => {
-        const col = condition.column;
-        const op = condition.operator || operator;
+        const col = this.quoteIdentifier(condition.column);
+        const op = this.normalizeOperator(condition.operator || operator);
         const val = condition.value;
 
         conditionStrings.push(`${col} ${op} ?`);
@@ -117,13 +194,14 @@ class QueryBuilder {
     }
 
     // Handle single condition
-    const column = columnOrConditions;
+    const column = this.quoteIdentifier(columnOrConditions);
+    const op = this.normalizeOperator(operator);
     const value = valueOrLogic;
 
     if (this.query.includes("WHERE")) {
-      this.query += ` OR ${column} ${operator} ?`;
+      this.query += ` OR ${column} ${op} ?`;
     } else {
-      this.query += ` WHERE ${column} ${operator} ?`;
+      this.query += ` WHERE ${column} ${op} ?`;
     }
     this.params.push(value);
     return this;
@@ -137,11 +215,12 @@ class QueryBuilder {
     }
 
     const placeholders = values.map(() => "?").join(", ");
+    const col = this.quoteIdentifier(column);
 
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} IN (${placeholders})`;
+      this.query += ` AND ${col} IN (${placeholders})`;
     } else {
-      this.query += ` WHERE ${column} IN (${placeholders})`;
+      this.query += ` WHERE ${col} IN (${placeholders})`;
     }
 
     this.params.push(...values);
@@ -156,11 +235,12 @@ class QueryBuilder {
     }
 
     const placeholders = values.map(() => "?").join(", ");
+    const col = this.quoteIdentifier(column);
 
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} NOT IN (${placeholders})`;
+      this.query += ` AND ${col} NOT IN (${placeholders})`;
     } else {
-      this.query += ` WHERE ${column} NOT IN (${placeholders})`;
+      this.query += ` WHERE ${col} NOT IN (${placeholders})`;
     }
 
     this.params.push(...values);
@@ -173,10 +253,11 @@ class QueryBuilder {
     if (min === undefined || max === undefined) {
       throw new Error("Both min and max values are required for whereBetween");
     }
+    const col = this.quoteIdentifier(column);
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} BETWEEN ? AND ?`;
+      this.query += ` AND ${col} BETWEEN ? AND ?`;
     } else {
-      this.query += ` WHERE ${column} BETWEEN ? AND ?`;
+      this.query += ` WHERE ${col} BETWEEN ? AND ?`;
     }
     this.params.push(min, max);
     return this;
@@ -189,10 +270,11 @@ class QueryBuilder {
     if (!pattern) {
       throw new Error("Pattern is required for whereLike");
     }
+    const col = this.quoteIdentifier(column);
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} LIKE ?`;
+      this.query += ` AND ${col} LIKE ?`;
     } else {
-      this.query += ` WHERE ${column} LIKE ?`;
+      this.query += ` WHERE ${col} LIKE ?`;
     }
     this.params.push(pattern);
     return this;
@@ -204,10 +286,11 @@ class QueryBuilder {
     if (!column) {
       throw new Error("Column name is required for whereNull");
     }
+    const col = this.quoteIdentifier(column);
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} IS NULL`;
+      this.query += ` AND ${col} IS NULL`;
     } else {
-      this.query += ` WHERE ${column} IS NULL`;
+      this.query += ` WHERE ${col} IS NULL`;
     }
     return this;
   }
@@ -218,33 +301,36 @@ class QueryBuilder {
     if (!column) {
       throw new Error("Column name is required for whereNull");
     }
+    const col = this.quoteIdentifier(column);
     if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} IS NOT NULL`;
+      this.query += ` AND ${col} IS NOT NULL`;
     } else {
-      this.query += ` WHERE ${column} IS NOT NULL`;
+      this.query += ` WHERE ${col} IS NOT NULL`;
     }
     return this;
   }
 
   // ORDER BY
   orderBy(column, direction = "ASC") {
-    this.query += ` ORDER BY ${column} ${direction}`;
+    this.query += ` ORDER BY ${this.quoteIdentifier(column)} ${this.normalizeDirection(direction)}`;
     return this;
   }
 
   // GROUP BY
   groupBy(columns) {
     if (Array.isArray(columns)) {
-      this.query += ` GROUP BY ${columns.join(", ")}`;
+      this.query += ` GROUP BY ${columns
+        .map((column) => this.quoteIdentifier(column))
+        .join(", ")}`;
     } else {
-      this.query += ` GROUP BY ${columns}`;
+      this.query += ` GROUP BY ${this.quoteIdentifier(columns)}`;
     }
     return this;
   }
 
   // LIMIT
   limit(count) {
-    this.query += ` LIMIT ${count}`;
+    this.query += ` LIMIT ${this.normalizeLimit(count)}`;
     return this;
   }
 
@@ -267,7 +353,7 @@ class QueryBuilder {
 
   // OFFSET
   offset(count) {
-    this.query += ` OFFSET ${count}`;
+    this.query += ` OFFSET ${this.normalizeLimit(count, "offset")}`;
     return this;
   }
 
@@ -306,10 +392,10 @@ class QueryBuilder {
 
     this.joins.push({
       type: upperJoinType === "CROSS" ? "CROSS JOIN" : `${upperJoinType} JOIN`,
-      table,
-      leftColumn: col1,
-      operator: op,
-      rightColumn: col2,
+      table: this.quoteIdentifier(table),
+      leftColumn: this.quoteIdentifier(col1),
+      operator: this.normalizeOperator(op),
+      rightColumn: this.quoteIdentifier(col2),
     });
 
     return this;
@@ -365,20 +451,22 @@ class QueryBuilder {
       if (Array.isArray(columns)) {
         // Handle ["*"] specially
         if (columns.length === 1 && columns[0] === "*") {
-          selectClauses.push(`${table}.*`);
+          selectClauses.push(`${this.quoteIdentifier(table)}.*`);
         } else {
           // Prefix columns with table name for clarity
-          const prefixedColumns = columns.map((col) => `${table}.${col}`);
+          const prefixedColumns = columns.map((col) =>
+            this.quoteIdentifier(`${table}.${col}`),
+          );
           selectClauses.push(...prefixedColumns);
         }
       } else if (columns === "*") {
-        selectClauses.push(`${table}.*`);
+        selectClauses.push(`${this.quoteIdentifier(table)}.*`);
       } else {
-        selectClauses.push(`${table}.${columns}`);
+        selectClauses.push(this.quoteIdentifier(`${table}.${columns}`));
       }
     });
 
-    this.query = `SELECT ${selectClauses.join(", ")} FROM ${mainTable}`;
+    this.query = `SELECT ${selectClauses.join(", ")} FROM ${this.quoteIdentifier(mainTable)}`;
 
     return this;
   }
@@ -387,9 +475,9 @@ class QueryBuilder {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
-    this.query = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns
-      .map(() => "?")
-      .join(", ")})`;
+    this.query = `INSERT INTO ${this.quoteIdentifier(table)} (${columns
+      .map((column) => this.quoteIdentifier(column))
+      .join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
     this.params = values;
     return this;
   }
@@ -411,7 +499,7 @@ class QueryBuilder {
       throw new Error("Records must contain at least one field");
     }
 
-    const columns = allKeys.join(", ");
+    const columns = allKeys.map((key) => this.quoteIdentifier(key)).join(", ");
 
     // Use placeholders instead of direct values
     const placeholders = dataArray
@@ -423,7 +511,7 @@ class QueryBuilder {
       allKeys.map((key) => record[key] ?? null),
     );
 
-    this.query = `INSERT INTO ${table} (${columns}) VALUES ${placeholders}`;
+    this.query = `INSERT INTO ${this.quoteIdentifier(table)} (${columns}) VALUES ${placeholders}`;
 
     return this;
   }
@@ -433,8 +521,8 @@ class QueryBuilder {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
-    this.query = `UPDATE ${table} SET ${columns
-      .map((col) => `${col} = ?`)
+    this.query = `UPDATE ${this.quoteIdentifier(table)} SET ${columns
+      .map((col) => `${this.quoteIdentifier(col)} = ?`)
       .join(", ")}`;
     this.params = values;
     return this;
@@ -442,7 +530,7 @@ class QueryBuilder {
 
   // DELETE
   delete(table) {
-    this.query = `DELETE FROM ${table}`;
+    this.query = `DELETE FROM ${this.quoteIdentifier(table)}`;
     return this;
   }
 
@@ -460,11 +548,11 @@ class QueryBuilder {
       );
     }
 
-    const functionPart = `${upperFunc}(${column})`;
+    const functionPart = `${upperFunc}(${this.quoteIdentifier(column)})`;
     let selectClause;
 
     if (alias) {
-      selectClause = `${functionPart} AS ${alias}`;
+      selectClause = `${functionPart} AS ${this.quoteIdentifier(alias)}`;
     } else {
       selectClause = functionPart;
     }
@@ -510,18 +598,20 @@ class QueryBuilder {
     }
 
     const functionPart = alias
-      ? `${upperFunc}(${column}) AS ${alias}`
-      : `${upperFunc}(${column})`;
+      ? `${upperFunc}(${this.quoteIdentifier(column)}) AS ${this.quoteIdentifier(alias)}`
+      : `${upperFunc}(${this.quoteIdentifier(column)})`;
 
     return this.selectRaw(functionPart);
   }
   //useCase :having("total_amount", ">", 1000)
   //useCase: having("COUNT(id)", ">", 5)
   having(column, operator, value) {
+    const col = this.quoteIdentifier(column);
+    const op = this.normalizeOperator(operator);
     if (this.query.includes("HAVING")) {
-      this.query += ` AND ${column} ${operator} ?`;
+      this.query += ` AND ${col} ${op} ?`;
     } else {
-      this.query += ` HAVING ${column} ${operator} ?`;
+      this.query += ` HAVING ${col} ${op} ?`;
     }
     this.params.push(value);
     return this;
@@ -530,7 +620,7 @@ class QueryBuilder {
   // Get the raw query (for debugging)
   getSQL() {
     return {
-      query: utils.buildQuery(this.query, this.buildJoins),
+      query: utils.buildQuery(this.query, this.buildJoins()),
       params: this.params,
     };
   }
@@ -558,7 +648,7 @@ class QueryBuilder {
       if (!/^[a-zA-Z0-9_.]+$/.test(name)) {
         throw new Error(`Invalid identifier: ${name}`);
       }
-      return name;
+      return this.quoteIdentifier(name);
     };
 
     let columnsList;
@@ -569,7 +659,7 @@ class QueryBuilder {
     } else {
       columnsList = sanitizeName(columns);
     }
-    sanitizeName(table);
+    const safeTable = sanitizeName(table);
 
     const validModes = ["NATURAL LANGUAGE", "BOOLEAN", "QUERY EXPANSION"];
     const upperMode = mode.toUpperCase();
@@ -596,7 +686,7 @@ class QueryBuilder {
       );
     }
 
-    this.query = `SELECT * FROM ${table} WHERE MATCH(${columnsList}) AGAINST(? IN ${searchMode})`;
+    this.query = `SELECT * FROM ${safeTable} WHERE MATCH(${columnsList}) AGAINST(? IN ${searchMode})`;
     this.params.push(finalSearchTerm);
 
     return this;
@@ -618,10 +708,12 @@ class QueryBuilder {
 
     let columnsList;
     if (Array.isArray(columns)) {
-      columnsList = columns.join(", ");
+      columnsList = columns.map((column) => this.quoteIdentifier(column)).join(", ");
     } else {
-      columnsList = columns;
+      columnsList = this.quoteIdentifier(columns);
     }
+
+    const safeTable = this.quoteIdentifier(table);
 
     const upperMode = mode.toUpperCase();
     let searchMode;
@@ -636,188 +728,13 @@ class QueryBuilder {
     }
 
     // Include relevance score in results
-    this.query = `SELECT *, MATCH(${columnsList}) AGAINST(? IN ${searchMode}) AS relevance_score FROM ${table} WHERE MATCH(${columnsList}) AGAINST(? IN ${searchMode})`;
+    this.query = `SELECT *, MATCH(${columnsList}) AGAINST(? IN ${searchMode}) AS relevance_score FROM ${safeTable} WHERE MATCH(${columnsList}) AGAINST(? IN ${searchMode})`;
 
     // Add search term twice (once for score, once for WHERE)
     this.params.push(searchTerm, searchTerm);
 
     return this;
   }
-}
-
-// ============================================
-// USAGE EXAMPLES
-// ============================================
-
-// Example 1: Simple SELECT all
-async function example1() {
-  const qb = new QueryBuilder();
-  const users = await qb.select().from("users").execute();
-
-  console.log("All users:", users);
-}
-
-// Example 2: SELECT specific columns with WHERE
-async function example2() {
-  const qb = new QueryBuilder();
-  const activeUsers = await qb
-    .select(["id", "name", "email"])
-    .from("users")
-    .where("status", "=", "active")
-    .execute();
-
-  console.log("Active users:", activeUsers);
-}
-
-// Example 3: Multiple WHERE conditions
-async function example3() {
-  const qb = new QueryBuilder();
-  const filteredUsers = await qb
-    .select()
-    .from("users")
-    .where("age", ">", 18)
-    .where("country", "=", "USA")
-    .orderBy("created_at", "DESC")
-    .execute();
-
-  console.log("Filtered users:", filteredUsers);
-}
-
-// Example 4: WHERE with OR condition
-async function example4() {
-  const qb = new QueryBuilder();
-  const users = await qb
-    .select(["id", "name", "role"])
-    .from("users")
-    .where("role", "=", "admin")
-    .where(
-      [
-        { column: "age", operator: ">=", value: 18 },
-        { column: "status", operator: "=", value: "active" },
-        { column: "balance", operator: ">", value: 100 },
-      ],
-      "=",
-      "AND",
-    )
-    // SQL: WHERE (age >= ? AND status = ? AND balance > ?)
-    .orWhere("role", "=", "moderator")
-    .execute();
-
-  console.log("Admins or moderators:", users);
-}
-
-// Example 5: Complex query with pagination
-async function example5() {
-  const qb = new QueryBuilder();
-  const pagedUsers = await qb
-    .select(["id", "name", "email", "created_at"])
-    .from("users")
-    .where("status", "=", "active")
-    .where("verified", "=", true)
-    .orderBy("created_at", "DESC")
-    .limit(10)
-    .offset(0)
-    .execute();
-
-  console.log("Paged users:", pagedUsers);
-}
-
-// Example 6: Debug query before execution
-function example6() {
-  const qb = new QueryBuilder();
-  qb.select(["id", "name"])
-    .from("products")
-    .where("price", "<", 100)
-    .where("in_stock", "=", true);
-
-  const { query, params } = qb.getSQL();
-  console.log("Query:", query);
-  console.log("Params:", params);
-}
-
-// Example 7: INNER JOIN - Users with their posts
-async function example7() {
-  const qb = new QueryBuilder();
-  const usersWithPosts = await qb
-    .select(["id", "name", "email"])
-    .from("users")
-    .join("INNER", "posts", "users.id", "posts.user_id")
-    .select(["id", "title", "content"])
-    .where("users.status", "=", "active")
-    .orderBy("posts.created_at", "DESC")
-    .execute();
-
-  console.log("Users with posts:", usersWithPosts);
-}
-
-// Example 8: LEFT JOIN - All users and their posts (if any)
-async function example8() {
-  const qb = new QueryBuilder();
-  const data = await qb
-    .multiSelect([
-      { table: "users", columns: ["id", "name", "email"] },
-      { table: "posts", columns: ["id", "title"] },
-    ])
-    .join("LEFT", "posts", "users.id", "posts.user_id")
-    .where("users.status", "=", "active")
-    .execute();
-
-  console.log("All users and their posts:", data);
-}
-
-// Example 9: Multiple JOINs - Users with posts and comments
-async function example9() {
-  const qb = new QueryBuilder();
-  const data = await qb
-    .multiSelect([
-      { table: "users", columns: ["id", "name", "email"] },
-      { table: "posts", columns: ["id", "title", "content"] },
-      { table: "comments", columns: ["id", "text", "created_at"] },
-    ])
-    .join("INNER", "posts", "users.id", "posts.user_id")
-    .join("LEFT", "comments", "posts.id", "comments.post_id")
-    .where("users.id", "=", 1)
-    .orderBy("posts.created_at", "DESC")
-    .execute();
-
-  console.log("User with posts and comments:", data);
-}
-
-// Example 10: Complex multi-table query with filters
-async function example10() {
-  const qb = new QueryBuilder();
-  const data = await qb
-    .multiSelect([
-      { table: "users", columns: ["id", "name"] },
-      { table: "posts", columns: ["id", "title", "status"] },
-      { table: "comments", columns: ["id", "text"] },
-    ])
-    .join("INNER", "posts", "users.id", "posts.user_id")
-    .join("LEFT", "comments", "posts.id", "comments.post_id")
-    .where("posts.status", "=", "published")
-    .where("users.status", "=", "active")
-    .orderBy("posts.created_at", "DESC")
-    .limit(20)
-    .offset(0)
-    .execute();
-
-  console.log("Published posts with comments:", data);
-}
-
-// Example 11: MultiSelect with WHERE IN
-async function example11() {
-  const qb = new QueryBuilder();
-  const data = await qb
-    .multiSelect([
-      { table: "users", columns: ["id", "name"] },
-      { table: "orders", columns: ["id", "total", "status"] },
-    ])
-    .join("INNER", "orders", "users.id", "orders.user_id")
-    .whereIn("orders.status", ["completed", "pending"])
-    .orderBy("orders.created_at", "DESC")
-    .execute();
-
-  console.log("Users with orders:", data);
 }
 
 module.exports = QueryBuilder;

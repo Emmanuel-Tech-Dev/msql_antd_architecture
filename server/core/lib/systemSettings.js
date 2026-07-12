@@ -1,4 +1,5 @@
 const CacheManager = require("../../shared/helpers/cacheManager");
+const logger = require("../../shared/helpers/logger");
 
 const conn = require("../config/conn");
 
@@ -35,28 +36,30 @@ class SettingsManager {
 
       return defaultValue;
     } catch (error) {
-      console.log(` Error getting setting ${key}:`, error.message);
+      logger.error(error, {
+        component: "SettingsManager",
+        operation: "get",
+        settingKey: key,
+      });
       return defaultValue;
     }
   }
 
   async fetchFromDB(key) {
-    const Model = require("../model/model");
-    const data = await new Model()
-      .setSql(
-        `SELECT value, type, scope
+    const [data] = await conn.query(
+      `SELECT value, type, scope
        FROM system_settings 
-       WHERE \`key\` = '${key}' 
-       AND (env = '${this.environment}' OR env IS NULL OR scope = 'global')
+       WHERE \`key\` = ?
+       AND (env = ? OR env IS NULL OR scope = 'global')
        ORDER BY 
          CASE 
-           WHEN env = '${this.environment}' THEN 0 
-           WHEN scope = 'global' THEN 1 
-           ELSE 2 
+           WHEN env = ? THEN 0
+           WHEN scope = 'global' THEN 1
+           ELSE 2
          END
        LIMIT 1`,
-      )
-      .execute();
+      [key, this.environment, this.environment],
+    );
 
     if (data.length === 0) return null;
 
@@ -78,7 +81,10 @@ class SettingsManager {
         try {
           return typeof value === "string" ? JSON.parse(value) : value;
         } catch (err) {
-          console.error("Error parsing JSON:", err);
+          logger.error(err, {
+            component: "SettingsManager",
+            operation: "convertJson",
+          });
           return null;
         }
 
@@ -94,7 +100,7 @@ class SettingsManager {
       await connection.beginTransaction();
 
       const [current] = await connection.query(
-        "SELECT * FROM settings WHERE `key` = ?",
+        "SELECT * FROM system_settings WHERE `key` = ?",
         [key],
       );
 
@@ -107,7 +113,7 @@ class SettingsManager {
 
       // Update database
       await connection.query(
-        "UPDATE settings SET value = ?, updated_at = NOW() WHERE `key` = ?",
+        "UPDATE system_settings SET value = ?, updated_at = NOW() WHERE `key` = ?",
         [newValue, key],
       );
 
@@ -118,7 +124,10 @@ class SettingsManager {
       const typedValue = this.convertType(newValue, current[0].type);
       this.cache.set(cacheKey, typedValue, 0);
 
-      console.log(`Setting updated: ${key} = ${newValue} by ${changedBy}`);
+      logger.security("System setting updated", {
+        settingKey: key,
+        changedBy,
+      });
 
       return {
         success: true,
@@ -135,17 +144,14 @@ class SettingsManager {
   }
 
   async preloadAll() {
-    console.log("Preloading all settings into cache...");
-    // console.log("Error is going on in here ");
-    const Model = require("../model/model");
+    logger.app("Preloading system settings");
     try {
-      const rows = await new Model()
-        .setSql(
-          `SELECT \`key\`, value, type 
-         FROM system_settings 
-         WHERE env = '${this.environment}' OR env IS NULL OR scope = 'global'`,
-        )
-        .execute();
+      const [rows] = await conn.query(
+        `SELECT \`key\`, value, type
+         FROM system_settings
+         WHERE env = ? OR env IS NULL OR scope = 'global'`,
+        [this.environment],
+      );
 
       // return;
 
@@ -159,14 +165,17 @@ class SettingsManager {
       }
 
       this.isPreloaded = true;
-      console.log(` Preloaded ${count} settings into cache`);
-      console.log(
-        ` Settings cached FOREVER (until server restart or admin update)`,
-      );
+      logger.app("System settings preloaded", {
+        count,
+        cachePolicy: "until-restart-or-update",
+      });
 
       return count;
     } catch (error) {
-      console.error(" Error preloading settings:", error);
+      logger.error(error, {
+        component: "SettingsManager",
+        operation: "preloadAll",
+      });
       throw error;
     }
   }

@@ -9,11 +9,12 @@ const useUpdate = ({ resource, meta, mutationOptions = {} } = {}) => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: ({ id, variables }) =>
       dataProvider.update({ resource, id, variables, meta }),
 
     onSuccess: (data, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: [resource, "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lists(resource) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.one(resource, variables.id),
       });
@@ -23,8 +24,6 @@ const useUpdate = ({ resource, meta, mutationOptions = {} } = {}) => {
     onError: (error, variables, context) => {
       mutationOptions.onError?.(error, variables, context);
     },
-
-    ...mutationOptions,
   });
 };
 

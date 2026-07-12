@@ -16,6 +16,7 @@ import useApi from '../../hooks/useApi';
 import utils from '../../utils/function_utils';
 import { useRef } from 'react';
 import useGlobalSelect from '../../hooks/useGlobalSelect';
+import useNotification from '../../hooks/useNotification';
 
 
 /* ─── mock data ────────────────────────────────────────────────── */
@@ -127,6 +128,7 @@ function PermPill({ label, granted }) {
 
 /* ─── main component ────────────────────────────────────────────── */
 export default function UserInfo({ user: payload }) {
+    const { message } = useNotification();
     const [activeFilter, setActiveFilter] = useState('All');
     const [roles, setRoles] = useState(payload?.roles || []);
 
@@ -135,6 +137,7 @@ export default function UserInfo({ user: payload }) {
     const selectJsx = useGlobalSelect("role_name", "admin_roles")
     // AFTER — fires exactly once, even in StrictMode
     const { run, loading, data: rawData } = useApi("get", `/access/user_info/${payload?.custom_id}`,)
+
     const data = rawData?.data
     const hasFetched = useRef(false);
 
@@ -144,6 +147,17 @@ export default function UserInfo({ user: payload }) {
         run();
     }, []);
 
+
+    const { run: runAssignedRoles } = useApi("post", "/access/assign/roles", {
+        onSuccess: () => {
+            message.success("Role assigned successfully");
+            run();
+        },
+        onError: (error) => {
+            message.error("Failed to assign role. Please try again.");
+        },
+
+    })
 
     // console.log(data)
 
@@ -175,9 +189,6 @@ export default function UserInfo({ user: payload }) {
     //   "Roles":           ["read"],
     // }
 
-    function handleRoleAdd() {
-        console.log(selectJsx.selected)
-    }
 
     useEffect(() => {
         // selectJsx.setStyles({
@@ -294,23 +305,24 @@ export default function UserInfo({ user: payload }) {
                     <div style={{ marginBottom: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                             <SectionTitle style={{ margin: 0 }}>Roles</SectionTitle>
-                            <Tooltip title="Add role">
-                                <div
-                                    style={{
-                                        width: 18,
-                                        height: 18,
-                                        border: '0.5px solid #d1d5db',
-                                        borderRadius: 4,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        background: '#fff',
-                                    }}
-                                >
-                                    <PlusOutlined style={{ fontSize: 10, color: '#6b7280' }} onClick={handleRoleAdd} />
-                                </div>
-                            </Tooltip>
+                            {selectJsx.selected &&
+                                <Tooltip title="Add role">
+                                    <div
+                                        style={{
+                                            width: 18,
+                                            height: 18,
+                                            border: '0.5px solid #d1d5db',
+                                            borderRadius: 4,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            background: '#fff',
+                                        }}
+                                    >
+                                        <PlusOutlined style={{ fontSize: 10, color: '#6b7280' }} onClick={() => runAssignedRoles({ custom_id: payload?.custom_id, role: selectJsx?.selected })} />
+                                    </div>
+                                </Tooltip>}
                         </div>
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>

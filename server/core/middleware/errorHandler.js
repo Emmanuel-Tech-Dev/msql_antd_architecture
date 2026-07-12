@@ -1,10 +1,12 @@
 const AppError = require("../../shared/helpers/AppError");
+const utils = require("../../shared/utils/functions");
 
 const errorHandler = (logger) => {
   return (err, req, res, next) => {
     // Set defaults for non-AppError instances
 
-    jwtStatus = err?.message === "jwt expired" ? 401 : err.statusCode || 500;
+    const jwtStatus =
+      err?.message === "jwt expired" ? 401 : err.statusCode || 500;
 
     err.statusCode = err.statusCode || jwtStatus || 500;
     err.status = err.status || "error";
@@ -12,15 +14,20 @@ const errorHandler = (logger) => {
 
     // Build context for logging
     const logContext = {
-      url: req.originalUrl,
+      requestId: req.requestId,
+      path: req.originalUrl?.split("?")[0] ?? req.path,
+      route: req.route?.path,
       method: req.method,
       ip: req.ip,
       userAgent: req.get("user-agent"),
-      userId: req.user?.id,
-      body: req.body,
-      params: req.params,
-      query: req.query,
-      ...(err.metadata || {}),
+      userId: req.user?.sub ?? req.user?.id ?? req.user?.custom_id,
+      bodyKeys:
+        req.body && typeof req.body === "object" ? Object.keys(req.body) : [],
+      params: utils.redactSensitiveData(req.params),
+      queryKeys: Object.keys(req.query ?? {}),
+      errorMetadata: utils.redactSensitiveData(err.metadata || {}),
+      internalCause:
+        err.cause instanceof Error ? err.cause.message : undefined,
     };
 
     // Use smartError for operational errors, regular error for unexpected ones
@@ -41,6 +48,7 @@ const errorHandler = (logger) => {
         status: "error",
         errorCode: "ERR_INTERNAL_SERVER",
         message: "Something went wrong. Please try again later.",
+        requestId: req.requestId,
       });
     }
 
@@ -49,6 +57,7 @@ const errorHandler = (logger) => {
       status: err.status,
       errorCode: err.errorCode,
       message: err.message,
+      requestId: req.requestId,
     };
 
     // Add metadata/details if present

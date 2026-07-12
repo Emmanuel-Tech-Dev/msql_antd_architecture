@@ -29,7 +29,6 @@ const ERROR_CODES = Object.freeze({
   ERR_ACCOUNT_SUSPENDED: { status: 403, message: "Account suspended" },
 
   ERR_NOT_FOUND: { status: 404, message: "Resource not found" },
-  ERR_NOT_FOUND: { status: 404, message: "Resource not found" },
   ERR_USER_NOT_FOUND: { status: 404, message: "User not found" },
 
   ERR_NO_RESOURCES: { status: 403, message: "No resources available" },
@@ -49,8 +48,6 @@ const ERROR_CODES = Object.freeze({
   ERR_BUSINESS_LOGIC_ERROR: { status: 422, message: "Business logic error" },
 
   ERR_TOO_MANY_REQUESTS: { status: 429, message: "Too many requests" },
-  ERR_RATE_LIMIT_EXCEEDED: { status: 429, message: "Rate limit exceeded" },
-
   // Server Errors (5xx)
   ERR_INTERNAL_SERVER: { status: 500, message: "Internal server error" },
   ERR_UNEXPECTED_ERROR: { status: 500, message: "Unexpected error occurred" },

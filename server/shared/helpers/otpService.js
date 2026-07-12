@@ -1,6 +1,7 @@
 const otp = require("otp");
 const qrcode = require("qrcode");
 const crypto = require("crypto");
+const logger = require("./logger");
 
 class OTPService {
   constructor() {
@@ -10,13 +11,19 @@ class OTPService {
     this.algorithm = "aes-256-cbc";
 
     // ✅ Ensure encryption key is exactly 32 bytes
-    this.encryptionKey = this._prepareEncryptionKey(process.env.ENCRYPTION_KEY);
+    this.encryptionKey = process.env.ENCRYPTION_KEY
+      ? this._prepareEncryptionKey(process.env.ENCRYPTION_KEY)
+      : null;
   }
 
   /**
    * Prepare encryption key to be exactly 32 bytes
    */
   _prepareEncryptionKey(key) {
+    if (!key) {
+      throw new Error("ENCRYPTION_KEY is required for OTP secret encryption");
+    }
+
     return crypto.createHash("sha256").update(key).digest();
   }
 
@@ -30,7 +37,7 @@ class OTPService {
       }
       return secret;
     } catch (error) {
-      console.error("Error generating OTP secret:", error);
+      logger.error(error, { component: "OtpService", operation: "generateSecret" });
       throw new Error("Unable to generate OTP secret");
     }
   }
@@ -73,8 +80,75 @@ class OTPService {
 
       return code;
     } catch (error) {
-      console.error("Error generating OTP code:", error);
+      logger.error(error, { component: "OtpService", operation: "generateCode" });
       throw new Error("Unable to generate OTP code");
+    }
+  }
+
+  generateEmailOtpCode() {
+    return String(crypto.randomInt(100000, 1000000));
+  }
+
+  hashEmailOtpCode(code, userId, signingSecret) {
+    if (!code || !userId || !signingSecret) {
+      throw new Error("Code, user ID, and signing secret are required");
+    }
+
+    return crypto
+      .createHmac("sha256", signingSecret)
+      .update(`${userId}:${code}`)
+      .digest("hex");
+  }
+
+  verifyEmailOtpCode(inputCode, userId, expectedHash, signingSecret) {
+    try {
+      if (!inputCode || !userId || !expectedHash || !signingSecret) {
+        return {
+          isValid: false,
+          error: "Missing required parameters",
+        };
+      }
+
+      const normalizedCode = String(inputCode).replace(/\s/g, "");
+      if (!/^\d{6}$/.test(normalizedCode)) {
+        return {
+          isValid: false,
+          error: "OTP code must be 6 digits",
+        };
+      }
+
+      const rateLimitResult = this.checkRateLimit(userId);
+      if (!rateLimitResult.allowed) {
+        return {
+          isValid: false,
+          error: rateLimitResult.error,
+          remainingTime: rateLimitResult.remainingTime,
+        };
+      }
+
+      const actualHash = this.hashEmailOtpCode(
+        normalizedCode,
+        userId,
+        signingSecret,
+      );
+      const actual = Buffer.from(actualHash, "hex");
+      const expected = Buffer.from(expectedHash, "hex");
+      const isValid =
+        actual.length === expected.length &&
+        crypto.timingSafeEqual(actual, expected);
+
+      this.updateRateLimit(userId, isValid);
+
+      return {
+        isValid,
+        error: isValid ? null : "Invalid OTP code",
+      };
+    } catch (error) {
+      logger.error(error, { component: "OtpService", operation: "verifyEmailOtp" });
+      return {
+        isValid: false,
+        error: "OTP verification failed",
+      };
     }
   }
 
@@ -135,7 +209,7 @@ class OTPService {
         error: isValidOtp ? null : "Invalid OTP code",
       };
     } catch (error) {
-      console.error("Error verifying OTP:", error);
+      logger.error(error, { component: "OtpService", operation: "verifyOtp" });
       return {
         isValid: false,
         error: "OTP verification failed",
@@ -172,7 +246,7 @@ class OTPService {
 
       return qrCodeDataUrl;
     } catch (error) {
-      console.error("Error generating QR code:", error);
+      logger.error(error, { component: "OtpService", operation: "generateQrCode" });
       throw new Error("Unable to generate QR code");
     }
   }
@@ -192,6 +266,10 @@ class OTPService {
         ? this._prepareEncryptionKey(encryptionKey)
         : this.encryptionKey;
 
+      if (!key) {
+        throw new Error("ENCRYPTION_KEY is required for OTP secret encryption");
+      }
+
       // ✅ Generate random IV
       const iv = crypto.randomBytes(16);
 
@@ -204,7 +282,7 @@ class OTPService {
       // ✅ Return IV + encrypted data in one string
       return iv.toString("hex") + ":" + encrypted;
     } catch (error) {
-      console.error("Error encrypting secret:", error);
+      logger.error(error, { component: "OtpService", operation: "encryptSecret" });
       throw new Error("Unable to encrypt secret");
     }
   }
@@ -241,6 +319,10 @@ class OTPService {
           : this.encryptionKey;
       }
 
+      if (!key) {
+        throw new Error("ENCRYPTION_KEY is required for OTP secret encryption");
+      }
+
       if (!iv || !encryptedSecret) {
         throw new Error("Invalid parameters for decryption");
       }
@@ -253,7 +335,7 @@ class OTPService {
 
       return decrypted;
     } catch (error) {
-      console.error("Error decrypting secret:", error);
+      logger.error(error, { component: "OtpService", operation: "decryptSecret" });
       throw new Error("Unable to decrypt secret");
     }
   }

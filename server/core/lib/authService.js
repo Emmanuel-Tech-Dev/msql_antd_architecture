@@ -2,7 +2,6 @@ const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
-const otp = require("otp");
 const SettingsManager = require("./systemSettings");
 const Model = require("../model/model");
 const utils = require("../../shared/utils/functions");
@@ -12,6 +11,13 @@ const log = require("../../shared/helpers/logger");
 const otpService = require("../../shared/helpers/otpService");
 const temp = require("../../shared/utils/templates");
 const { OAuth2Client } = require("google-auth-library");
+
+const identityFingerprint = (value) =>
+  crypto
+    .createHash("sha256")
+    .update(String(value ?? "").trim().toLowerCase())
+    .digest("hex")
+    .slice(0, 16);
 
 class AuthService {
   constructor() {
@@ -124,6 +130,101 @@ class AuthService {
     return decoded;
   }
 
+  async generateOtpChallengeToken(user, otpHash) {
+    const issuer = await this.tokenIssuerInit();
+
+    return jwt.sign(
+      {
+        sub: user?.custom_id,
+        email: user?.email,
+        token_version: user?.token_version,
+        otp_hash: otpHash,
+        type: "otp_challenge",
+      },
+      process.env.OTP_CHALLENGE_SECRET || this.accessTokenSecret,
+      {
+        expiresIn: process.env.OTP_CHALLENGE_TTL || "5m",
+        issuer,
+      },
+    );
+  }
+
+  async verifyOtpChallengeToken(token) {
+    if (!token) {
+      throw new AppError("ERR_TOKEN_INVALID", "OTP challenge token required");
+    }
+
+    const decoded = await this.verifyToken(
+      token,
+      process.env.OTP_CHALLENGE_SECRET || this.accessTokenSecret,
+    );
+
+    if (decoded?.type !== "otp_challenge") {
+      throw new AppError("ERR_TOKEN_INVALID", "Invalid OTP challenge token");
+    }
+
+    return decoded;
+  }
+
+  async sendLoginOtpEmail(email, code) {
+    const html = temp.otpTemplateV1(code);
+    await this.sendResetLink(email, html, "Your login verification code");
+  }
+
+  async issueEmailOtpChallenge(user, req) {
+    const signingSecret = process.env.OTP_CHALLENGE_SECRET || this.accessTokenSecret;
+
+    if (!signingSecret) {
+      throw new AppError("ERR_INTERNAL_SERVER", "OTP secret is not configured");
+    }
+
+    const code = otpService.generateEmailOtpCode();
+    const otpHash = otpService.hashEmailOtpCode(
+      code,
+      user?.custom_id,
+      signingSecret,
+    );
+    const challengeToken = await this.generateOtpChallengeToken(user, otpHash);
+
+    await this.sendLoginOtpEmail(user?.email, code);
+
+    await utils.activityLogs(
+      user?.custom_id,
+      "Authentication",
+      "pending",
+      "Email OTP verification required",
+      req?.ip,
+      req?.headers?.["user-agent"],
+    );
+
+    return {
+      requiresOtp: true,
+      challengeToken,
+      email: user?.email,
+      expiresIn: process.env.OTP_CHALLENGE_TTL || "5m",
+    };
+  }
+
+  async issueAuthTokensAndRecordLogin(user, req) {
+    await this.model
+      .update("admin", {
+        last_login: new Date(),
+      })
+      .where("custom_id", "=", user?.custom_id)
+      .execute();
+
+    await utils.activityLogs(
+      user?.custom_id,
+      "Authentication",
+      "success",
+      "Login Successfully",
+      req?.ip,
+      req?.headers?.["user-agent"],
+    );
+
+    return this.generateAuthTokens(user);
+  }
+
   async hashedPassword(password) {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -142,7 +243,7 @@ class AuthService {
 
   async verifyGoogleAuthToken(token) {
     try {
-      const ticket = this.googleAuthClient.verifyIdToken({
+      const ticket = await this.googleAuthClient.verifyIdToken({
         token,
         audience: process.env.GOOGLE_CLIENT_ID,
       });
@@ -157,7 +258,11 @@ class AuthService {
     // Verification happens here automatically
     const payload = await this.verifyGoogleAuthToken(idToken);
 
-    console.log("Google OAuth Payload:", payload);
+    log.security("Google OAuth token verified", {
+      provider: "google",
+      subjectPresent: Boolean(payload?.sub),
+      emailVerified: payload?.email_verified === true,
+    });
 
     const googleUser = {
       google_id: payload.sub,
@@ -169,15 +274,33 @@ class AuthService {
 
     // Find or create user
     let [user] = await this.model
-      .select(["custom_id", "email", "name"], "admin")
-      .where("oauth_id", "=", googleUser.google_id)
+      .multiSelect([
+        { table: "admin", columns: ["custom_id", "email", "name"] },
+        { table: "admin_credentials", columns: ["token_version"] },
+      ])
+      .join(
+        "INNER",
+        "admin_credentials",
+        "admin.custom_id",
+        "admin_credentials.admin_custom_id",
+      )
+      .where("admin.oauth_id", "=", googleUser.google_id)
       .execute();
 
     if (!user) {
       // Check if email exists
       [user] = await this.model
-        .select(["custom_id", "email", "name"], "admin")
-        .where("email", "=", googleUser.email)
+        .multiSelect([
+          { table: "admin", columns: ["custom_id", "email", "name"] },
+          { table: "admin_credentials", columns: ["token_version"] },
+        ])
+        .join(
+          "INNER",
+          "admin_credentials",
+          "admin.custom_id",
+          "admin_credentials.admin_custom_id",
+        )
+        .where("admin.email", "=", googleUser.email)
         .execute();
 
       if (user) {
@@ -188,16 +311,20 @@ class AuthService {
             oauth_provider: "google",
             profile_picture: googleUser.profile_picture,
             //  email_verified: googleUser.email_verified,
-            updated_at: new Date(),
+            updatedAt: new Date(),
           })
           .where("custom_id", "=", user.custom_id)
           .execute();
       } else {
         // Create new user
         const regNumber = utils.genRegNumber(this.IDPREFIX);
+        const passwordHash = await this.hashedPassword(
+          crypto.randomBytes(32).toString("hex"),
+        );
 
-        await this.model
-          .insert("admin", {
+        await this.model.transaction(async (transact) => {
+          const adminBuilder = transact.builder();
+          adminBuilder.insert("admin", {
             custom_id: regNumber,
             email: googleUser.email,
             name: googleUser.name,
@@ -205,40 +332,35 @@ class AuthService {
             oauth_provider: "google",
             profile_picture: googleUser.profile_picture,
             // email_verified: googleUser.email_verified,
-            created_at: new Date(),
-          })
-          .execute();
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+          await adminBuilder.executeInTransaction();
+
+          const credentialsBuilder = transact.builder();
+          credentialsBuilder.insert("admin_credentials", {
+            admin_custom_id: regNumber,
+            password: passwordHash,
+          });
+          await credentialsBuilder.executeInTransaction();
+        });
 
         user = {
           custom_id: regNumber,
           email: googleUser.email,
           name: googleUser.name,
-          token_version: 0,
+          token_version: 1,
         };
       }
     }
 
-    // Generate JWT tokens
-    const tokens = await this.generateAuthTokens({
-      custom_id: user.custom_id,
-      token_version: user.token_version || 0,
-    });
-
-    // log.security("Google OAuth login successful", {
-    //   adminCustomId: user.admin_custom_id,
-    //   email: user.email,
-    //   ip: req.ip,
-    // });
-
-    return {
-      user: {
-        custom_id: user.admin_custom_id,
-        email: user.email,
-        name: user.name,
+    return this.issueAuthTokensAndRecordLogin(
+      {
+        custom_id: user.custom_id,
+        token_version: user.token_version || 1,
       },
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+      req,
+    );
   }
 
   async isResetLockedOut(id) {
@@ -298,8 +420,11 @@ class AuthService {
 
     const [user] = await this.model
       .multiSelect([
-        { table: "admin", columns: ["custom_id"] },
-        { table: "admin_credentials", columns: ["password", "token_version"] },
+        { table: "admin", columns: ["custom_id", "email", "name"] },
+        {
+          table: "admin_credentials",
+          columns: ["password", "token_version"],
+        },
       ])
       .join(
         "INNER",
@@ -329,29 +454,105 @@ class AuthService {
       });
     }
 
-    await this.model
-      .update("admin", {
-        last_login: new Date(),
-      })
-      .where("custom_id", "=", user?.custom_id)
+    return this.issueAuthTokensAndRecordLogin(user, req);
+  }
+
+  async requestOtpLogin(record, req) {
+    const { email } = record;
+
+    if (!email) {
+      throw new AppError("ERR_MISSING_REQUIRED_FIELD");
+    }
+
+    const [user] = await this.model
+      .multiSelect([
+        { table: "admin", columns: ["custom_id", "email", "name", "status"] },
+        { table: "admin_credentials", columns: ["token_version"] },
+      ])
+      .join(
+        "INNER",
+        "admin_credentials",
+        "admin.custom_id",
+        "admin_credentials.admin_custom_id",
+      )
+      .where("admin.email", "=", email)
       .execute();
 
-    await utils.activityLogs(
-      user?.custom_id,
-      "Authentication",
-      "success",
-      "Login Successfully",
-      req.ip,
-      req.headers["user-agent"],
+    if (!user) {
+      throw new AppError("ERR_USER_NOT_FOUND", null, {
+        details: "No registered account exists for this email",
+        level: "security",
+      });
+    }
+
+    if (Number(user?.status) !== 1) {
+      throw new AppError("ERR_FORBIDDEN", "Account is inactive");
+    }
+
+    return this.issueEmailOtpChallenge(user, req);
+  }
+
+  async verifyOtpLogin(challengeToken, code, req) {
+    const decoded = await this.verifyOtpChallengeToken(challengeToken);
+
+    const [user] = await this.model
+      .select(
+        ["admin_custom_id", "token_version"],
+        "admin_credentials",
+      )
+      .where("admin_custom_id", "=", decoded.sub)
+      .execute();
+
+    if (!user || user?.token_version !== decoded?.token_version) {
+      throw new AppError("ERR_TOKEN_INVALID", "OTP challenge is no longer valid");
+    }
+
+    const result = otpService.verifyEmailOtpCode(
+      code,
+      decoded.sub,
+      decoded.otp_hash,
+      process.env.OTP_CHALLENGE_SECRET || this.accessTokenSecret,
     );
 
-    const token = await this.generateAuthTokens(user);
+    if (!result.isValid) {
+      throw new AppError("ERR_INVALID_CREDENTIALS", result.error);
+    }
 
-    return token;
+    return this.issueAuthTokensAndRecordLogin(
+      {
+        custom_id: user.admin_custom_id,
+        token_version: user.token_version,
+      },
+      req,
+    );
+  }
+
+  async resendOtpLogin(challengeToken, req) {
+    const decoded = await this.verifyOtpChallengeToken(challengeToken);
+
+    const [user] = await this.model
+      .multiSelect([
+        { table: "admin", columns: ["custom_id", "email"] },
+        { table: "admin_credentials", columns: ["token_version"] },
+      ])
+      .join(
+        "INNER",
+        "admin_credentials",
+        "admin.custom_id",
+        "admin_credentials.admin_custom_id",
+      )
+      .where("admin.custom_id", "=", decoded.sub)
+      .execute();
+
+    if (!user || user?.token_version !== decoded?.token_version) {
+      throw new AppError("ERR_TOKEN_INVALID", "OTP challenge is no longer valid");
+    }
+
+    return this.issueEmailOtpChallenge(user, req);
   }
 
   async createAdminUser(record) {
-    if (!record?.email || !record?.password || record?.name) {
+    if (!record?.email || !record?.password || !record?.name) {
       throw new AppError("ERR_MISSING_REQUIRED_FIELD");
     }
 
@@ -383,6 +584,10 @@ class AuthService {
     });
 
     return result;
+  }
+
+  async googleOAuth(record, req) {
+    return this.googleLogin(record?.idToken ?? record?.token, req);
   }
 
   async logout(token, req) {
@@ -542,12 +747,10 @@ class AuthService {
       .execute();
 
     log.security("Password changed successfully", {
-      userId: user.id,
-      regNumber: user.reg_number,
-      email: user.email,
+      requestId: req?.requestId,
+      userId: sub,
       ip: req?.ip,
       userAgent: req?.get("user-agent"),
-      timestamp: new Date().toISOString(),
     });
 
     return token;
@@ -562,9 +765,9 @@ class AuthService {
 
     if (!userExist) {
       log.security("Password reset requested for non-existent email", {
-        email: email,
-        // ip: req?.ip,
-        timestamp: new Date().toISOString(),
+        requestId: req?.requestId,
+        identityFingerprint: identityFingerprint(email),
+        ip: req?.ip,
       });
       return true;
     }

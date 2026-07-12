@@ -1,143 +1,98 @@
-import { Form, Input, Button, Radio } from 'antd';
-import { MailOutlined, PhoneOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import useNotification from '../../hooks/useNotification';
-import { useCustomMutation } from '../../core/hooks/data/useCustom';
+import { Button, Form, Input, Typography } from 'antd';
+import { ArrowLeftOutlined, MailOutlined, SafetyOutlined } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuthProvider } from '../../core/provider/AuthProvider';
+import useNotification from '../../hooks/useNotification';
+import { resolvePostLoginPath } from '../../core/navigation/routeResolver';
+
+const { Text, Title } = Typography;
 
 export default function OtpRequest() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const authProvider = useAuthProvider();
     const { alert, AlertJsx } = useNotification();
-    const [channel, setChannel] = useState('email');
+    const [submitting, setSubmitting] = useState(false);
+    const from = resolvePostLoginPath(location.state?.from);
 
-    const { mutate, isPending } = useCustomMutation({
-        mutationOptions: {
-            onSuccess: (_, variables) => {
-                navigate('/verify_otp', {
-                    state: {
-                        channel: variables.payload.channel,
-                        value: variables.payload.value,
-                    },
-                });
-            },
-            onError: (err) => {
-                alert.error(
-                    'Failed to send OTP',
-                    err?.message || 'Something went wrong. Please try again.'
-                );
-            },
-        },
-    });
+    async function handleSubmit(values) {
+        try {
+            setSubmitting(true);
+            const response = await authProvider.requestOtpLogin(values);
+            navigate('/verify_otp', {
+                replace: true,
+                state: {
+                    challengeToken: response.challengeToken,
+                    email: response.email ?? values.email,
+                    from,
+                    mode: 'email-login',
+                },
+            });
+        } catch (err) {
+            alert.error(
+                'Unable to send code',
+                err?.response?.data?.message || err?.message || 'Confirm the email is registered and try again.',
+            );
+        } finally {
+            setSubmitting(false);
+        }
+    }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#f5f5f5',
-        }}>
-            <div style={{
-                width: 400,
-                background: '#fff',
-                borderRadius: 8,
-                padding: '48px 40px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06)',
-            }}>
-
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+            <div className="w-full max-w-[400px] rounded-lg bg-white px-10 py-12 shadow-sm ring-1 ring-black/5">
                 <Button
                     type="link"
                     icon={<ArrowLeftOutlined />}
                     onClick={() => navigate('/login')}
-                    style={{ padding: 0, color: '#595959', marginBottom: 24, fontSize: 13 }}
+                    className="!px-0 !text-slate-600"
                 >
                     Back to sign in
                 </Button>
 
-                <div style={{ marginBottom: 32 }}>
-                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: '#141414' }}>
-                        Two-factor authentication
-                    </h2>
-                    <p style={{ margin: '6px 0 0', color: '#8c8c8c', fontSize: 14 }}>
-                        We'll send a one-time code to verify your identity
-                    </p>
+                <div className="mt-6 mb-8 text-center">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950">
+                        <SafetyOutlined className="text-xl text-white" />
+                    </div>
+                    <Title level={3} className="!mb-1 !text-xl">
+                        Sign in with email code
+                    </Title>
+                    <Text type="secondary">
+                        Enter a registered email and we will send a one-time login code.
+                    </Text>
                 </div>
 
-                <div style={{ marginBottom: 16 }}>
+                <div className="mb-4">
                     <AlertJsx />
                 </div>
 
-                <Form
-                    layout="vertical"
-                    onFinish={(values) => mutate({
-                        url: 'auth/otp/send',
-                        method: 'post',
-                        payload: { channel, value: values.value },
-                    })}
-                    requiredMark={false}
-                    size="large"
-                >
+                <Form layout="vertical" requiredMark={false} size="large" onFinish={handleSubmit}>
                     <Form.Item
-                        label={<span style={{ fontSize: 13, fontWeight: 500 }}>Send code via</span>}
-                    >
-                        <Radio.Group
-                            value={channel}
-                            onChange={(e) => setChannel(e.target.value)}
-                            style={{ display: 'flex', gap: 12 }}
-                        >
-                            <Radio.Button value="email" style={{ flex: 1, textAlign: 'center', borderRadius: 6 }}>
-                                Email
-                            </Radio.Button>
-                            <Radio.Button value="sms" style={{ flex: 1, textAlign: 'center', borderRadius: 6 }}>
-                                SMS
-                            </Radio.Button>
-                        </Radio.Group>
-                    </Form.Item>
-
-                    <Form.Item
-                        name="value"
-                        label={
-                            <span style={{ fontSize: 13, fontWeight: 500 }}>
-                                {channel === 'email' ? 'Email address' : 'Phone number'}
-                            </span>
-                        }
+                        name="email"
+                        label={<span className="text-[13px] font-medium">Email</span>}
                         rules={[
-                            { required: true, message: `${channel === 'email' ? 'Email' : 'Phone number'} is required` },
-                            ...(channel === 'email'
-                                ? [{ type: 'email', message: 'Enter a valid email' }]
-                                : [{ pattern: /^\+?[0-9]{7,15}$/, message: 'Enter a valid phone number' }]
-                            ),
+                            { required: true, message: 'Email is required' },
+                            { type: 'email', message: 'Enter a valid email' },
                         ]}
                     >
                         <Input
-                            prefix={
-                                channel === 'email'
-                                    ? <MailOutlined style={{ color: '#bfbfbf' }} />
-                                    : <PhoneOutlined style={{ color: '#bfbfbf' }} />
-                            }
-                            placeholder={channel === 'email' ? 'you@example.com' : '+1234567890'}
+                            prefix={<MailOutlined className="text-slate-400" />}
+                            placeholder="you@example.com"
+                            autoComplete="email"
                         />
                     </Form.Item>
 
-                    <Form.Item style={{ marginBottom: 0 }}>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={isPending}
-                            block
-                            style={{
-                                background: '#141414',
-                                borderColor: '#141414',
-                                height: 44,
-                                borderRadius: 6,
-                                fontWeight: 500,
-                            }}
-                        >
-                            Send code
-                        </Button>
-                    </Form.Item>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={submitting}
+                        block
+                        className="!h-11 !rounded-md !border-slate-950 !bg-slate-950 !font-medium"
+                    >
+                        Send login code
+                    </Button>
                 </Form>
-
             </div>
         </div>
     );

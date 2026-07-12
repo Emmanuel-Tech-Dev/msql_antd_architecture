@@ -46,6 +46,19 @@ const uploadSingle = multer({
   fileFilter,
 });
 
+const profileImageUpload = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+    if (allowed.has(file.mimetype)) return cb(null, true);
+    return cb(new Error("Profile images must be JPEG, PNG, WebP, or GIF"), false);
+  },
+});
+
 // Multiple files upload configuration
 const uploadMultiple = multer({
   storage: memoryStorage,
@@ -69,5 +82,6 @@ module.exports = {
   uploadSingle,
   uploadMultiple,
   uploadLarge,
+  profileImageUpload,
   fileFilter,
 };

@@ -1,7 +1,7 @@
 // src/core/hooks/data/useOne.js
 
 import { useQuery } from "@tanstack/react-query";
-import { useDataProvider } from "../../providers/DataProvider";
+import { useDataProvider } from "../../provider/DataProvider";
 import queryKeys from "../../queryKeys";
 
 const useOne = ({ resource, id, meta, queryOptions = {} }) => {
@@ -10,7 +10,7 @@ const useOne = ({ resource, id, meta, queryOptions = {} }) => {
   return useQuery({
     queryKey: queryKeys.one(resource, id),
     queryFn: () => dataProvider.getOne({ resource, id, meta }),
-    enabled: !!resource && !!id,
+    enabled: !!resource && id !== undefined && id !== null,
     ...queryOptions,
   });
 };

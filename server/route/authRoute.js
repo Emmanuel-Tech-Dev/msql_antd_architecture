@@ -7,6 +7,29 @@ const Model = require("../core/model/model");
 const authSchema = require("../schema/auth.schema/createUserScheme");
 const log = require("../shared/helpers/logger");
 const utils = require("../shared/utils/functions");
+const AppError = require("../shared/helpers/AppError");
+const authorizationEvents = require("../core/lib/authorizationEvents");
+const conn = require("../core/config/conn");
+const { z } = require("zod");
+const { profileImageUpload } = require("../core/config/multer");
+const uploadServices = require("../core/lib/uploadServices");
+
+const profileSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80),
+    phoneNo: z.string().trim().max(30).nullable().optional(),
+  })
+  .strict();
+
+const acceptProfileImage = (req, res, next) => {
+  profileImageUpload.single("avatar")(req, res, (error) => {
+    if (!error) return next();
+    const message = error.code === "LIMIT_FILE_SIZE"
+      ? "Profile images must be smaller than 5 MB"
+      : error.message;
+    return next(new AppError("ERR_VALIDATION_FAILED", message));
+  });
+};
 class AuthRoute {
   constructor(app) {
     this.app = app;
@@ -22,7 +45,11 @@ class AuthRoute {
     this.verifyResetToken(app);
     this.resetPassword(app);
     this.googleOAuth(app);
+    this.otpRoutes(app);
     this.getAuthUser(app);
+    this.profile(app);
+    this.profileAvatar(app);
+    this.accessEvents(app);
 
     return this;
   }
@@ -74,17 +101,30 @@ class AuthRoute {
 
         if (isDev) {
           resources = await new Model()
-            .select(["resource_path", "resource", "icon"], "admin_resources")
+            .select(
+              [
+                "id",
+                "resource_path",
+                "resource",
+                "icon",
+                "is_public",
+                "display_order",
+                "category",
+                "show_in_nav",
+              ],
+              "admin_resources",
+            )
             .where("resource_type", "=", "BROWSER_ROUTE")
             .execute();
         } else if (roleNames.length) {
           try {
             const placeholders = roleNames.map(() => "?").join(", ");
             resources = await new Model().raw(
-              `SELECT DISTINCT ar.resource_path, ar.resource, ar.icon
+              `SELECT DISTINCT ar.resource_path, ar.resource, ar.icon, ar.display_order,
+                       ar.category, ar.show_in_nav
                FROM admin_resources ar
                INNER JOIN admin_role_browser_routes arbr
-                 ON arbr.resource_id = ar.resource
+                 ON arbr.resource = ar.resource
                WHERE ar.resource_type = 'BROWSER_ROUTE'
                  AND arbr.role_id IN (${placeholders})
                ORDER BY ar.display_order ASC`,
@@ -96,7 +136,16 @@ class AuthRoute {
               resources = perm.length
                 ? await new Model()
                     .select(
-                      ["resource_path", "resource", "icon"],
+                      [
+                        "id",
+                        "resource_path",
+                        "resource",
+                        "icon",
+                        "is_public",
+                        "display_order",
+                        "category",
+                        "show_in_nav",
+                      ],
                       "admin_resources",
                     )
                     .where("resource_type", "=", "BROWSER_ROUTE")
@@ -109,7 +158,16 @@ class AuthRoute {
             resources = perm.length
               ? await new Model()
                   .select(
-                    ["resource_path", "resource", "icon"],
+                    [
+                      "id",
+                      "resource_path",
+                      "resource",
+                      "icon",
+                      "is_public",
+                      "display_order",
+                      "category",
+                      "show_in_nav",
+                    ],
                     "admin_resources",
                   )
                   .where("resource_type", "=", "BROWSER_ROUTE")
@@ -121,7 +179,7 @@ class AuthRoute {
 
         const [user] = await new Model()
           .select(
-            ["custom_id", "name", "email", "phone_no", "avatar", "status"],
+            ["custom_id", "name", "email", "phone_no", "avatar", "profile_picture", "status"],
             "admin",
           )
           .where("custom_id", "=", userId)
@@ -148,23 +206,162 @@ class AuthRoute {
 
       const response = await this.auth.login(record, req);
       const refreshttl = await this.getRefreshTtl();
-      -(
-        // console.log("Testing login refresh Token", refreshttl);
-        res
-          .status(200)
-          .cookie("refresh_token", response?.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            path: "/",
-            maxAge: refreshttl,
-          })
-          .json({
-            status: "ok",
-            message: "Operation Successfull!",
-            token: response?.accessToken,
-          })
+
+      if (response?.requiresOtp) {
+        return res.status(200).json({
+          status: "ok",
+          message: "OTP verification required",
+          requiresOtp: true,
+          challengeToken: response.challengeToken,
+          email: response.email,
+          expiresIn: response.expiresIn,
+        });
+      }
+
+      res
+        .status(200)
+        .cookie("refresh_token", response?.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+          maxAge: refreshttl,
+        })
+        .json({
+          status: "ok",
+          message: "Operation Successfull!",
+          token: response?.accessToken,
+        });
+    });
+  }
+
+  profile(app) {
+    app.patch("/auth/profile", authMiddleWare, async (req, res) => {
+      const parsed = profileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw new AppError("ERR_VALIDATION_FAILED", "Invalid profile details", {
+          fields: parsed.error.issues.map((issue) => issue.path.join(".")),
+        });
+      }
+
+      const userId = req.user.sub;
+      const { name, phoneNo = null } = parsed.data;
+      await conn.execute(
+        `UPDATE admin
+         SET name = ?, phone_no = ?, updatedAt = CURRENT_TIMESTAMP
+         WHERE custom_id = ?`,
+        [name, phoneNo || null, userId],
       );
+
+      const [rows] = await conn.execute(
+        `SELECT custom_id, name, email, phone_no, avatar, profile_picture, status, last_login, last_logout, createdAt
+         FROM admin WHERE custom_id = ? LIMIT 1`,
+        [userId],
+      );
+      if (!rows[0]) throw new AppError("ERR_USER_NOT_FOUND");
+
+      log.security("User profile updated", {
+        requestId: req.requestId,
+        userId,
+        changedFields: ["name", "phone_no"],
+      });
+      authorizationEvents.publish([userId], "profile-updated");
+
+      res.status(200).json({
+        status: "ok",
+        message: "Profile updated",
+        data: rows[0],
+      });
+    });
+  }
+
+  profileAvatar(app) {
+    app.post(
+      "/auth/profile/avatar",
+      authMiddleWare,
+      acceptProfileImage,
+      async (req, res) => {
+        if (!req.file) {
+          throw new AppError("ERR_BAD_REQUEST", "Select an image to upload");
+        }
+
+        const userId = req.user.sub;
+        const uploaded = await uploadServices.uploadProfileAvatar(req.file, userId);
+        await conn.execute(
+          `UPDATE admin SET avatar = ?, updatedAt = CURRENT_TIMESTAMP WHERE custom_id = ?`,
+          [uploaded.url, userId],
+        );
+
+        log.security("User profile avatar updated", {
+          requestId: req.requestId,
+          userId,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+        });
+        authorizationEvents.publish([userId], "profile-avatar-updated");
+
+        res.status(200).json({
+          status: "ok",
+          message: "Profile image updated",
+          data: { avatar: uploaded.url },
+        });
+      },
+    );
+  }
+
+  accessEvents(app) {
+    app.get("/auth/access-events", authMiddleWare, (req, res) => {
+      authorizationEvents.subscribe(req.user.sub, req, res);
+    });
+  }
+
+  otpRoutes(app) {
+    app.post("/auth/otp/request-login", async (req, res) => {
+      const response = await this.auth.requestOtpLogin(req.body || {}, req);
+
+      res.status(200).json({
+        status: "ok",
+        message: "OTP sent successfully",
+        requiresOtp: true,
+        challengeToken: response.challengeToken,
+        email: response.email,
+        expiresIn: response.expiresIn,
+      });
+    });
+
+    app.post("/auth/otp/verify-login", async (req, res) => {
+      const { challengeToken, code } = req.body || {};
+      const response = await this.auth.verifyOtpLogin(challengeToken, code, req);
+      const refreshttl = await this.getRefreshTtl();
+
+      res
+        .status(200)
+        .cookie("refresh_token", response?.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+          maxAge: refreshttl,
+        })
+        .json({
+          status: "ok",
+          message: "Operation Successfull!",
+          token: response?.accessToken,
+        });
+    });
+
+    app.post("/auth/otp/resend-login", async (req, res) => {
+      const { challengeToken } = req.body || {};
+      const response = await this.auth.resendOtpLogin(challengeToken, req);
+
+      res.status(200).json({
+        status: "ok",
+        message: "OTP sent successfully",
+        requiresOtp: true,
+        challengeToken: response.challengeToken,
+        email: response.email,
+        expiresIn: response.expiresIn,
+      });
     });
   }
 
@@ -193,6 +390,8 @@ class AuthRoute {
   createUserAccount(app) {
     app.post(
       "/auth/register",
+      authMiddleWare,
+      authorization,
       validateRequest(authSchema.register),
       async (req, res) => {
         const record = req.body;
@@ -244,7 +443,7 @@ class AuthRoute {
 
       const response = await this.auth.changePassword({
         ...record,
-        userID: sub,
+        sub,
       });
 
       await utils.activityLogs(
@@ -287,12 +486,9 @@ class AuthRoute {
       const response = await this.auth.forgetPassword(record, req);
       if (response) {
         log.security("Forget Password change init", {
-          // userId: user.id,
-          // regNumber: user.reg_number,
-          // email: user.email,
+          requestId: req.requestId,
           ip: req?.ip,
           userAgent: req?.get("user-agent"),
-          timestamp: new Date().toISOString(),
         });
       }
 
@@ -312,9 +508,9 @@ class AuthRoute {
 
       if (result) {
         log.security("Reset Password token verified", {
+          requestId: req.requestId,
           ip: req?.ip,
           userAgent: req?.get("user-agent"),
-          timestamp: new Date().toISOString(),
         });
       }
 
@@ -335,9 +531,9 @@ class AuthRoute {
 
       if (response) {
         log.security("Password Reset successfully", {
+          requestId: req.requestId,
           ip: req?.ip,
           userAgent: req?.get("user-agent"),
-          timestamp: new Date().toISOString(),
         });
       }
 
@@ -353,7 +549,7 @@ class AuthRoute {
     app.post("/auth/google_oauth", async (req, res) => {
       const record = req.body;
 
-      const response = await this.auth.googleOAuth(record);
+      const response = await this.auth.googleOAuth(record, req);
 
       // res.cookie("refresh_token", response?.refreshToken, {
       //   httpOnly: true,
@@ -363,6 +559,17 @@ class AuthRoute {
       // });
 
       const refreshttl = await this.getRefreshTtl();
+
+      if (response?.requiresOtp) {
+        return res.status(200).json({
+          status: "ok",
+          message: "OTP verification required",
+          requiresOtp: true,
+          challengeToken: response.challengeToken,
+          email: response.email,
+          expiresIn: response.expiresIn,
+        });
+      }
 
       res
         .status(200)

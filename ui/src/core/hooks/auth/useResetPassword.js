@@ -5,6 +5,7 @@ const useResetPassword = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: ({ token, password }) =>
       authProvider.resetPassword({ token, password }),
 
@@ -16,7 +17,6 @@ const useResetPassword = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 

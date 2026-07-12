@@ -1,6 +1,7 @@
 const conn = require("../config/conn");
 const QueryBuilder = require("../lib/queryBuilder");
 const utils = require("../../shared/utils/functions");
+const logger = require("../../shared/helpers/logger");
 
 class Model extends QueryBuilder {
   constructor() {
@@ -21,6 +22,11 @@ class Model extends QueryBuilder {
     return columns;
   }
 
+  async getTablePrimaryKey(table) {
+    const [rows] = await this.pool.query(`DESCRIBE \`${table}\``);
+    return rows.find((row) => row.Key === "PRI")?.Field ?? null;
+  }
+
   async execute() {
     try {
       const joins = this.buildJoins();
@@ -36,9 +42,11 @@ class Model extends QueryBuilder {
       // console.log(result);
       return result;
     } catch (error) {
-      console.error("Query execution error:", error);
-      console.error("SQL:", this.query);
-      console.error("Params:", this.params);
+      logger.error(error, {
+        component: "Model",
+        operation: "execute",
+        parameterCount: this.params.length,
+      });
       throw new Error(`Database query failed: ${error.message}`);
     }
   }
@@ -93,21 +101,30 @@ class Model extends QueryBuilder {
 
     // ── 1. Get columns (from cache or DESCRIBE) ────────────────────────────
     let columns;
-    if (filterable && sortable) {
+    if (table) {
       // Legacy explicit mode — no DB call needed
-      columns = [...new Set([...filterable, ...sortable])];
-    } else if (table) {
       columns = await this.getTableColumns(table);
+    } else if (filterable || sortable) {
+      columns = [...new Set([...(filterable ?? []), ...(sortable ?? [])])];
     } else {
-      console.warn(
-        "applyQueryParams: provide either `table` or `filterable`+`sortable`",
-      );
+      logger.app("Table query has no schema allowlist", {
+        component: "Model",
+        operation: "tableQueryParams",
+      });
       columns = [];
     }
 
     // Strip sensitive columns — a ?password_like=x can never reach the query
     const allowedColumns = new Set(columns.filter((c) => !SENSITIVE.has(c)));
-    const allowedSortable = sortable ? new Set(sortable) : allowedColumns;
+    const allowedFilterable = Array.isArray(filterable) && filterable.length
+      ? new Set(filterable.filter((column) => allowedColumns.has(column)))
+      : allowedColumns;
+    const allowedSortable = Array.isArray(sortable) && sortable.length
+      ? new Set(sortable.filter((column) => allowedColumns.has(column)))
+      : allowedColumns;
+    const allowedSearchable = Array.isArray(searchable)
+      ? searchable.filter((column) => allowedColumns.has(column))
+      : [];
 
     // ── 2. Global search (fullTextSearch or LIKE fallback) ─────────────────
     if (queryParams.search?.trim()) {
@@ -137,18 +154,19 @@ class Model extends QueryBuilder {
             mode,
           );
         }
-      } else if (searchable.length > 0) {
+      } else if (allowedSearchable.length > 0) {
         const searchValue = `%${searchTerm}%`;
-        const searchConditions = searchable.map((col) => ({
+        const searchConditions = allowedSearchable.map((col) => ({
           column: col,
           operator: "LIKE",
           value: searchValue,
         }));
         this.where(searchConditions, "LIKE", "OR");
       } else {
-        console.warn(
-          "⚠ search param received but no fullTextSearch config or searchable columns",
-        );
+        logger.app("Search ignored because no searchable columns are configured", {
+          component: "Model",
+          operation: "tableQueryParams",
+        });
       }
     }
 
@@ -180,21 +198,21 @@ class Model extends QueryBuilder {
       // ── _min  →  column >= val ────────────────────────────────────────
       if (key.endsWith("_min")) {
         const col = key.slice(0, -4);
-        if (allowedColumns.has(col)) this.where(col, ">=", val);
+        if (allowedFilterable.has(col)) this.where(col, ">=", val);
         continue;
       }
 
       // ── _max  →  column <= val ────────────────────────────────────────
       if (key.endsWith("_max")) {
         const col = key.slice(0, -4);
-        if (allowedColumns.has(col)) this.where(col, "<=", val);
+        if (allowedFilterable.has(col)) this.where(col, "<=", val);
         continue;
       }
 
       // ── _not_in  →  column NOT IN (a,b,c) ────────────────────────────
       if (key.endsWith("_not_in")) {
         const col = key.slice(0, -7);
-        if (allowedColumns.has(col)) {
+        if (allowedFilterable.has(col)) {
           this.whereNotIn(
             col,
             val.split(",").map((v) => v.trim()),
@@ -207,7 +225,7 @@ class Model extends QueryBuilder {
       // Note: check _not_in BEFORE _in so "status_not_in" doesn't match _in
       if (key.endsWith("_in")) {
         const col = key.slice(0, -3);
-        if (allowedColumns.has(col)) {
+        if (allowedFilterable.has(col)) {
           this.whereIn(
             col,
             val.split(",").map((v) => v.trim()),
@@ -220,7 +238,7 @@ class Model extends QueryBuilder {
       if (key.endsWith("_like")) {
         const col = key.slice(0, -5);
         // console.log(col, key);
-        if (allowedColumns.has(col)) {
+        if (allowedFilterable.has(col)) {
           const values = String(val)
             .split(",")
             .map((v) => v.trim())
@@ -245,7 +263,7 @@ class Model extends QueryBuilder {
       }
 
       // ── plain key  →  column = val (exact match) ──────────────────────
-      if (allowedColumns.has(key)) {
+      if (allowedFilterable.has(key)) {
         this.where(key, "=", val);
       }
     }
@@ -308,7 +326,9 @@ class Model extends QueryBuilder {
           const mode = fullTextSearch.mode || "NATURAL LANGUAGE";
           const withScore = fullTextSearch.withScore !== false; // Default true
 
-          console.log(`✓ Using Full-Text Search on ${fullTextSearch.table}`);
+          logger.performance("Using full-text search", {
+            table: fullTextSearch.table,
+          });
 
           if (withScore) {
             this.fullTextSearchWithScore(
@@ -334,7 +354,7 @@ class Model extends QueryBuilder {
         }
         // Option 2: Fallback to LIKE search if searchable columns provided
         else if (searchable.length > 0) {
-          console.log("✓ Using LIKE search (no full-text index)");
+          logger.performance("Using LIKE search fallback");
           const searchValue = `%${searchTerm}%`;
           const searchConditions = searchable.map((column) => ({
             column,
@@ -345,9 +365,10 @@ class Model extends QueryBuilder {
         }
         // Option 3: No search method available
         else {
-          console.warn(
-            "⚠ Search requested but no fullTextSearch config or searchable columns provided",
-          );
+          logger.app("Search ignored because no search strategy is configured", {
+            component: "Model",
+            operation: "applyQueryParams",
+          });
         }
       }
     }
@@ -456,9 +477,12 @@ class Model extends QueryBuilder {
     const countParams = [...this.params];
 
     // Get total count (without LIMIT / OFFSET)
-    const totalQuery = countQuery.replace(
+    const totalQuery = utils.buildQuery(
+      countQuery.replace(
       /SELECT .+ FROM/i,
       "SELECT COUNT(*) as total FROM",
+      ),
+      this.buildJoins(),
     );
 
     const [countResult] = await this.pool.query(totalQuery, countParams);
@@ -493,9 +517,11 @@ class Model extends QueryBuilder {
       const [rows] = await this.pool.query(sql, params);
       return rows;
     } catch (error) {
-      console.error("Raw query execution error:", error);
-      console.error("SQL:", sql);
-      console.error("Params:", params);
+      logger.error(error, {
+        component: "Model",
+        operation: "raw",
+        parameterCount: params.length,
+      });
       throw new Error(`Database query failed: ${error.message}`);
     }
   }
@@ -514,7 +540,7 @@ class Model extends QueryBuilder {
     const originalQuery = this.query;
     this.query = this.query.replace(
       /SELECT .+ FROM/,
-      `SELECT COUNT(${column}) as count FROM`,
+      `SELECT COUNT(${this.quoteIdentifier(column)}) as count FROM`,
     );
     const result = await this.execute();
     return result[0].count;
@@ -548,8 +574,12 @@ class Model extends QueryBuilder {
         builder: () => {
           const builder = new QueryBuilder();
           builder.executeInTransaction = async () => {
-            const [rows] = await connection.query(
+            const finalQuery = utils.buildQuery(
               builder.query,
+              builder.buildJoins(),
+            );
+            const [rows] = await connection.query(
+              finalQuery,
               builder.params,
             );
             builder.reset();
@@ -565,7 +595,10 @@ class Model extends QueryBuilder {
       return result;
     } catch (error) {
       await connection.rollback();
-      console.error("Transaction error:", error);
+      logger.error(error, {
+        component: "Model",
+        operation: "transaction",
+      });
       throw new Error(`Transaction failed: ${error.message}`);
     } finally {
       connection.release();
@@ -588,9 +621,12 @@ class Model extends QueryBuilder {
   async closePool() {
     try {
       await this.pool.end();
-      console.log("Connection pool closed successfully");
+      logger.app("Database connection pool closed");
     } catch (error) {
-      console.error("Error closing pool:", error);
+      logger.error(error, {
+        component: "Model",
+        operation: "closePool",
+      });
       throw error;
     }
   }

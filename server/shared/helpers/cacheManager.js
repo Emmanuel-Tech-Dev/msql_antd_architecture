@@ -1,5 +1,6 @@
 const { LRUCache } = require("lru-cache");
 const _ = require("lodash");
+const logger = require("./logger");
 
 class CacheManager {
   constructor(options = {}) {
@@ -88,7 +89,9 @@ class CacheManager {
     const dormantEntries = this.getDormantEntries();
     const dormantKeys = Object.keys(dormantEntries);
     if (dormantKeys?.length > 0) {
-      console.log(`Cleaning up ${dormantKeys.length} dormant cache entries`);
+      logger.app("Cleaning dormant cache entries", {
+        count: dormantKeys.length,
+      });
 
       dormantKeys.forEach((key) => {
         this.cache.delete(key);

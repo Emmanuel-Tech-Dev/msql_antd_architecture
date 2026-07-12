@@ -1,53 +1,49 @@
-import { CalendarOutlined, ExportOutlined, FilterOutlined, ReloadOutlined, SortAscendingOutlined } from '@ant-design/icons'
-import { Button, Card, Divider, Input, Space, Table } from 'antd'
-import React from 'react'
-import utils from '../utils/function_utils'
+import { CalendarOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Card, Input, Table, Tooltip } from 'antd';
+import utils from '../utils/function_utils';
+import './CustomTable.css';
 
-const CustomTable = ({ tableConfig, columns }) => {
-
+const CustomTable = ({ tableConfig, columns, showToolbar = true }) => {
+    const tableProps = tableConfig?.tableProps ?? {};
     return (
-        <Card className='' styles={{
-            body: {
-                padding: "0px"
-            }
-        }}>
-            <Card >
-                <div className='flex items-center justify-between'>
-                    <div>
-                        <Input.Search
-                            placeholder="Search..."
-                            onSearch={(v) => tableConfig.handleGlobalSearch(v)}   // → appends ?search=term → hits fullTextSearch
-                            className='!w-100 '
-
-                        />
-
+        <Card className="data-table-shell" styles={{ body: { padding: 0 } }}>
+            {showToolbar && (
+                <div className="data-table-toolbar">
+                    <Input
+                        className="data-table-toolbar__search"
+                        prefix={<SearchOutlined aria-hidden="true" />}
+                        allowClear
+                        aria-label="Search table records"
+                        placeholder="Search records…"
+                        onPressEnter={(event) => tableConfig.handleGlobalSearch(event.currentTarget.value)}
+                        onChange={(event) => {
+                            if (!event.target.value) tableConfig.handleGlobalSearch('');
+                        }}
+                    />
+                    <div className="data-table-toolbar__tools">
+                        <Tooltip title="Refresh data">
+                            <Button
+                                aria-label="Refresh table data"
+                                icon={<ReloadOutlined spin={tableConfig?.loading} />}
+                                onClick={() => tableConfig.runRequest()}
+                            />
+                        </Tooltip>
+                        <span className="data-table-toolbar__date">
+                            <CalendarOutlined aria-hidden="true" />
+                            {utils.getCurrentDate()}
+                        </span>
                     </div>
-
-
-                    <Space>
-                        <div className='flex gap-2 items-center'>
-                            <Button icon={<ReloadOutlined spin={tableConfig?.loading} />} onClick={() => tableConfig.runRequest()} />
-                            <Button icon={<ExportOutlined />} />
-
-
-                        </div>
-                        <Divider vertical />
-                        <Button>
-                            <CalendarOutlined />
-                            <span>{utils.getCurrentDate()}</span>
-                        </Button>
-                    </Space>
                 </div>
-            </Card>
-
-
-
-            <Table {...tableConfig?.tableProps} columns={columns} />
-
-
-
+            )}
+            <div className="data-table-shell__viewport">
+                <Table
+                    {...tableProps}
+                    columns={columns}
+                    scroll={{ x: 'max-content', ...tableProps.scroll }}
+                />
+            </div>
         </Card>
-    )
-}
+    );
+};
 
-export default CustomTable
+export default CustomTable;

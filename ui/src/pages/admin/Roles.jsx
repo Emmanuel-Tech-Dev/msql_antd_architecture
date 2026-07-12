@@ -1,37 +1,39 @@
 // src/pages/admin/Roles.jsx
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Divider, Space, Tabs } from 'antd';
+import { Button, Card, Divider, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
-    ReloadOutlined, SaveOutlined,
+    ReloadOutlined, SaveOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
-import useAdd from '../../hooks/useAdd';
-import useEdit from '../../hooks/useEdit';
+import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
-import ValuesStore from '../../store/values-store';
 import useDrawer from '../../hooks/useDrawer';
-import { PageHeader } from '../../components/PageHeader';
-import UserLists from '../../components/access/UserLists';
+import AdminPage from '../../components/admin/AdminPage';
 import PermissionMatrix from '../../components/access/PermissionsMetrix';
+import BrowserRoutes from '../../components/access/BrowserRoutes';
+
+const { Text } = Typography;
 
 export default function Roles() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
 
     const accessDrawer = useDrawer({ width: 800, destroyOnClose: true });
 
-    // ── These live in Roles — re-render on every change ──────────────────
-    // matrixRef.current always points to the latest PermissionMatrix instance
+    // ── One ref per tab — footer routes to whichever is active ───────────
     const matrixRef = useRef(null);
-    const [isDirty, setIsDirty] = useState(false);
-    const [isSaving, setIsSaving] = useState(false)
+    const routesRef = useRef(null);
 
-    // ── Track which role is open so footer always has the right label ─────
+    // ── Shared footer state — updated by whichever tab is active ─────────
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState('permissions');
     const [activeRole, setActiveRole] = useState('');
+
+    // ── Active ref — whichever tab is showing ────────────────────────────
+    const activeRef = activeTab === 'permissions' ? matrixRef : routesRef;
 
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
@@ -39,39 +41,42 @@ export default function Roles() {
         'id',
         { table: 'admin_roles', defaultLimit: 10, maxLimit: 100, searchable: ['role_name'] }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) table.runRequest();
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+        if (recordForm.saveCompleted || deleteCompleted) runRequest();
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_roles');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_roles');
     }
 
     function openEdit(record) {
-        const key = 'editRole';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_roles');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_roles', record, record.id);
     }
 
     function openManage(record) {
+        // Reset all footer state on every open
         setIsDirty(false);
+        setIsSaving(false);
+        setActiveTab('permissions');
         setActiveRole(record.role_name);
 
         accessDrawer.openDrawer({
             title: `Manage Access — ${record.role_name}`,
-            // ── NO footer here — it's passed live to drawerJSX() below ───
             content: (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                    {/* <UserLists role_name={record.role_name} /> */}
-                    <Card style={{ flex: 1 }}>
-                        <Tabs items={[
+                <Card style={{ flex: 1 }}>
+                    <Tabs
+                        defaultActiveKey="permissions"
+                        onChange={(key) => {
+                            // When tab switches:
+                            // 1. Update activeTab so activeRef points to the right ref
+                            // 2. Reset dirty/saving — each tab manages its own state
+                            setActiveTab(key);
+                            setIsDirty(false);
+                            setIsSaving(false);
+                        }}
+                        items={[
                             {
                                 key: 'permissions',
                                 label: 'Permissions',
@@ -80,8 +85,13 @@ export default function Roles() {
                                         key={record.role_name}
                                         ref={matrixRef}
                                         role_name={record.role_name}
-                                        onDirtyChange={setIsDirty}
-                                        onSavingChange={setIsSaving}
+                                        onDirtyChange={(dirty) => {
+                                            // Only update if this tab is active
+                                            if (activeTab === 'permissions') setIsDirty(dirty);
+                                        }}
+                                        onSavingChange={(saving) => {
+                                            if (activeTab === 'permissions') setIsSaving(saving);
+                                        }}
                                     />
                                 ),
                             },
@@ -89,41 +99,47 @@ export default function Roles() {
                                 key: 'browser_routes',
                                 label: 'Browser Routes',
                                 children: (
-                                    <div style={{ padding: 24, color: '#6b7280', fontSize: 13 }}>
-                                        Browser route management coming soon.
-                                    </div>
+                                    <BrowserRoutes
+                                        key={record.role_name}
+                                        ref={routesRef}
+                                        role={record}
+                                        onDirtyChange={(dirty) => {
+                                            if (activeTab === 'browser_routes') setIsDirty(dirty);
+                                        }}
+                                        onSavingChange={(saving) => {
+                                            if (activeTab === 'browser_routes') setIsSaving(saving);
+                                        }}
+                                    />
                                 ),
                             },
-                        ]} />
-                    </Card>
-                </div>
+                        ]}
+                    />
+                </Card>
             ),
         });
     }
 
-    // ── Live footer — built fresh every render ────────────────────────────
-    // Because this is JSX in the render body (not inside a useCallback or
-    // openDrawer closure), it always reads the current isDirty and matrixRef.
-    // Passed via drawerJSX overrides so the Drawer receives it live.
+    // ── Live footer — always reads current activeRef, isDirty, isSaving ──
     const liveFooter = (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>
                 Role: <strong>{activeRole}</strong>
+                {' · '}
+                <span style={{ color: '#9ca3af', textTransform: 'capitalize' }}>{activeTab.replace('_', ' ')}</span>
             </span>
             <Space>
                 <Button
                     icon={<ReloadOutlined />}
                     disabled={!isDirty}
-                    onClick={() => matrixRef.current?.reset()}
+                    onClick={() => activeRef.current?.reset()}
                 >
                     Reset
                 </Button>
                 <Button
                     type="primary"
                     icon={<SaveOutlined />}
-                    onClick={() => matrixRef.current?.save()}
-                    style={{ background: '#001529' }}
                     loading={isSaving}
+                    onClick={() => activeRef.current?.save()}
                 >
                     Save Configuration
                 </Button>
@@ -137,14 +153,20 @@ export default function Roles() {
             dataIndex: 'role_name',
             key: 'role_name',
             sorter: true,
+            render: (value, record) => (
+                <Space size={8}>
+                    <Text strong>{value}</Text>
+                    {Number(record.is_system_role) === 1 && <Tag color="gold">System</Tag>}
+                </Space>
+            ),
             ...table.getColumnSearchProps('role_name'),
-            render: (val) => <strong>{val}</strong>,
+            // render: (val) => <strong>{val}</strong>,
         },
         {
             title: 'Description',
             dataIndex: 'description',
             key: 'description',
-            render: (val) => <span style={{ color: '#6b7280', fontSize: 13 }}>{val ?? '—'}</span>,
+            render: (val) => <Text type="secondary">{val ?? '—'}</Text>,
         },
         {
             title: 'Actions',
@@ -152,7 +174,9 @@ export default function Roles() {
             width: 220,
             render: (_, record) => (
                 <Space>
-                    <Button icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                    <Tooltip title="Edit role">
+                        <Button aria-label={`Edit ${record.role_name}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                    </Tooltip>
                     {confirm(
                         record.id,
                         'Delete this role?',
@@ -168,30 +192,26 @@ export default function Roles() {
     ];
 
     return (
-        <div>
-            <PageHeader
-                header="Access Control"
-                items={[{ title: 'Manage system roles and permissions' }]}
-            >
+        <AdminPage
+            eyebrow="ACCESS / ROLE MODEL"
+            title="Roles"
+            description="Define responsibility boundaries and manage the permissions and browser routes inherited by each role."
+            icon={<SafetyCertificateOutlined />}
+            actions={
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
-                    Add Role
+                    Add role
                 </Button>
-            </PageHeader>
+            }
+        >
+            <CustomTable tableConfig={table} columns={columns} />
 
-            <div className="mt-6">
-                <CustomTable tableConfig={table} columns={columns} />
-            </div>
+            {recordForm.recordModal({ createTitle: 'Add Role', editTitle: 'Edit Role' })}
 
-            {add.addModal('Add Role', () => add.save('admin_roles'))}
-            {edit.editModal('Edit Role', () => edit.save(undefined, edit.record?.id, 'admin_roles'))}
-
-            {/* ── footer passed as live override — reads current isDirty + matrixRef ── */}
             {accessDrawer.drawerJSX({ footer: liveFooter })}
-        </div>
+        </AdminPage>
     );
 }

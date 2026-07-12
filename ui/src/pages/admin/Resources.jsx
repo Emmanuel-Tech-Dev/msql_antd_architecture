@@ -1,20 +1,24 @@
 import { useEffect } from 'react';
-import { Button, Space, Tag, Tabs, Card } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Space, Tag, Tabs, Card, Tooltip, Typography } from 'antd';
+import {
+    PlusOutlined, EditOutlined, DeleteOutlined, ApiOutlined,
+    EyeOutlined, EyeInvisibleOutlined,
+} from '@ant-design/icons';
 import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
-import useAdd from '../../hooks/useAdd';
-import useEdit from '../../hooks/useEdit';
+import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
-import ValuesStore from '../../store/values-store';
+import useIcons from '../../hooks/useIcons';
+import AdminPage from '../../components/admin/AdminPage';
+
+const { Text } = Typography;
+const METHOD_COLORS = { GET: 'green', POST: 'blue', PUT: 'orange', PATCH: 'gold', DELETE: 'red', ALL: 'purple' };
 
 // ─── Tab 1: admin_resources — permission definitions ─────────────────────────
 function ResourcesList() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_resources' });
-
+    const { resolveIcon } = useIcons()
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 20 } },
         { manual: false },
@@ -24,30 +28,26 @@ function ResourcesList() {
             defaultLimit: 10,
             maxLimit: 100,
             searchable: ['resource'],
+
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_resources');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_resources');
     }
 
     function openEdit(record) {
-        const key = 'editResourceDef';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_resources');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_resources', record, record.id);
     }
+
+
 
     const columns = [
         {
@@ -56,33 +56,59 @@ function ResourcesList() {
             key: 'resources',
             // sorter: true,
             // render: (val) => <Tag color="blue">{val}</Tag>,
-            ...table.getColumnSearchProps('permission_name'),
+            render: (value) => <Text strong>{value}</Text>,
+            ...table.getColumnSearchProps('resource'),
+        }, {
+            title: 'Navigation',
+            dataIndex: 'show_in_nav',
+            key: 'show_in_nav',
+            render: (value, record) => record.resource_type === 'BROWSER_ROUTE'
+                ? (
+                    <Tag icon={Number(value) === 1 ? <EyeOutlined /> : <EyeInvisibleOutlined />}>
+                        {Number(value) === 1 ? 'Shown' : 'Hidden'}
+                    </Tag>
+                )
+                : <Text type="secondary">—</Text>,
         },
         {
-            title: 'resource_type',
+            title: 'Type',
             dataIndex: 'resource_type',
             key: 'resource_type',
             // render: (val) => val ?? '—',
+            render: (value) => <Tag>{String(value ?? 'Unknown').replaceAll('_', ' ')}</Tag>,
             ...table.getColumnFilterProps("resource_type", "system_resources")
         }, {
-            title: 'resource_path',
+            title: 'Path',
             dataIndex: 'resource_path',
             key: 'resource_path',
+            render: (value) => <Text code copyable={Boolean(value)}>{value || '—'}</Text>,
             // render: (val) => val ?? '—',
         }, {
-            title: 'http_method',
+            title: 'Method',
             dataIndex: 'http_method',
             key: 'http_method',
+            render: (value) => value
+                ? <Tag color={METHOD_COLORS[value] ?? 'default'}>{value}</Tag>
+                : <Text type="secondary">—</Text>,
             // render: (val) => val ?? '—',
         }, {
             title: 'Icon',
             dataIndex: 'icon',
             key: 'icon',
-            render: (val) => <i className={val}></i> ?? '—',
+            render: (val) => (
+                <>
+                    {resolveIcon(val)}
+                </>
+            ),
         }, {
-            title: 'is_public',
+            title: 'Access',
             dataIndex: 'is_public',
             key: 'is_public',
+            render: (value) => (
+                <Tag color={Number(value) === 1 ? 'success' : 'default'}>
+                    {Number(value) === 1 ? 'Public' : 'Protected'}
+                </Tag>
+            ),
             // render: (val) => val ?? '—',
         }, {
             title: 'Category',
@@ -96,11 +122,9 @@ function ResourcesList() {
             width: 100,
             render: (_, record) => (
                 <Space>
-                    <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => openEdit(record)}
-                    />
+                    <Tooltip title="Edit resource">
+                        <Button aria-label={`Edit ${record.resource}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                    </Tooltip>
                     {confirm(
                         record.id,
                         'Delete this permission?',
@@ -118,14 +142,12 @@ function ResourcesList() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Add Resources
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Add New Resource', () => add.save('admin_resources'))}
-            {edit.editModal('Edit Resource', () => edit.save(undefined, edit.record?.id, 'admin_resources'))}
+            {recordForm.recordModal({ createTitle: 'Add New Resource', editTitle: 'Edit Resource' })}
         </div>
     );
 }
@@ -133,9 +155,7 @@ function ResourcesList() {
 // ─── Tab 2: admin_role_permissions — role → permission assignments ──────────────
 // role_id is the role_name string (FK to admin_roles.role_name)
 function RolePermissionsTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_role_permissions' });
 
     const table = useTableApi(
@@ -149,27 +169,20 @@ function RolePermissionsTab() {
             searchable: ['role_id', 'permission'],
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_role_permissions');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_role_permissions');
     }
 
     function openEdit(record) {
-        const key = 'editRolePerm';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_role_permissions');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_role_permissions', record, record.id);
     }
 
     const columns = [
@@ -216,14 +229,15 @@ function RolePermissionsTab() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Assign Permission to Role
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Assign Permission to Role', () => add.save('admin_role_permissions'))}
-            {edit.editModal('Edit Assignment', () => edit.save(undefined, edit.record?.id, 'admin_role_permissions'))}
+            {recordForm.recordModal({
+                createTitle: 'Assign Permission to Role',
+                editTitle: 'Edit Assignment',
+            })}
         </div>
     );
 }
@@ -232,9 +246,7 @@ function RolePermissionsTab() {
 // permission FK to admin_resources.permission_name
 // resource FK to admin_resources.resource
 function PermissionResourcesTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_permission_resources' });
 
     const table = useTableApi(
@@ -248,27 +260,20 @@ function PermissionResourcesTab() {
             searchable: ['permission', 'resource'],
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_permission_resources');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_permission_resources');
     }
 
     function openEdit(record) {
-        const key = 'editPermResource';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_permission_resources');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_permission_resources', record, record.id);
     }
 
     const columns = [
@@ -313,14 +318,15 @@ function PermissionResourcesTab() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Assign Resource to Permission
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Assign Resource to Permission', () => add.save('admin_permission_resources'))}
-            {edit.editModal('Edit Assignment', () => edit.save(undefined, edit.record?.id, 'admin_permission_resources'))}
+            {recordForm.recordModal({
+                createTitle: 'Assign Resource to Permission',
+                editTitle: 'Edit Assignment',
+            })}
         </div>
     );
 }
@@ -329,9 +335,7 @@ function PermissionResourcesTab() {
 // Note: admin_user_roles PK column is 'd' not 'id' — bug in DB schema
 // user_id FK to admin.custom_id, role_id FK to admin_roles.role_name
 function UserRolesTab() {
-    const valuesStore = ValuesStore();
-    const add = useAdd('tables_metadata', 'table_name');
-    const edit = useEdit('tables_metadata', 'table_name');
+    const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_user_roles' });
 
     const table = useTableApi(
@@ -345,27 +349,20 @@ function UserRolesTab() {
             searchable: ['user_id', 'role_id'],
         }
     );
+    const runRequest = table.runRequest;
 
     useEffect(() => {
-        if (add.saveCompleted || edit.saveCompleted || deleteCompleted) {
-            table.runRequest();
+        if (recordForm.saveCompleted || deleteCompleted) {
+            runRequest();
         }
-    }, [add.saveCompleted, edit.saveCompleted, deleteCompleted]);
+    }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
     function openAdd() {
-        add.setTblName('admin_user_roles');
-        add.setShowModal(true);
-        add.setSaveCompleted(false);
+        recordForm.openCreate('admin_user_roles');
     }
 
     function openEdit(record) {
-        const key = 'editUserRole';
-        valuesStore.setValue(key, record);
-        edit.setTblName('admin_user_roles');
-        edit.setData(record);
-        edit.setRecordKey(key);
-        edit.setShowModal(true);
-        edit.setSaveCompleted(false);
+        recordForm.openEdit('admin_user_roles', record, record.d);
     }
 
     const columns = [
@@ -410,14 +407,15 @@ function UserRolesTab() {
                     type="primary"
                     icon={<PlusOutlined />}
                     onClick={openAdd}
-                    style={{ background: '#141414', borderColor: '#141414' }}
                 >
                     Assign Role to User
                 </Button>
             </div>
             <CustomTable tableConfig={table} columns={columns} />
-            {add.addModal('Assign Role to User', () => add.save('admin_user_roles'))}
-            {edit.editModal('Edit Role Assignment', () => edit.save(undefined, edit.record?.d, 'admin_user_roles'))}
+            {recordForm.recordModal({
+                createTitle: 'Assign Role to User',
+                editTitle: 'Edit Role Assignment',
+            })}
         </div>
     );
 }
@@ -431,19 +429,15 @@ const TABS = [
 
 export default function Resources() {
     return (
-        <div>
-            <div style={{ marginBottom: 20 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Resources & Permissions</h2>
-                <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
-                    Manage resources, and permissions
-                </p>
-            </div>
-            <Card
-
-            >
+        <AdminPage
+            eyebrow="ACCESS / PROTECTED SURFACES"
+            title="Resources"
+            description="Catalogue API endpoints, browser routes, data objects, and the permissions that protect them."
+            icon={<ApiOutlined />}
+        >
+            <Card>
                 <Tabs items={TABS} />
             </Card>
-
-        </div>
+        </AdminPage>
     );
 }

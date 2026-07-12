@@ -15,6 +15,42 @@ const mysqlOrmAuthProvider = () => ({
     return { user, token };
   },
 
+  requestOtpLogin: async ({ email }) => {
+    const { data } = await apiClient.post("/auth/otp/request-login", { email });
+
+    return {
+      requiresOtp: true,
+      challengeToken: data.challengeToken,
+      email: data.email ?? email,
+      expiresIn: data.expiresIn,
+    };
+  },
+
+  verifyOtpLogin: async ({ challengeToken, code, email }) => {
+    const { data } = await apiClient.post("/auth/otp/verify-login", {
+      challengeToken,
+      code,
+    });
+
+    const user = data.user ?? { email };
+    useAuthStore.getState().setAuth(user, data.token);
+
+    return { user, token: data.token };
+  },
+
+  resendOtpLogin: async ({ challengeToken }) => {
+    const { data } = await apiClient.post("/auth/otp/resend-login", {
+      challengeToken,
+    });
+
+    return {
+      requiresOtp: true,
+      challengeToken: data.challengeToken,
+      email: data.email,
+      expiresIn: data.expiresIn,
+    };
+  },
+
   logout: async () => {
     try {
       await apiClient.post("/auth/logout");

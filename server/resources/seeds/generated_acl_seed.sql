@@ -35,7 +35,7 @@ VALUES
 
 -- 2) API resources
 INSERT IGNORE INTO admin_resources
-  (resource, resource_type, resource_path, http_method, description, icon, is_public, `order`, createdAt, updatedAt, category)
+  (resource, resource_type, resource_path, http_method, description, icon, is_public, display_order, createdAt, updatedAt, category)
 VALUES
 ('read:achievements:list', 'API_ENDPOINT', '/api/achievements', 'GET', 'List achievements', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:achievements:table', 'API_ENDPOINT', '/api/achievements/table', 'GET', 'Table view for achievements', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -45,8 +45,8 @@ VALUES
 ('create:achievements:bulk', 'API_ENDPOINT', '/api/achievements/bulk', 'POST', 'Bulk create achievements records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:achievements:file', 'API_ENDPOINT', '/api/achievements/file', 'POST', 'Create achievements with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:achievements:upload_bulk', 'API_ENDPOINT', '/api/achievements/upload_bulk', 'POST', 'Bulk upload files for achievements', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:achievements:by_id', 'API_ENDPOINT', '/api/achievements', 'PUT', 'Update achievements by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:achievements:by_id', 'API_ENDPOINT', '/api/achievements', 'DELETE', 'Delete achievements by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('update:achievements:by_id', 'API_ENDPOINT', '/api/achievements/:id', 'PUT', 'Update achievements by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:achievements:by_id', 'API_ENDPOINT', '/api/achievements/:id', 'DELETE', 'Delete achievements by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin:list', 'API_ENDPOINT', '/api/admin', 'GET', 'List admin', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin:table', 'API_ENDPOINT', '/api/admin/table', 'GET', 'Table view for admin', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin:filters', 'API_ENDPOINT', '/api/admin/filters', 'GET', 'Filter metadata for admin', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -55,8 +55,8 @@ VALUES
 ('create:admin:bulk', 'API_ENDPOINT', '/api/admin/bulk', 'POST', 'Bulk create admin records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:admin:file', 'API_ENDPOINT', '/api/admin/file', 'POST', 'Create admin with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:admin:upload_bulk', 'API_ENDPOINT', '/api/admin/upload_bulk', 'POST', 'Bulk upload files for admin', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:admin:by_id', 'API_ENDPOINT', '/api/admin', 'PUT', 'Update admin by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:admin:by_id', 'API_ENDPOINT', '/api/admin', 'DELETE', 'Delete admin by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('update:admin:by_id', 'API_ENDPOINT', '/api/admin/:id', 'PUT', 'Update admin by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:admin:by_id', 'API_ENDPOINT', '/api/admin/:id', 'DELETE', 'Delete admin by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin_settings:list', 'API_ENDPOINT', '/api/admin_settings', 'GET', 'List admin_settings', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin_settings:table', 'API_ENDPOINT', '/api/admin_settings/table', 'GET', 'Table view for admin_settings', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:admin_settings:filters', 'API_ENDPOINT', '/api/admin_settings/filters', 'GET', 'Filter metadata for admin_settings', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -65,8 +65,8 @@ VALUES
 ('create:admin_settings:bulk', 'API_ENDPOINT', '/api/admin_settings/bulk', 'POST', 'Bulk create admin_settings records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:admin_settings:file', 'API_ENDPOINT', '/api/admin_settings/file', 'POST', 'Create admin_settings with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:admin_settings:upload_bulk', 'API_ENDPOINT', '/api/admin_settings/upload_bulk', 'POST', 'Bulk upload files for admin_settings', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:admin_settings:by_id', 'API_ENDPOINT', '/api/admin_settings', 'PUT', 'Update admin_settings by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:admin_settings:by_id', 'API_ENDPOINT', '/api/admin_settings', 'DELETE', 'Delete admin_settings by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('update:admin_settings:by_id', 'API_ENDPOINT', '/api/admin_settings/:id', 'PUT', 'Update admin_settings by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:admin_settings:by_id', 'API_ENDPOINT', '/api/admin_settings/:id', 'DELETE', 'Delete admin_settings by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:file_folder:list', 'API_ENDPOINT', '/api/file_folder', 'GET', 'List file_folder', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:file_folder:table', 'API_ENDPOINT', '/api/file_folder/table', 'GET', 'Table view for file_folder', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:file_folder:filters', 'API_ENDPOINT', '/api/file_folder/filters', 'GET', 'Filter metadata for file_folder', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -75,8 +75,8 @@ VALUES
 ('create:file_folder:bulk', 'API_ENDPOINT', '/api/file_folder/bulk', 'POST', 'Bulk create file_folder records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:file_folder:file', 'API_ENDPOINT', '/api/file_folder/file', 'POST', 'Create file_folder with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:file_folder:upload_bulk', 'API_ENDPOINT', '/api/file_folder/upload_bulk', 'POST', 'Bulk upload files for file_folder', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:file_folder:by_id', 'API_ENDPOINT', '/api/file_folder', 'PUT', 'Update file_folder by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:file_folder:by_id', 'API_ENDPOINT', '/api/file_folder', 'DELETE', 'Delete file_folder by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('update:file_folder:by_id', 'API_ENDPOINT', '/api/file_folder/:id', 'PUT', 'Update file_folder by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:file_folder:by_id', 'API_ENDPOINT', '/api/file_folder/:id', 'DELETE', 'Delete file_folder by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:transaction:list', 'API_ENDPOINT', '/api/transaction', 'GET', 'List transaction', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:transaction:table', 'API_ENDPOINT', '/api/transaction/table', 'GET', 'Table view for transaction', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:transaction:filters', 'API_ENDPOINT', '/api/transaction/filters', 'GET', 'Filter metadata for transaction', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -85,8 +85,8 @@ VALUES
 ('create:transaction:bulk', 'API_ENDPOINT', '/api/transaction/bulk', 'POST', 'Bulk create transaction records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:transaction:file', 'API_ENDPOINT', '/api/transaction/file', 'POST', 'Create transaction with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:transaction:upload_bulk', 'API_ENDPOINT', '/api/transaction/upload_bulk', 'POST', 'Bulk upload files for transaction', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:transaction:by_id', 'API_ENDPOINT', '/api/transaction', 'PUT', 'Update transaction by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:transaction:by_id', 'API_ENDPOINT', '/api/transaction', 'DELETE', 'Delete transaction by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('update:transaction:by_id', 'API_ENDPOINT', '/api/transaction/:id', 'PUT', 'Update transaction by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:transaction:by_id', 'API_ENDPOINT', '/api/transaction/:id', 'DELETE', 'Delete transaction by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:volunteer:list', 'API_ENDPOINT', '/api/volunteer', 'GET', 'List volunteer', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:volunteer:table', 'API_ENDPOINT', '/api/volunteer/table', 'GET', 'Table view for volunteer', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('read:volunteer:filters', 'API_ENDPOINT', '/api/volunteer/filters', 'GET', 'Filter metadata for volunteer', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -95,8 +95,8 @@ VALUES
 ('create:volunteer:bulk', 'API_ENDPOINT', '/api/volunteer/bulk', 'POST', 'Bulk create volunteer records', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:volunteer:file', 'API_ENDPOINT', '/api/volunteer/file', 'POST', 'Create volunteer with file', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 ('create:volunteer:upload_bulk', 'API_ENDPOINT', '/api/volunteer/upload_bulk', 'POST', 'Bulk upload files for volunteer', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('update:volunteer:by_id', 'API_ENDPOINT', '/api/volunteer', 'PUT', 'Update volunteer by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-('delete:volunteer:by_id', 'API_ENDPOINT', '/api/volunteer', 'DELETE', 'Delete volunteer by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
+('update:volunteer:by_id', 'API_ENDPOINT', '/api/volunteer/:id', 'PUT', 'Update volunteer by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+('delete:volunteer:by_id', 'API_ENDPOINT', '/api/volunteer/:id', 'DELETE', 'Delete volunteer by id', NULL, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- 3) Permission -> Resource mapping
 INSERT IGNORE INTO admin_permission_resources

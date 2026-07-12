@@ -1,3 +1,5 @@
+const logger = require("./logger");
+
 class TokenBlacklist {
   constructor(options = {}) {
     this.accessTokens = new Map();
@@ -31,7 +33,7 @@ class TokenBlacklist {
 
   blacklistAccessToken(jti, decodedToken) {
     if (!jti) {
-      console.error("Cannot blacklist access token: missing JTI");
+      logger.security("Cannot blacklist access token: missing JTI");
       throw new Error("Cannot blacklist access token: missing JTI");
     }
 
@@ -50,7 +52,7 @@ class TokenBlacklist {
 
   blacklistRefreshToken(jti, expiresInSec = 7 * 24 * 60 * 60) {
     if (!jti) {
-      console.error("Cannot blacklist refresh token: missing JTI");
+      logger.security("Cannot blacklist refresh token: missing JTI");
       throw new Error("Cannot blacklist refresh token: missing JTI");
     }
 
@@ -73,7 +75,6 @@ class TokenBlacklist {
     // Check if token has expired and cleanup immediately
     if (Date.now() > expiry) {
       this.accessTokens.delete(jti);
-      console.log(`Expired access token removed from blacklist: ${jti}`);
       return false;
     }
 
@@ -100,17 +101,13 @@ class TokenBlacklist {
     const totalTokens = this.accessTokens.size + this.refreshTokens.size;
 
     // If we have more than 10,000 tokens, clean up more aggressively
-    if (totalTokens > 10000) {
-      console.log(
-        `Large blacklist detected (${totalTokens} tokens), running full cleanup`
-      );
+    if (totalTokens > 50000) {
+      logger.security("Very large token blacklist detected", { totalTokens });
       this._cleanupExpiredTokens("both");
-    }
-    // If we have more than 50,000 tokens, something might be wrong
-    else if (totalTokens > 50000) {
-      console.warn(
-        `Very large blacklist (${totalTokens} tokens) - consider investigating`
-      );
+    } else if (totalTokens > 10000) {
+      logger.app("Large token blacklist detected; running cleanup", {
+        totalTokens,
+      });
       this._cleanupExpiredTokens("both");
     }
   }
@@ -139,9 +136,11 @@ class TokenBlacklist {
     }
 
     if (accessCleaned > 0 || refreshCleaned > 0) {
-      console.log(
-        `Blacklist cleanup (${type}): ${accessCleaned} access tokens, ${refreshCleaned} refresh tokens removed`
-      );
+      logger.app("Token blacklist cleanup completed", {
+        type,
+        accessCleaned,
+        refreshCleaned,
+      });
     }
   }
 
@@ -181,13 +180,12 @@ class TokenBlacklist {
     this._cleanupExpiredTokens("both");
     const statsAfter = this.getStats();
 
-    console.log("Force cleanup completed:");
-    console.log(
-      `Access tokens: ${statsBefore.accessTokens.total} → ${statsAfter.accessTokens.total}`
-    );
-    console.log(
-      `Refresh tokens: ${statsBefore.refreshTokens.total} → ${statsAfter.refreshTokens.total}`
-    );
+    logger.app("Forced token blacklist cleanup completed", {
+      accessBefore: statsBefore.accessTokens.total,
+      accessAfter: statsAfter.accessTokens.total,
+      refreshBefore: statsBefore.refreshTokens.total,
+      refreshAfter: statsAfter.refreshTokens.total,
+    });
   }
 
   stopCleanup() {
@@ -203,14 +201,14 @@ class TokenBlacklist {
       clearInterval(this.adaptiveCleanupInterval);
       this.adaptiveCleanupInterval = null;
     }
-    console.log("All TokenBlacklist cleanup intervals stopped");
+    logger.app("Token blacklist cleanup intervals stopped");
   }
 
   shutdown() {
     this.stopCleanup();
     this.accessTokens.clear();
     this.refreshTokens.clear();
-    console.log("TokenBlacklist shutdown complete");
+    logger.app("Token blacklist shutdown completed");
   }
 }
 

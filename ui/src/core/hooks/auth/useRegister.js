@@ -7,6 +7,7 @@ const useRegister = ({ mutationOptions = {} } = {}) => {
   const authProvider = useAuthProvider();
 
   return useMutation({
+    ...mutationOptions,
     mutationFn: (record) => authProvider.register(record),
 
     onSuccess: (data, variables, context) => {
@@ -17,7 +18,6 @@ const useRegister = ({ mutationOptions = {} } = {}) => {
       mutationOptions.onError?.(error, variables, context);
     },
 
-    ...mutationOptions,
   });
 };
 
