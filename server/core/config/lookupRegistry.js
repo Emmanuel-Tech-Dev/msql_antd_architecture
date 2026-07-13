@@ -17,7 +17,7 @@ const LOOKUP_REGISTRY = Object.freeze({
   admin_role_permissions: ["id", "role_id", "permission"],
   admin_permission_resources: ["id", "permission", "resource", "resource_type"],
   admin_user_roles: ["id", "user_id", "role_id"],
-  // system_resources: ["id", "resource_type", "description"],
+  system_resources: ["id", "resource_type"],
   tables_metadata: ["id", "table_name", "column_name", "col_real_name", "type"],
 });
 

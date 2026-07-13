@@ -5,7 +5,7 @@ import CustomTable from '../../components/CustomTable';
 import useTableApi from '../../hooks/useTableApi';
 import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
-import AdminPage from '../../components/admin/AdminPage';
+import { PageHeader } from '../../components/PageHeader';
 
 // ─── Tab 1: admin_permissions — permission definitions ─────────────────────────
 function PermissionDefinitionsTab() {
@@ -193,15 +193,19 @@ const TABS = [
 
 export default function Permissions() {
     return (
-        <AdminPage
-            eyebrow="ACCESS / CAPABILITIES"
+        <PageHeader
             title="Permissions"
             description="Define granular capabilities and inspect how those capabilities are assigned to roles."
             icon={<KeyOutlined />}
+            items={[
+                { title: 'Administration' },
+                { title: 'Access control' },
+                { title: 'Permissions' },
+            ]}
         >
             <Card>
                 <Tabs items={TABS} />
             </Card>
-        </AdminPage>
+        </PageHeader>
     );
 }

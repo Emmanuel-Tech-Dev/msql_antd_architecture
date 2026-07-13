@@ -1,12 +1,15 @@
 import { Form, Input, Button } from 'antd';
-import { LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { LockOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 import useNotification from '../../hooks/useNotification';
 import useChangePassword from '../../core/hooks/auth/useChangePassword';
+import { resolvePostLoginPath } from '../../core/navigation/routeResolver';
 
 export default function ChangePassword() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { alert, AlertJsx, message } = useNotification();
+    const from = resolvePostLoginPath(location.state?.from);
 
     const { mutate, isPending } = useChangePassword({
         mutationOptions: {
@@ -41,11 +44,11 @@ export default function ChangePassword() {
 
                 <Button
                     type="link"
-                    icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate(-1)}
+                    icon={<ArrowRightOutlined />}
+                    onClick={() => navigate(from, { replace: true })}
                     style={{ padding: 0, color: '#595959', marginBottom: 24, fontSize: 13 }}
                 >
-                    Back
+                    Skip for now
                 </Button>
 
                 <div style={{ marginBottom: 32 }}>
@@ -65,7 +68,7 @@ export default function ChangePassword() {
                         Change password
                     </h2>
                     <p style={{ margin: '6px 0 0', color: '#8c8c8c', fontSize: 14, textAlign: 'center' }}>
-                        You'll be signed out after changing your password
+                        Your temporary password is your email address. You can update it now or skip for this session.
                     </p>
                 </div>
 

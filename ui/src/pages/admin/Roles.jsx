@@ -10,7 +10,7 @@ import useTableApi from '../../hooks/useTableApi';
 import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
 import useDrawer from '../../hooks/useDrawer';
-import AdminPage from '../../components/admin/AdminPage';
+import { PageHeader } from '../../components/PageHeader';
 import PermissionMatrix from '../../components/access/PermissionsMetrix';
 import BrowserRoutes from '../../components/access/BrowserRoutes';
 
@@ -192,11 +192,15 @@ export default function Roles() {
     ];
 
     return (
-        <AdminPage
-            eyebrow="ACCESS / ROLE MODEL"
+        <PageHeader
             title="Roles"
             description="Define responsibility boundaries and manage the permissions and browser routes inherited by each role."
             icon={<SafetyCertificateOutlined />}
+            items={[
+                { title: 'Administration' },
+                { title: 'Access control' },
+                { title: 'Roles' },
+            ]}
             actions={
                 <Button
                     type="primary"
@@ -212,6 +216,6 @@ export default function Roles() {
             {recordForm.recordModal({ createTitle: 'Add Role', editTitle: 'Edit Role' })}
 
             {accessDrawer.drawerJSX({ footer: liveFooter })}
-        </AdminPage>
+        </PageHeader>
     );
 }

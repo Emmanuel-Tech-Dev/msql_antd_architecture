@@ -86,7 +86,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     useEffect(() => {
         if (!autoFetch || !tblName) return;
         if (formBuildingRef.current) return;
-        buildForm(tblName);
+        buildForm();
     }, [
         tblName,
         mode,
@@ -99,7 +99,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     ]);
 
     // ─── metadata-driven form builder ─────────────────────────────────────
-    async function buildForm(tableName) {
+    async function buildForm() {
         if (formBuildingRef.current) return;
         formBuildingRef.current = true;
 
@@ -613,7 +613,8 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
             setValidatorMap(tempValidatorMap);
 
         } catch (err) {
-            console.error('[useRecordForm] buildForm error:', err.message, err.stack);
+            console.error('[useRecordForm] Unable to prepare the form. Inspect the failed network request for details.');
+            message.error(err?.message || "We couldn't prepare this form. Please try again.");
         } finally {
             formBuildingRef.current = false;
         }
@@ -991,7 +992,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         setExtraMetaList([]);
         extraMetaRef.current.clear();
         targetPendingRef.current.clear();
-        dynamicForm.form.resetFields();
+        dynamicForm.resetConnectedForms(['simple', 'nested']);
 
     }
 
@@ -1012,7 +1013,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         setSelectedKeysToEdit([]);
         extraMetaRef.current.clear();
         targetPendingRef.current.clear();
-        dynamicForm.form.resetFields();
+        dynamicForm.resetConnectedForms(['simple', 'nested']);
     }
 
     // ─── file recall helpers ──────────────────────────────────────────────

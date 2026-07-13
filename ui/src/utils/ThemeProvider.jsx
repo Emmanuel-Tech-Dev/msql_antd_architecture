@@ -1,14 +1,33 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfigProvider, theme } from 'antd';
+import { useLocation } from 'react-router-dom';
 import { useStore as useValuesStore } from '../store/values-store';
-import { resolveSiderConfig } from '../core/config/siderConfig';
+import { DEFAULT_SIDER_CONFIG, resolveSiderConfig } from '../core/config/siderConfig';
 
 const ThemeCtx = createContext({
     isDark: false,
     mode: 'light',
+    scope: 'public',
     toggle: () => {},
     clearPreference: () => {},
 });
+
+const PUBLIC_APPEARANCE = Object.freeze({
+    ...DEFAULT_SIDER_CONFIG,
+    application: {
+        ...DEFAULT_SIDER_CONFIG.application,
+        colorMode: 'light',
+        density: 'comfortable',
+    },
+    content: { ...DEFAULT_SIDER_CONFIG.content },
+    header: { ...DEFAULT_SIDER_CONFIG.header },
+    colors: { ...DEFAULT_SIDER_CONFIG.colors },
+});
+
+const PREFERENCE_KEYS = {
+    public: 'theme-preference:public',
+    workspace: 'theme-preference:workspace',
+};
 
 const CSS_VARIABLES = {
     '--color-accent': 'accent',
@@ -29,11 +48,19 @@ const CSS_VARIABLES = {
 };
 
 export function ThemeProvider({ children }) {
+    const location = useLocation();
+    const scope = location.pathname.startsWith('/admin') ? 'workspace' : 'public';
     const rows = useValuesStore((state) => state.ui_settings);
-    const storedAppearance = useMemo(() => resolveSiderConfig(rows ?? []), [rows]);
-    const configuredMode = storedAppearance.application.colorMode;
-    const [preference, setPreference] = useState(() => localStorage.getItem('theme-preference'));
+    const workspaceAppearance = useMemo(() => resolveSiderConfig(rows ?? []), [rows]);
+    const scopedAppearance = scope === 'workspace' ? workspaceAppearance : PUBLIC_APPEARANCE;
+    const configuredMode = scopedAppearance.application.colorMode;
+    const [preferences, setPreferences] = useState(() => ({
+        public: localStorage.getItem(PREFERENCE_KEYS.public),
+        workspace: localStorage.getItem(PREFERENCE_KEYS.workspace)
+            ?? localStorage.getItem('theme-preference'),
+    }));
     const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const preference = preferences[scope];
 
     useEffect(() => {
         const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -49,11 +76,11 @@ export function ThemeProvider({ children }) {
             : configuredMode;
     const isDark = mode === 'dark';
     const appearance = useMemo(() => {
-        if (!isDark) return storedAppearance;
+        if (!isDark) return scopedAppearance;
         return {
-            ...storedAppearance,
+            ...scopedAppearance,
             colors: {
-                ...storedAppearance.colors,
+                ...scopedAppearance.colors,
                 headerBg: '#141210',
                 contentBg: '#0e0d0b',
                 surfaceBg: '#1c1a17',
@@ -64,11 +91,12 @@ export function ThemeProvider({ children }) {
                 strongBorder: '#2e2b26',
             },
         };
-    }, [isDark, storedAppearance]);
+    }, [isDark, scopedAppearance]);
 
     useEffect(() => {
         const root = document.documentElement;
         root.dataset.theme = mode;
+        root.dataset.appearanceScope = scope;
         root.dataset.density = appearance.application.density;
         root.dataset.motion = appearance.application.motionEnabled ? 'enabled' : 'reduced';
         Object.entries(CSS_VARIABLES).forEach(([variable, colorKey]) => {
@@ -79,18 +107,19 @@ export function ThemeProvider({ children }) {
         root.style.setProperty('--app-control-height', `${appearance.application.controlHeight}px`);
         root.style.setProperty('--app-content-padding', `${appearance.content.padding}px`);
         root.style.setProperty('--app-content-max-width', `${appearance.content.maxWidth}px`);
-    }, [appearance, mode]);
+    }, [appearance, mode, scope]);
 
     const toggle = useCallback(() => {
         const next = isDark ? 'light' : 'dark';
-        localStorage.setItem('theme-preference', next);
-        setPreference(next);
-    }, [isDark]);
+        localStorage.setItem(PREFERENCE_KEYS[scope], next);
+        setPreferences((current) => ({ ...current, [scope]: next }));
+    }, [isDark, scope]);
 
     const clearPreference = useCallback(() => {
-        localStorage.removeItem('theme-preference');
-        setPreference(null);
-    }, []);
+        localStorage.removeItem(PREFERENCE_KEYS[scope]);
+        if (scope === 'workspace') localStorage.removeItem('theme-preference');
+        setPreferences((current) => ({ ...current, [scope]: null }));
+    }, [scope]);
 
     const algorithms = useMemo(() => {
         const selected = [isDark ? theme.darkAlgorithm : theme.defaultAlgorithm];
@@ -158,8 +187,17 @@ export function ThemeProvider({ children }) {
     }), [appearance, algorithms, tableSpacing]);
 
     const contextValue = useMemo(
-        () => ({ isDark, mode, configuredMode, toggle, clearPreference, appearance }),
-        [appearance, clearPreference, configuredMode, isDark, mode, toggle],
+        () => ({
+            isDark,
+            mode,
+            scope,
+            isWorkspace: scope === 'workspace',
+            configuredMode,
+            toggle,
+            clearPreference,
+            appearance,
+        }),
+        [appearance, clearPreference, configuredMode, isDark, mode, scope, toggle],
     );
 
     return (

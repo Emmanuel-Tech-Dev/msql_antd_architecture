@@ -9,7 +9,7 @@ import useTableApi from '../../hooks/useTableApi';
 import useRecordForm from '../../hooks/useRecordForm';
 import useDelete from '../../hooks/useDelete';
 import useIcons from '../../hooks/useIcons';
-import AdminPage from '../../components/admin/AdminPage';
+import { PageHeader } from '../../components/PageHeader';
 
 const { Text } = Typography;
 const METHOD_COLORS = { GET: 'green', POST: 'blue', PUT: 'orange', PATCH: 'gold', DELETE: 'red', ALL: 'purple' };
@@ -429,15 +429,19 @@ const TABS = [
 
 export default function Resources() {
     return (
-        <AdminPage
-            eyebrow="ACCESS / PROTECTED SURFACES"
+        <PageHeader
             title="Resources"
             description="Catalogue API endpoints, browser routes, data objects, and the permissions that protect them."
             icon={<ApiOutlined />}
+            items={[
+                { title: 'Administration' },
+                { title: 'Access control' },
+                { title: 'Resources' },
+            ]}
         >
             <Card>
                 <Tabs items={TABS} />
             </Card>
-        </AdminPage>
+        </PageHeader>
     );
 }

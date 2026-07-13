@@ -7,12 +7,12 @@ const mysqlOrmAuthProvider = () => ({
   login: async ({ email, password }) => {
     const { data } = await apiClient.post("/auth/login", { email, password });
 
-    const { token } = data;
+    const { token, forcedPasswordChange = false } = data;
 
-    const user = { email };
+    const user = data.user ?? { email };
     useAuthStore.getState().setAuth(user, token);
 
-    return { user, token };
+    return { user, token, forcedPasswordChange };
   },
 
   requestOtpLogin: async ({ email }) => {
@@ -35,7 +35,11 @@ const mysqlOrmAuthProvider = () => ({
     const user = data.user ?? { email };
     useAuthStore.getState().setAuth(user, data.token);
 
-    return { user, token: data.token };
+    return {
+      user,
+      token: data.token,
+      forcedPasswordChange: data.forcedPasswordChange === true,
+    };
   },
 
   resendOtpLogin: async ({ challengeToken }) => {

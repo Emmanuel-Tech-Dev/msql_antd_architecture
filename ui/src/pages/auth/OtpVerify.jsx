@@ -39,11 +39,18 @@ export default function OtpVerify() {
 
         try {
             setVerifying(true);
-            await authProvider.verifyOtpLogin({
+            const response = await authProvider.verifyOtpLogin({
                 challengeToken,
                 code: normalizedCode,
                 email,
             });
+            if (response?.forcedPasswordChange) {
+                navigate('/change_password', {
+                    replace: true,
+                    state: { from },
+                });
+                return;
+            }
             navigate(from, { replace: true });
         } catch (err) {
             alert.error('Invalid code', err?.response?.data?.message || err?.message || 'The code is incorrect or has expired.');

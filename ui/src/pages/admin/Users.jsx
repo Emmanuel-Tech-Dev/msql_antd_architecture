@@ -18,7 +18,7 @@ import useNotification from '../../hooks/useNotification';
 import UserInfo from '../../components/userInfo/UserInfo';
 import utils from '../../utils/function_utils';
 import useApi from '../../hooks/useApi';
-import AdminPage from '../../components/admin/AdminPage';
+import { PageHeader } from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -76,11 +76,30 @@ export default function Users() {
 
     /* ── actions ────────────────────────────────────────────── */
     function openAdd() {
-        recordForm.openCreate('admin');
+        recordForm.setFields(['name', 'email', 'phone_no', 'status']);
+        recordForm.openCreate('admin', { status: 1 });
     }
 
     function openEdit(record) {
+        recordForm.setFields(undefined);
         recordForm.openEdit('admin', record, record.id);
+    }
+
+    function saveUser() {
+        if (recordForm.isEditing) return recordForm.save();
+
+        return recordForm.save({
+            endpoint: '/auth/create_user',
+            method: 'post',
+            transform: (payload) => ({
+                name: payload.name?.trim(),
+                email: payload.email?.trim().toLowerCase(),
+                phone_no: payload.phone_no?.trim() || null,
+                status: Number(payload.status) === 0 ? 0 : 1,
+            }),
+            invalidateResources: ['admin'],
+            successMessage: "User created. Their temporary password is their email address.",
+        });
     }
 
     function openManage(record) {
@@ -299,30 +318,32 @@ export default function Users() {
     /* ── toolbar extras passed to CustomTable ───────────────── */
     /* ── render ─────────────────────────────────────────────── */
     return (
-        <>
-            {/* // <AdminPage
-        //     eyebrow="IDENTITY / DIRECTORY"
-        //     title="Users"
-        //     description="Manage administrator identities, account status, authentication details, and assigned access."
-        //     icon={<TeamOutlined />}
-        //     actions={
-        //         <Button
-        //             type="primary"
-        //             icon={<PlusOutlined />}
-        //             onClick={openAdd}
-        //         >
-        //             Add user
-        //         </Button>
-        //     }
-        // > */}
-
+        <PageHeader
+            title="Users"
+            description="Manage administrator identities, account status, authentication details, and assigned access."
+            icon={<TeamOutlined />}
+            items={[
+                { title: 'Administration' },
+                { title: 'Identity' },
+                { title: 'Users' },
+            ]}
+            actions={
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={openAdd}
+                >
+                    Add user
+                </Button>
+            }
+        >
             <CustomTable tableConfig={table} columns={columns} />
-            {recordForm.recordModal({ createTitle: 'Add User', editTitle: 'Edit User' })}
+            {recordForm.recordModal({
+                createTitle: 'Add User',
+                editTitle: 'Edit User',
+                onOk: saveUser,
+            })}
             {userDrawer.drawerJSX()}
-
-
-            {/* // </AdminPage> */}
-
-        </>
+        </PageHeader>
     );
 }

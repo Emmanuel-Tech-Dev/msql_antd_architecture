@@ -22,7 +22,16 @@ export default function Login() {
 
     const { mutate, isPending } = useLogin({
         mutationOptions: {
-            onSuccess: () => navigate(from, { replace: true }),
+            onSuccess: (response) => {
+                if (response?.forcedPasswordChange) {
+                    navigate('/change_password', {
+                        replace: true,
+                        state: { from },
+                    });
+                    return;
+                }
+                navigate(from, { replace: true });
+            },
             onError: () => message.error('Invalid email or password'),
         },
     });

@@ -19,7 +19,6 @@ const authMiddleWare = require("./core/middleware/authMiddleWare");
 const SettingsManager = require("./core/lib/systemSettings");
 const errorHandler = require("./core/middleware/errorHandler");
 const requestLogger = require("./core/middleware/requestLogger");
-const AuthService = require("./core/lib/authService");
 const AuthRoute = require("./route/authRoute");
 const {
   authorization,
@@ -159,20 +158,6 @@ new AccessRoute(app);
 new BaseRoute(app);
 
 // clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
-
-app.post("/auth/create_user", async (req, res) => {
-  const record = req.body;
-
-  const auth = new AuthService();
-
-  await auth.createAdminUser(record);
-
-  res.status(201).json({
-    status: "ok",
-    message: "Operation Successfull!",
-    detalis: "User created successfully",
-  });
-});
 
 app.all("*", (req, res, next) => {
   next(

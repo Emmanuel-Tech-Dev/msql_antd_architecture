@@ -20,13 +20,10 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
     const [modalTitle, setModalTitle] = useState();
     const [data, setData] = useState();
     const [formChildren, setFormChildren] = useState();
-    const formRef = useRef({}); // Create a ref to hold the form instance
+    const mountedFormTypesRef = useRef(new Set());
     const [form] = Form.useForm();
-    formRef.current['default'] = form;
     const [dynamicFormSimple] = Form.useForm();
-    formRef.current['simple'] = dynamicFormSimple;
     const [dynamicFormNested] = Form.useForm();
-    formRef.current['nested'] = dynamicFormNested;
     const [formSubmit, setFormSubmit] = useState(undefined);
     const [formAddBtn, setFormAddBtn] = useState(showFormAddBtn);
     const [width, setWidth] = useState(undefined);
@@ -198,10 +195,10 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
     }
 
     function dynaFormSimple(model) {
+        mountedFormTypesRef.current.add('simple');
         const theForm = <Form
             key={'dynamic_form_simple'}
-            // form={dynamicFormSimple}
-            form={formRef?.current?.dynamicFormSimple}
+            form={dynamicFormSimple}
             name="dynamic_form_simple"
             onFinish={values => {
                 formSubmit && formSubmit.onFormSubmit(values);//get value via state of this hook that expects the onFormSubmit function
@@ -219,7 +216,7 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
         >
             {formChildren}
             <Form.List name={name}>
-                {(fields, { add, remove }, { errors }) => {
+                {(fields, { add, remove }) => {
                     return <>
                         {(formAddBtn && (addFieldPosition == 'top' || addFieldPosition == 'both')) && <Form.Item>
                             <Button type='dashed' onClick={() => add()} block icon={<PlusOutlined />}> {'Add Field'}</Button>
@@ -334,7 +331,6 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
                 >
                     <Radio.Group options={v?.options} {...v?.inputParams} />
                 </Form.Item>
-                break;
             }
             case "sqlSelect":
             case "jsonSelect":
@@ -368,10 +364,10 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
     }
 
     function dynaformNested(parentModel, childrenModel) {
+        mountedFormTypesRef.current.add('nested');
         const theForm = <Form
             key={'dynamic_form_nested'}
-            // form={dynamicFormNested}
-            form={formRef?.current?.dynamicFormNested}
+            form={dynamicFormNested}
             name="dynamic_form_nested"
             onFinish={values => {
                 formSubmit && formSubmit.onFormSubmit(values);//get value via state of this hook that expects the onFormSubmit function
@@ -390,7 +386,7 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
             {/* {console.log(model)} */}
             {formChildren}
             <Form.List name={name}>
-                {(fields, { add, remove }, { errors }) => {
+                {(fields, { add, remove }) => {
                     return <>
                         {(formAddBtn && (addFieldPosition == 'top' || addFieldPosition == 'both')) && <Form.Item>
                             <Button type='dashed' onClick={() => add()} block icon={<PlusOutlined />}> {'Add Field'}</Button>
@@ -467,9 +463,9 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
     }
 
     function dynForm() {
+        mountedFormTypesRef.current.add('default');
         const theForm = <Form
-            // form={form}
-            form={formRef?.current?.default}
+            form={form}
             name="dynamic_form_nest_item"
             onFinish={values => {
                 formSubmit && formSubmit.onFormSubmit(values);//get value via state of this hook that expects the onFormSubmit function
@@ -545,6 +541,20 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
         setFormJSX(theForm);
     }
 
+    function resetConnectedForms(formTypes = ['default', 'simple', 'nested']) {
+        const formsByType = {
+            default: form,
+            simple: dynamicFormSimple,
+            nested: dynamicFormNested,
+        };
+
+        formTypes.forEach((formTypeKey) => {
+            if (!mountedFormTypesRef.current.has(formTypeKey)) return;
+            formsByType[formTypeKey]?.resetFields();
+            mountedFormTypesRef.current.delete(formTypeKey);
+        });
+    }
+
     function formModal(title, handleOk, okText = 'Save', okButtonProps = { style: { background: Settings.secondaryColorHex, border: 'none' } }, localWidth, shouldDrag = true, footer = null) {
         if (!title) title = modalTitle;
         title = shouldDrag ? <div {...draggable.draggableTitleProps}>{title}</div> : title;
@@ -555,7 +565,7 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
                 }}
                 confirmLoading={loading}
                 // loading={loading}
-                zIndex={1002} title={title} width={localWidth || width} open={showModal} onOk={handleOk} onCancel={e => setShowModal(false)} okText={okText} okButtonProps={okButtonProps} footer={footer}>
+                zIndex={1002} title={title} width={localWidth || width} open={showModal} onOk={handleOk} onCancel={() => setShowModal(false)} okText={okText} okButtonProps={okButtonProps} footer={footer}>
 
                 <div className='row'>
                     <Space className='col-12' direction='vertical'>
@@ -576,9 +586,9 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
 
     return {
         formJSX, setFormJSX, formModal,
-        formRef, form: formRef?.current?.default,
-        dynamicFormNested: formRef?.current?.dynamicFormNested,
-        dynamicFormSimple: formRef?.current?.dynamicFormSimple,
+        form,
+        dynamicFormNested,
+        dynamicFormSimple,
         childrenBottom, setChildrenBottom,
         childrenTop, setChildrenTop,
         showModal, setShowModal,
@@ -591,7 +601,7 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
         meta, setMeta, formType, setFormType, sqlPlaceHolders, setSqlPlaceHolders,
         extraMetaList, setExtraMetaList, sqlSelectResult, setSqlSelectResult,
         htmlMarkupModel, setHtmlMarkupModel, dynaFormSimple, childrenHtmlMarkupModel,
-        setChildrenHtmlMarkupModel, dynaformNested,
+        setChildrenHtmlMarkupModel, dynaformNested, resetConnectedForms,
         addFieldPosition, setAddFieldPosition
     };
 }

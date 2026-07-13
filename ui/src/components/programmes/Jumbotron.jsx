@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import useApi from '../../hooks/useApi'
 import { Button, Card, Progress, Space, Tag } from 'antd';
-import { BankOutlined, BuildOutlined, CalendarOutlined, ClockCircleOutlined, EditOutlined, FlagOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons';
+import { BankOutlined, CalendarOutlined, ClockCircleOutlined, EditOutlined, FlagOutlined, PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { PageHeader } from '../PageHeader';
 import utils from '../../utils/function_utils';
 
@@ -17,7 +17,6 @@ function StatsPanel({
     projectCount = 3,
     startDate = '1 Jan 2025',
     endDate = '31 Dec 2026',
-    progressPct = 0,
 }) {
     return (
         <div className="w-[280px] shrink-0 self-stretch font-sans">
@@ -87,23 +86,21 @@ function StatsPanel({
 
 const Jumbotron = ({ cid }) => {
 
-    const { run, data, loading } = useApi("get", `/api/ngo/programme/${cid}`)
+    const { run, data } = useApi("get", `/api/ngo/programme/${cid}`)
 
 
     useEffect(() => {
         run()
+        // `run` is recreated by this legacy hook; the programme id is the request trigger.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cid])
-
-    // console.log(loading, data)
 
 
     return (
         <>
 
             <PageHeader
-                header={<span className="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">
-                    {data?.data.name}
-                </span>}
+                title={data?.data.name}
                 items={[
                     {
                         title: 'Home',
@@ -116,7 +113,7 @@ const Jumbotron = ({ cid }) => {
                     },
                 ]}
 
-                children={
+                actions={
                     <>
                         <Space>
                             <Button icon={<EditOutlined />} className="border-slate-200 text-slate-600">Edit</Button>

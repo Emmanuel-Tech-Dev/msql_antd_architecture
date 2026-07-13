@@ -8,10 +8,18 @@ const {
 
 const permissionCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const AUTHENTICATED_OPEN_ALLOWLIST = new Set([
+// These two endpoints establish the authenticated UI context. They are always
+// available after token validation, even when a baseline role intentionally has
+// no business permissions yet.
+const AUTHENTICATED_CORE_ENDPOINTS = new Set([
   "/api/v1/bootstrap",
-  "/api/v1/extra_meta_options",
   "/auth/auth_user",
+]);
+
+// Optional authenticated-open endpoints still require an explicit system
+// setting and must also appear in this code-level safety allowlist.
+const AUTHENTICATED_OPEN_ALLOWLIST = new Set([
+  "/api/v1/extra_meta_options",
   "/api/:resources/filters",
 ]);
 
@@ -70,10 +78,12 @@ async function loadPermissionContext(userId) {
   }
 
   if (!permissionNames.length) {
-    throw new AppError("ERR_NO_RESOURCES", null, {
-      message: "User roles have no permissions assigned",
-      level: "access",
-    });
+    return {
+      userRoles,
+      permissionNames: [],
+      resources: [],
+      privileged: false,
+    };
   }
 
   const permissionResources = await new Model()
@@ -114,6 +124,10 @@ const authorization = async (req, res, next) => {
     req.roles = userRoles;
     req.permissions = permissionNames;
     req.resources = resources;
+
+    if (AUTHENTICATED_CORE_ENDPOINTS.has(requestedPath)) {
+      return next();
+    }
 
     const openEndpointsRaw = await utils.getSystemOpenRoute();
     const openEndpoints = Array.isArray(openEndpointsRaw)

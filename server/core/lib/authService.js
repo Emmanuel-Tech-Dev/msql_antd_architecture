@@ -222,7 +222,19 @@ class AuthService {
       req?.headers?.["user-agent"],
     );
 
-    return this.generateAuthTokens(user);
+    const tokens = await this.generateAuthTokens(user);
+    const forcedPasswordChange = Number(user?.forced_password_change) === 1;
+
+    return {
+      ...tokens,
+      forcedPasswordChange,
+      user: {
+        custom_id: user?.custom_id,
+        name: user?.name,
+        email: user?.email,
+        forced_password_change: forcedPasswordChange ? 1 : 0,
+      },
+    };
   }
 
   async hashedPassword(password) {
@@ -275,7 +287,16 @@ class AuthService {
     // Find or create user
     let [user] = await this.model
       .multiSelect([
-        { table: "admin", columns: ["custom_id", "email", "name"] },
+        {
+          table: "admin",
+          columns: [
+            "custom_id",
+            "email",
+            "name",
+            "status",
+            "forced_password_change",
+          ],
+        },
         { table: "admin_credentials", columns: ["token_version"] },
       ])
       .join(
@@ -291,7 +312,16 @@ class AuthService {
       // Check if email exists
       [user] = await this.model
         .multiSelect([
-          { table: "admin", columns: ["custom_id", "email", "name"] },
+          {
+            table: "admin",
+            columns: [
+              "custom_id",
+              "email",
+              "name",
+              "status",
+              "forced_password_change",
+            ],
+          },
           { table: "admin_credentials", columns: ["token_version"] },
         ])
         .join(
@@ -355,10 +385,7 @@ class AuthService {
     }
 
     return this.issueAuthTokensAndRecordLogin(
-      {
-        custom_id: user.custom_id,
-        token_version: user.token_version || 1,
-      },
+      { ...user, token_version: user.token_version || 1 },
       req,
     );
   }
@@ -420,7 +447,16 @@ class AuthService {
 
     const [user] = await this.model
       .multiSelect([
-        { table: "admin", columns: ["custom_id", "email", "name"] },
+        {
+          table: "admin",
+          columns: [
+            "custom_id",
+            "email",
+            "name",
+            "status",
+            "forced_password_change",
+          ],
+        },
         {
           table: "admin_credentials",
           columns: ["password", "token_version"],
@@ -440,6 +476,10 @@ class AuthService {
         details: "Authentication failed , Try again later",
         level: "security",
       });
+    }
+
+    if (Number(user?.status) !== 1) {
+      throw new AppError("ERR_FORBIDDEN", "Account is inactive");
     }
 
     const isPasswordValid = await this.comparePassword(
@@ -496,15 +536,34 @@ class AuthService {
     const decoded = await this.verifyOtpChallengeToken(challengeToken);
 
     const [user] = await this.model
-      .select(
-        ["admin_custom_id", "token_version"],
+      .multiSelect([
+        {
+          table: "admin",
+          columns: [
+            "custom_id",
+            "email",
+            "name",
+            "status",
+            "forced_password_change",
+          ],
+        },
+        { table: "admin_credentials", columns: ["token_version"] },
+      ])
+      .join(
+        "INNER",
         "admin_credentials",
+        "admin.custom_id",
+        "admin_credentials.admin_custom_id",
       )
-      .where("admin_custom_id", "=", decoded.sub)
+      .where("admin.custom_id", "=", decoded.sub)
       .execute();
 
     if (!user || user?.token_version !== decoded?.token_version) {
       throw new AppError("ERR_TOKEN_INVALID", "OTP challenge is no longer valid");
+    }
+
+    if (Number(user?.status) !== 1) {
+      throw new AppError("ERR_FORBIDDEN", "Account is inactive");
     }
 
     const result = otpService.verifyEmailOtpCode(
@@ -518,13 +577,7 @@ class AuthService {
       throw new AppError("ERR_INVALID_CREDENTIALS", result.error);
     }
 
-    return this.issueAuthTokensAndRecordLogin(
-      {
-        custom_id: user.admin_custom_id,
-        token_version: user.token_version,
-      },
-      req,
-    );
+    return this.issueAuthTokensAndRecordLogin(user, req);
   }
 
   async resendOtpLogin(challengeToken, req) {
@@ -552,38 +605,62 @@ class AuthService {
   }
 
   async createAdminUser(record) {
-    if (!record?.email || !record?.password || !record?.name) {
+    if (!record?.email || !record?.name) {
       throw new AppError("ERR_MISSING_REQUIRED_FIELD");
     }
 
-    const result = await this.model.transaction(async (transact) => {
-      const hashedPassword = await this.hashedPassword(record?.password);
-      const filteredRecords = utils.removePasswordFromObject(record);
+    const email = record.email.trim().toLowerCase();
+    const name = record.name.trim();
+    const defaultPasswordHash = await this.hashedPassword(email);
+    const roles = await this.model
+      .select(["role_name"], "admin_roles")
+      .execute();
+    const defaultRole = roles.find(
+      (role) => String(role?.role_name ?? "").trim().toLowerCase() === "user",
+    );
+    if (!defaultRole?.role_name) {
+      throw new AppError(
+        "ERR_INTERNAL_SERVER",
+        "The default User role is not configured",
+      );
+    }
 
-      const cid = utils.genRegNumber(this.IDPREFIX);
-      // 1. Insert into admin table
+    const idPrefix = this.IDPREFIX || (await this.settings.get("regnumber.prefix"));
+    const cid = utils.genRegNumber(idPrefix);
+    const createdUser = {
+      custom_id: cid,
+      name,
+      email,
+      phone_no: record.phone_no || null,
+      oauth_provider: "Password",
+      status: Number(record.status) === 0 ? 0 : 1,
+      forced_password_change: 1,
+    };
+
+    await this.model.transaction(async (transact) => {
       const builder = transact.builder();
-      builder.insert("admin", {
-        custom_id: cid,
-        ...filteredRecords,
-      });
+      builder.insert("admin", createdUser);
       await builder.executeInTransaction();
 
-      // 2. Insert into another table (e.g., admin_credentials or admin_audit)
       const builder2 = transact.builder();
       builder2.insert("admin_credentials", {
-        // Different table?
-
-        password: hashedPassword, // Use original record data
+        password: defaultPasswordHash,
         admin_custom_id: cid,
       });
+      await builder2.executeInTransaction();
 
-      await builder2.executeInTransaction(); // Fixed: was builder, should be builder2
-
-      return true;
+      const roleBuilder = transact.builder();
+      roleBuilder.insert("admin_user_roles", {
+        user_id: cid,
+        role_id: defaultRole.role_name,
+      });
+      await roleBuilder.executeInTransaction();
     });
 
-    return result;
+    return {
+      ...createdUser,
+      default_role: String(defaultRole.role_name).trim(),
+    };
   }
 
   async googleOAuth(record, req) {
@@ -737,14 +814,26 @@ class AuthService {
       token_version: newTokenVersion,
     });
 
-    await this.model
-      .update("admin_credentials", {
-        password: hashPassword,
-        token_version: newTokenVersion,
-        updated_at: new Date(),
-      })
-      .where("admin_custom_id", "=", sub)
-      .execute();
+    await this.model.transaction(async (transact) => {
+      const credentialsBuilder = transact.builder();
+      credentialsBuilder
+        .update("admin_credentials", {
+          password: hashPassword,
+          token_version: newTokenVersion,
+          updated_at: new Date(),
+        })
+        .where("admin_custom_id", "=", sub);
+      await credentialsBuilder.executeInTransaction();
+
+      const userBuilder = transact.builder();
+      userBuilder
+        .update("admin", {
+          forced_password_change: 0,
+          updatedAt: new Date(),
+        })
+        .where("custom_id", "=", sub);
+      await userBuilder.executeInTransaction();
+    });
 
     log.security("Password changed successfully", {
       requestId: req?.requestId,
@@ -933,19 +1022,31 @@ class AuthService {
     const hashedPassword = await this.hashedPassword(newPassword);
     const newTokenVersion = (user.token_version || 0) + 1;
 
-    await this.model
-      .update("admin_credentials", {
-        password: hashedPassword,
-        reset_token: null,
-        reset_token_expiry: null,
-        reset_token_used: true,
-        token_version: newTokenVersion,
-        reset_limit: 0,
-        last_reset_attempt: null,
-        updated_at: new Date(),
-      })
-      .where("admin_custom_id", "=", user?.admin_custom_id)
-      .execute();
+    await this.model.transaction(async (transact) => {
+      const credentialsBuilder = transact.builder();
+      credentialsBuilder
+        .update("admin_credentials", {
+          password: hashedPassword,
+          reset_token: null,
+          reset_token_expiry: null,
+          reset_token_used: true,
+          token_version: newTokenVersion,
+          reset_limit: 0,
+          last_reset_attempt: null,
+          updated_at: new Date(),
+        })
+        .where("admin_custom_id", "=", user?.admin_custom_id);
+      await credentialsBuilder.executeInTransaction();
+
+      const userBuilder = transact.builder();
+      userBuilder
+        .update("admin", {
+          forced_password_change: 0,
+          updatedAt: new Date(),
+        })
+        .where("custom_id", "=", user?.admin_custom_id);
+      await userBuilder.executeInTransaction();
+    });
 
     return true;
   }

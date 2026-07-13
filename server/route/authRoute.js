@@ -179,7 +179,16 @@ class AuthRoute {
 
         const [user] = await new Model()
           .select(
-            ["custom_id", "name", "email", "phone_no", "avatar", "profile_picture", "status"],
+            [
+              "custom_id",
+              "name",
+              "email",
+              "phone_no",
+              "avatar",
+              "profile_picture",
+              "status",
+              "forced_password_change",
+            ],
             "admin",
           )
           .where("custom_id", "=", userId)
@@ -231,6 +240,8 @@ class AuthRoute {
           status: "ok",
           message: "Operation Successfull!",
           token: response?.accessToken,
+          user: response?.user,
+          forcedPasswordChange: response?.forcedPasswordChange,
         });
     });
   }
@@ -347,6 +358,8 @@ class AuthRoute {
           status: "ok",
           message: "Operation Successfull!",
           token: response?.accessToken,
+          user: response?.user,
+          forcedPasswordChange: response?.forcedPasswordChange,
         });
     });
 
@@ -389,17 +402,24 @@ class AuthRoute {
 
   createUserAccount(app) {
     app.post(
-      "/auth/register",
+      "/auth/create_user",
       authMiddleWare,
       authorization,
-      validateRequest(authSchema.register),
+      validateRequest(authSchema.createAdmin),
       async (req, res) => {
-        const record = req.body;
-        await this.auth.createAdminUser(record);
+        const createdUser = await this.auth.createAdminUser(req.body);
+        log.security("Administrator account created", {
+          requestId: req.requestId,
+          actorUserId: req.user.sub,
+          targetUserId: createdUser.custom_id,
+          defaultRole: createdUser.default_role,
+          forcedPasswordChange: true,
+        });
         res.status(201).json({
           status: "ok",
-          message: "Operation Successfull!",
-          detalis: "User created successfully",
+          message: "User created successfully",
+          details: "The temporary password is the user's email address",
+          data: createdUser,
         });
       },
     );

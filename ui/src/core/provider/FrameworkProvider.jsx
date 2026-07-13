@@ -24,6 +24,8 @@ const PUBLIC_ROUTES = [
     "/register",
     "/otp_request",
     "/verify_otp",
+    "/change-password",
+    "/change_password",
 ];
 
 function isPublicBrowserRoute(route) {
@@ -134,6 +136,7 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
         enabled: !isPublicRoute && isAuthenticated,
         staleTime: 0, // Always refetch when component remounts
         gcTime: 5 * 60 * 1000, // Keep cached for 5 minutes
+        retry: false,
     });
 
     useEffect(() => {

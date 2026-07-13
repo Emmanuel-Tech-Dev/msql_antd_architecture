@@ -16,6 +16,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import OtpRequest from "./pages/auth/OtpRequest";
 import OtpVerify from "./pages/auth/OtpVerify";
+import ChangePassword from "./pages/auth/ChangePassword";
 import NotFound404 from "./components/feedback/NotFound404";
 import Users from "./pages/admin/Users";
 import Roles from "./pages/admin/Roles";
@@ -52,6 +53,8 @@ export default function App() {
           <Route path="/reset_password" element={<ResetPassword />} />
           <Route path="/otp_request" element={<OtpRequest />} />
           <Route path="/verify_otp" element={<OtpVerify />} />
+          <Route path="/change-password" element={<Navigate to="/change_password" replace />} />
+          <Route path="/change_password" element={<ChangePassword />} />
           <Route path="/auth/otp/request-login/*" element={<Navigate to="/otp_request" replace />} />
           <Route path="/auth/otp/verify-login/*" element={<Navigate to="/verify_otp" replace />} />
           {/* Protected Admin Routes */}
