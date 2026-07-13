@@ -1,6 +1,7 @@
 import { Button, Divider, Form, Input, Typography } from 'antd';
 import {
     ArrowRightOutlined,
+    BookOutlined,
     CheckCircleFilled,
     LockOutlined,
     MailOutlined,
@@ -38,6 +39,13 @@ export default function Login() {
 
     return (
         <main className="login-shell">
+            <Button
+                className="login-documentation"
+                icon={<BookOutlined />}
+                onClick={() => navigate('/docs')}
+            >
+                Documentation
+            </Button>
             <section className="login-story" aria-label="Product introduction">
                 <div className="login-brand">
                     <span className="login-brand__mark">B</span>
@@ -147,6 +155,6 @@ export default function Login() {
                     </Text>
                 </div>
             </section>
-        </main>
+        </main >
     );
 }

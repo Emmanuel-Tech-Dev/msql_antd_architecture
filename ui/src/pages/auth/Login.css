@@ -6,7 +6,28 @@
     display: grid;
     grid-template-columns: minmax(360px, 0.92fr) minmax(480px, 1.08fr);
     min-height: 100vh;
+    position: relative;
     background: var(--login-paper);
+}
+
+.login-documentation.ant-btn {
+    position: absolute;
+    z-index: 5;
+    top: 22px;
+    right: 24px;
+    height: 38px;
+    color: #4f4841;
+    background: rgba(255, 253, 249, 0.84);
+    border-color: #d9d3ca;
+    border-radius: 3px;
+    backdrop-filter: blur(12px);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.login-documentation.ant-btn:hover {
+    color: var(--login-accent) !important;
+    border-color: var(--login-accent) !important;
 }
 
 .login-story {
@@ -197,6 +218,7 @@
     .login-story h1.ant-typography { font-size: clamp(38px, 10vw, 58px) !important; }
     .login-assurances, .login-story__footer { display: none; }
     .login-access { min-height: auto; padding: 28px 18px 48px; }
+    .login-documentation.ant-btn { top: 22px; right: 18px; color: #ded8d0; background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); }
 }
 
 @media (prefers-reduced-motion: reduce) {

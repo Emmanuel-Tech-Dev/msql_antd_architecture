@@ -79,6 +79,14 @@ function getUserInitials(name = '') {
         .join('') || 'U';
 }
 
+function getSiderScrollbarStyle(colors, style = {}) {
+    return {
+        '--app-sider-scrollbar-bg': colors.siderBg,
+        '--app-sider-scrollbar-tone': colors.textMuted,
+        ...style,
+    };
+}
+
 function UserAvatar({ user, ...props }) {
     return (
         <Avatar src={user?.avatar || undefined} {...props}>
@@ -245,7 +253,10 @@ function SiderNode({
                         {siderHeader}
                     </div>
                 )}
-                <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                <div
+                    className="app-sider-scrollbar"
+                    style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden' })}
+                >
                     <SiderMenu
                         theme={theme}
                         processedSiderItems={processedSiderItems}
@@ -581,7 +592,10 @@ function IconRailLayout({
                 )}
 
                 {/* Rail items */}
-                <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', padding: '6px 0' }}>
+                <div
+                    className="app-sider-scrollbar"
+                    style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', padding: '6px 0' })}
+                >
                     {processedSiderItems.map((item) => {
                         // Skip group headers in rail mode — flatten them
                         if (item.type === 'group') {
@@ -785,7 +799,10 @@ function FloatingLayout({
                             {siderHeader}
                         </div>
                     )}
-                    <div className="app-sider-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                    <div
+                        className="app-sider-scrollbar"
+                        style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden' })}
+                    >
                         <SiderMenu
                             theme={theme}
                             processedSiderItems={processedSiderItems}
@@ -1231,12 +1248,12 @@ export default function SiderLayout({
                             {/* Menu */}
                             <div
                                 className="app-sider-scrollbar"
-                                style={{
+                                style={getSiderScrollbarStyle(colors, {
                                     flex: 1,
                                     overflowY: 'auto',
                                     overflowX: 'hidden',
                                     padding: '12px 8px',
-                                }}
+                                })}
                             >
                                 <SiderMenu
                                     theme={theme}

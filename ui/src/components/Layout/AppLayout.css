@@ -53,6 +53,52 @@
   text-transform: uppercase;
 }
 
+/* Keep navigation scrolling quiet and visually part of the sidebar surface. */
+.app-sider-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(127, 127, 127, 0.22) transparent;
+  scrollbar-color:
+    color-mix(in srgb, var(--app-sider-scrollbar-tone) 28%, var(--app-sider-scrollbar-bg))
+    color-mix(in srgb, var(--app-sider-scrollbar-tone) 5%, var(--app-sider-scrollbar-bg));
+}
+
+.app-sider-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.app-sider-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  background: color-mix(
+    in srgb,
+    var(--app-sider-scrollbar-tone) 5%,
+    var(--app-sider-scrollbar-bg)
+  );
+}
+
+.app-sider-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(127, 127, 127, 0.22);
+  background: color-mix(
+    in srgb,
+    var(--app-sider-scrollbar-tone) 28%,
+    var(--app-sider-scrollbar-bg)
+  );
+  border-radius: 999px;
+}
+
+.app-sider-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(127, 127, 127, 0.32);
+  background: color-mix(
+    in srgb,
+    var(--app-sider-scrollbar-tone) 40%,
+    var(--app-sider-scrollbar-bg)
+  );
+}
+
+.app-sider-scrollbar::-webkit-scrollbar-corner {
+  background: var(--app-sider-scrollbar-bg);
+}
+
 .workspace-header {
   display: flex;
   height: 100%;
@@ -82,6 +128,18 @@
 
 .workspace-header__status { display: flex; align-items: center; gap: 12px; }
 .workspace-header__status .ant-tag { margin: 0; color: #5b5047; background: #f2ece4; }
+
+.workspace-header__docs.ant-btn {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.workspace-header__docs.ant-btn:hover {
+  color: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
+}
 
 .workspace-header__collapse.ant-btn {
   color: var(--color-text-secondary);
@@ -123,6 +181,7 @@
   .workspace-header { padding: 0 16px; }
   .workspace-header__live { display: none; }
   .workspace-header__title.ant-typography { font-size: 14px; }
+  .workspace-header__docs.ant-btn span:not(.anticon) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

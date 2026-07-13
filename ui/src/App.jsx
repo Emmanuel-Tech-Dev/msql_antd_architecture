@@ -26,6 +26,7 @@ import SystemLogs from "./pages/settings/SystemLogs";
 import DatabaseBackup from "./pages/settings/DatabaseBackup";
 import AppearanceSettings from "./pages/settings/AppearanceSettings";
 import ProfileSettings from "./pages/settings/ProfileSettings";
+import Documentation from "./pages/docs/Documentation";
 import { SkeletonProvider } from 'react-skeletonify';
 
 
@@ -48,6 +49,7 @@ export default function App() {
 
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/docs" element={<Documentation />} />
           <Route path="/init_psd_recovery" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
           <Route path="/reset_password" element={<ResetPassword />} />

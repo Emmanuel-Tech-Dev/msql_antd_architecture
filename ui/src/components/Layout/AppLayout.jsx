@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { Avatar, Button, Spin, Tag, Tooltip, Typography } from "antd";
-import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import { BookOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useBrowserRoutes, useNavigationRoutes } from "../../core/provider/ResourceProvider";
 import useRouteGuard from "../../core/hooks/access/useRouteGuard";
@@ -144,6 +144,13 @@ export default function AppLayout() {
         </Typography.Text>
       </div>
       <div className="workspace-header__status">
+        <Button
+          className="workspace-header__docs"
+          icon={<BookOutlined />}
+          onClick={() => navigate('/docs')}
+        >
+          Documentation
+        </Button>
         {siderConfig.header.showSystemStatus && <span className="workspace-header__live"><i /> System live</span>}
         {siderConfig.header.showRole && <Tag bordered={false}>{activeRole}</Tag>}
         {siderConfig.collapsible && !["top", "none"].includes(siderConfig.variant) && (
@@ -163,7 +170,7 @@ export default function AppLayout() {
 
   return sider.layoutJSX({
     siderHeader,
-    // header: workspaceHeader,
+    header: workspaceHeader,
     trigger: null,
   });
 }

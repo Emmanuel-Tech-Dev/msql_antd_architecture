@@ -26,6 +26,7 @@ const PUBLIC_ROUTES = [
     "/verify_otp",
     "/change-password",
     "/change_password",
+    "/docs",
 ];
 
 function isPublicBrowserRoute(route) {
