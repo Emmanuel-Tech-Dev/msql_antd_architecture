@@ -1,6 +1,9 @@
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const cleanIdentifier = (value) => String(value ?? "").replaceAll("`", "").trim();
+const cleanIdentifier = (value) =>
+  String(value ?? "")
+    .replaceAll("`", "")
+    .trim();
 
 export function legacySqlToLookup(sql) {
   if (typeof sql !== "string") return null;
@@ -28,7 +31,7 @@ export function legacySqlToLookup(sql) {
       ...(whereColumn
         ? { where: { column: whereColumn, value: match[5] } }
         : {}),
-      limit: Math.min(Number(match[6] ?? 500), 500),
+      // limit: Math.min(Number(match[6] ?? 500), 500),
     },
   };
 }

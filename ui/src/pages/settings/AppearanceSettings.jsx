@@ -121,7 +121,7 @@ export default function AppearanceSettings() {
     };
 
     if (!row) {
-        return <Alert type="error" showIcon message="The layout.sider configuration is unavailable." />;
+        return <Alert type="error" showIcon title="The layout.sider configuration is unavailable." />;
     }
 
     return (
@@ -158,7 +158,7 @@ export default function AppearanceSettings() {
                     className="appearance-access-alert"
                     type="warning"
                     showIcon
-                    message="You can preview these settings, but update:ui_settings is required to save them."
+                    title="You can preview these settings, but update:ui_settings is required to save them."
                 />
             )}
 
@@ -387,7 +387,7 @@ export default function AppearanceSettings() {
                             className="appearance-preview-note"
                             type="info"
                             showIcon
-                            message="Preview is local until you save"
+                            title="Preview is local until you save"
                             description="Saving validates the complete configuration, increments its version, and updates active sessions."
                         />
                     </Card>

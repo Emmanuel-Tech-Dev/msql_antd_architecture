@@ -147,7 +147,7 @@ export function AnalyticsHospital() {
         <Alert
           type="error"
           showIcon
-          message={`${criticalCount} department${criticalCount > 1 ? 's' : ''} at critical capacity`}
+          title={`${criticalCount} department${criticalCount > 1 ? 's' : ''} at critical capacity`}
           description="ICU at 94% occupancy. Consider activating overflow protocol."
           closable
         />

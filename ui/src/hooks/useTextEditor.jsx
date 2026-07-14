@@ -1,121 +1,121 @@
-import React, { useRef, useState, useMemo } from 'react';
-import { Editor } from '@tinymce/tinymce-react';
-import $ from 'jquery';
-import Settings from "../utils/Settings"
-import utils from '../utils/function_utils';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import RichTextEditor from '../components/editor/RichTextEditor';
 
-export default function useTextEditor() {
-    const editorRef = useRef(undefined);
-    const [content, setContent] = useState();
+function normalizeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value);
+}
+
+function currentHtml(editorInstance) {
+    if (!editorInstance || editorInstance.isEmpty) return '';
+    return editorInstance.getHTML();
+}
+
+/**
+ * Owns a Tiptap rich-text editor while retaining the original hook's editor()
+ * renderer. Tiptap's self-hosted core is MIT licensed and needs no API key.
+ */
+export default function useTextEditor(options = {}) {
+    const {
+        initialContent = '',
+        onChange,
+        ...defaultEditorProps
+    } = options;
+    const editorInstanceRef = useRef(null);
+    const baselineRef = useRef(normalizeHtml(initialContent));
+    const [content, setContentState] = useState(() => normalizeHtml(initialContent));
     const [editorChanged, setEditorChanged] = useState(false);
-    useMemo(() => {
 
-    }, [editorRef.current, content])
+    const getContent = useCallback(() => {
+        if (editorInstanceRef.current) return currentHtml(editorInstanceRef.current);
+        return content;
+    }, [content]);
 
-    function getContent() {
-        if (editorRef.current) {
-            const bool = typeof editorRef.current.getContent !== "undefined";
-            if (bool) {
-                return editorRef.current?.getContent();
-            }
+    const getEditor = useCallback(() => editorInstanceRef.current, []);
+
+    const setContent = useCallback((nextContent, { markDirty = true } = {}) => {
+        const nextHtml = normalizeHtml(nextContent);
+        if (!markDirty) baselineRef.current = nextHtml;
+        setContentState(nextHtml);
+        setEditorChanged(markDirty);
+        if (editorInstanceRef.current && currentHtml(editorInstanceRef.current) !== nextHtml) {
+            editorInstanceRef.current.commands.setContent(nextHtml || '<p></p>', { emitUpdate: false });
         }
-        return '';
-    };
+    }, []);
 
-    async function uploader(file) {
-        const formData = new FormData();
-        formData.append('tinymce_files', file);
-        formData.append('container', 'tinymce');
-        let res = await fetch(`${Settings.baseUrl}/upload_tinymce_file`, {
-            method: 'POST',
-            body: formData,
-        });
-        return await res.json();
-    }
+    const markClean = useCallback(() => {
+        const nextBaseline = editorInstanceRef.current
+            ? currentHtml(editorInstanceRef.current)
+            : content;
+        baselineRef.current = nextBaseline;
+        setEditorChanged(false);
+    }, [content]);
 
-    function editor(initialContent) {
+    const reset = useCallback((nextContent = baselineRef.current) => {
+        const nextHtml = normalizeHtml(nextContent);
+        baselineRef.current = nextHtml;
+        setContentState(nextHtml);
+        setEditorChanged(false);
+        editorInstanceRef.current?.commands.setContent(nextHtml || '<p></p>', { emitUpdate: false });
+    }, []);
+
+    const editorRef = useMemo(() => ({
+        get current() {
+            return {
+                instance: editorInstanceRef.current,
+                getContent: () => currentHtml(editorInstanceRef.current),
+                getHTML: () => currentHtml(editorInstanceRef.current),
+                getJSON: () => editorInstanceRef.current?.getJSON() ?? null,
+                getText: () => editorInstanceRef.current?.getText() ?? '',
+                setContent,
+                focus: () => editorInstanceRef.current?.commands.focus(),
+            };
+        },
+    }), [setContent]);
+
+    const editor = useCallback((editorInitialContent = initialContent, overrides = {}) => {
+        const {
+            onChange: fieldOnChange,
+            onReady: fieldOnReady,
+            ...overrideProps
+        } = overrides;
+
         return (
-            <>
-                <textarea className='d-none' ref={editorRef}></textarea>
-                <Editor
-                    onInit={(evt, editor) => editorRef.current = editor}
-                    initialValue={content || initialContent}
-                    init={{
-                        setup(editor) {
-                            editor.on("change", function (e) {
-                                setEditorChanged(editorChanged => !editorChanged);
-                            });
-                            editor.on("keydown", function (e) {
-                                setEditorChanged(editorChanged => !editorChanged);
-                                //     if ((e.key.toLowerCase() == 'backspace' || e.key.toLowerCase() == 'delete') && editor.selection) {
-                                //         let selectedNode = editor.selection.getNode();
-                                //         console.log(selectedNode);
-                                //         // var element = editor.dom.getParent(editor.selection.getNode(), 'img');
-                                //         // console.log(element);
-                                //         /*if (selectedNode && selectedNode.nodeName == 'IMG') {
-                                //             let imageSrc = selectedNode.src;
-                                //             console.log(imageSrc)
-                                //             //here you can call your server to delete the image
-                                //         }*/
-                                //     }
-                            });
-                        },
-                        file_picker_callback: function (callback, value, meta) {
-                            if (meta.filetype == 'image') {
-                                let fileInput = document.createElement('input');
-                                fileInput.setAttribute('type', 'file');
-                                fileInput.setAttribute('accept', '.jpg,.jpeg,.png');
-                                // fileInput.setAttribute('multiple', 'true');
-                                $(fileInput).trigger('click');
-                                $(fileInput).on('change', async () => {
-                                    let files = $(fileInput)[0].files;
-                                    let fileLength = files.length;
-                                    if (fileLength > 5) {
-                                        alert('Files cannot be more than 5');
-                                        return;
-                                    }
-                                    for (let i = 0; i < fileLength; i++) {
-                                        let file = files[i];
-                                        let fileSize = file.size;
-                                        let fileTitle = file.name;
-                                        // if (fileSize > 1000000) {
-                                        //     alert('File size is too big. Please compress');
-                                        //     continue;
-                                        // }
-                                        // console.log(file);
-                                        // const res = await uploader(file);
-                                        // console.log(res);
-                                        let reader = new FileReader();
-                                        reader.onloadend = (e) => {
-                                            let result = e.target.result;
-                                            callback(result, { alt: "" });
-                                        }
-                                        reader.readAsDataURL(file);
-                                    }
-                                });
-                            }
-                        },
-                        file_picker_types: 'file image media',
-                        height: 500,
-                        menubar: false,
-                        plugins: [
-                            'advlist autolink lists link image charmap print preview anchor',
-                            'searchreplace visualblocks code fullscreen',
-                            'insertdatetime media table paste code help wordcount'
-                        ],
-                        toolbar: 'insertfile undo redo | formatselect styleselect | fontselect fontsizeselect | ' +
-                            'link image | print preview media fullpage' +
-                            'bold italic backcolor forecolor emoticons | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | help',
-                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
-                    }}
-
-                />
-                {/* <button onClick={getContent}>Log editor content</button> */}
-            </>
+            <RichTextEditor
+                {...defaultEditorProps}
+                {...overrideProps}
+                initialContent={normalizeHtml(editorInitialContent)}
+                onReady={(instance) => {
+                    editorInstanceRef.current = instance;
+                    if (instance) {
+                        const html = currentHtml(instance);
+                        baselineRef.current = html;
+                        setContentState(html);
+                        setEditorChanged(false);
+                    }
+                    fieldOnReady?.(instance);
+                }}
+                onChange={(html, context) => {
+                    setContentState(html);
+                    setEditorChanged(true);
+                    onChange?.(html, context);
+                    fieldOnChange?.(html, context);
+                }}
+            />
         );
-    }
+    }, [defaultEditorProps, initialContent, onChange]);
 
-    return { editor, content: getContent(), setContent, editorChanged, editorRef };
+    return {
+        editor,
+        content,
+        setContent,
+        getContent,
+        editorChanged,
+        isDirty: editorChanged,
+        markClean,
+        reset,
+        editorRef,
+        getEditor,
+        EditorComponent: RichTextEditor,
+    };
 }

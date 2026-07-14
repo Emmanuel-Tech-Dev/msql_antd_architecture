@@ -2,7 +2,7 @@ export const documentationMeta = {
   product: "MySQL ORM Framework",
   edition: "Production architecture guide",
   version: "1.0",
-  updated: "13 July 2026",
+  updated: "14 July 2026",
 };
 
 const p = (text) => ({ type: "paragraph", text });
@@ -217,6 +217,42 @@ export const documentationSections = [
       callout(
         "Architecture decision",
         "Bootstrap is request-driven but server-validated. Development can add a required dataset in FrameworkProvider without maintaining a second static backend list; the server still resolves the real table and columns, blocks sensitive namespaces, and checks read permissions for non-core datasets.",
+      ),
+    ],
+  },
+  {
+    id: "architecture-simulator",
+    group: "Foundations",
+    title: "Architecture simulator",
+    eyebrow: "Interactive policy lab",
+    audience: "Developers and operators",
+    readTime: "12 min",
+    summary:
+      "Change framework policies, observe the first breaking architectural boundary, inspect a safe simulated trace, and apply the smallest remediation.",
+    blocks: [
+      p(
+        "The Architectural Simulation Flow turns the framework's trust boundaries into an executable mental model. It does not call the API or mutate application data. Instead, it stages configuration locally and demonstrates how frontend components, routes, providers, authentication, authorization, bootstrap validation, metadata, lookups, query construction, and cache invalidation cooperate during a request.",
+      ),
+      {
+        type: "architecture-simulator",
+        title: "Architectural Simulation Flow",
+      },
+      callout(
+        "How to use the lab",
+        "Open the lab full screen for the largest canvas. Add or remove real framework component types from the left library, select a component or layer to inspect it, then stage frontend or server contracts in the right inspector. Trigger the policy change and follow the red trace to the first rejected boundary. Read Why it broke and the simulated stack trace before using Click to Fix. Component additions are evaluated immediately against the active policy, while inspector changes remain staged until triggered.",
+      ),
+      callout(
+        "Frontend scenarios",
+        "The component library includes protected pages, useTableApi tables, useRecordForm metadata forms, registered lookup selects, upload fields, Tiptap rich-text editors, charts, and offline tables. Their simulations cover missing routes or providers, unsupported metadata renderers, unsafe HTML, browser-only upload validation, unresolved offline conflicts, invalid metadata, missing lookups, and incomplete cache invalidation.",
+      ),
+      callout(
+        "Server scenarios",
+        "The same graph continues through Axios, Express, identity and access control, validation registries, BaseService and QueryBuilder, and MySQL. Use the server inspector to test expired sessions, permission rejection and the dev or SuperAdmin bypass, sensitive bootstrap targets, invalid physical columns, and stale related resources.",
+      ),
+      callout(
+        "Simulation boundary",
+        "All traces are generated locally from documented framework contracts. They contain no production requests, tokens, credentials, database values, or real log records. File names and line numbers illustrate ownership and diagnostic shape; use a real request ID to locate an actual failure in server logs.",
+        "warning",
       ),
     ],
   },
@@ -671,7 +707,7 @@ return <CustomTable dataSource={query.data?.data} />;`,
             "Upload",
             "MIME, count, destination, multipart save",
           ],
-          ["editor", "TinyMCE wrapper", "Rich text content"],
+          ["textEditor", "Self-hosted Tiptap editor", "Rich HTML bound into the record payload"],
           [
             "dynaFormSimple / dynaFormNested",
             "Dynamic Form.List",
@@ -1105,7 +1141,7 @@ export default function ProjectsList() {
     queryOptions: { staleTime: 30_000 },
   });
 
-  if (query.error) return <Alert type="error" message={query.error.message} />;
+  if (query.error) return <Alert type="error" title={query.error.message} />;
   return <>
     <Input.Search allowClear onSearch={setSearch} placeholder="Find a project" />
     <Table
@@ -1295,7 +1331,7 @@ await cache.deleteItem('recent');
         ["useIcons", "Database icon names", "resolveIcon, iconMap, iconNames"],
         ["useTheme", "Current resolved public/workspace design", "appearance, mode, isDark, toggle"],
         ["useGlobalSelect", "Legacy database-backed select", "Select JSX/options; prefer structured lookups in new metadata forms"],
-        ["useTextEditor", "Rich-text field", "editor, content, setContent, editorChanged, editorRef"],
+        ["useTextEditor", "Rich-text field", "editor, content, getContent, setContent, editorChanged/isDirty, markClean, reset, editorRef"],
         ["useDraggable", "Draggable Ant modal", "drag(modal), draggableTitleProps"],
         ["useScrollToTop", "Reset scroll on navigation", "Side effect only"],
         ["useChart", "Recharts dashboard composition", "Chart factories/config helpers"],
@@ -1836,7 +1872,7 @@ return <>
         ["IndexedDB/local fallback storage", "useLocalForage", "Never store access tokens or secrets"],
         ["Allowlisted lookup select", "useGlobalSelect", "Table and fields must be in the server lookup registry"],
         ["Ant Design file upload", "useUpload", "Legacy specialized API; validate file types again on the server"],
-        ["TinyMCE editing", "useTextEditor", "HTML must be sanitized before storage/rendering"],
+        ["Self-hosted rich-text editing", "useTextEditor", "Tiptap needs no API key; HTML must still be sanitized before storage/rendering"],
         ["Role assignment deltas", "useAccessControl", "Server remains the authorization authority"],
         ["Scroll on route transition", "useScrollToTop", "Must run below React Router"],
       ]),
@@ -1946,13 +1982,21 @@ return <>
   {upload.preview()}
 </>;`),
       callout("Upload hardening", "The browser accept list is convenience only. The server must verify authentication, file signature/MIME, size, image dimensions, generated filename, storage destination, and ownership. Do not trust the uploaded extension."),
-      code("Rich-text editor", "jsx", `const text = useTextEditor();
+      code("Rich-text editor", "jsx", `const text = useTextEditor({
+  uploadImage: async (file) => {
+    const payload = new FormData();
+    payload.append('image', file);
+    const response = await api.post('/api/article-images', payload);
+    return response.data.url;
+  },
+});
 
 return <Form onFinish={() => saveArticle({ body: text.content })}>
   {text.editor(existingArticle.body)}
   <Button htmlType="submit" disabled={!text.editorChanged}>Save article</Button>
 </Form>;`),
-      callout("Rich HTML safety", "useTextEditor can upload embedded media and returns HTML. Sanitize on the server with an explicit allowlist, and sanitize again or use a trusted renderer when displaying it. The current hook contains legacy jQuery/settings dependencies and should be modernized before broad reuse.", "warning"),
+      callout("Rich HTML safety", "useTextEditor is built on the MIT-licensed, self-hosted Tiptap core and does not need an API key. It returns HTML and can insert uploaded media. Sanitize HTML on the server with an explicit allowlist, validate image signatures and ownership, and sanitize again or use a trusted renderer when displaying saved content.", "warning"),
+      callout("Vite dependency cache", "After installing or upgrading editor packages, stop the UI development server and run npm run dev:force once. A 504 Outdated Optimize Dep response means the browser or development server is still referencing an older node_modules/.vite pre-bundle; it is not an editor API or licensing failure."),
       code("Role permission assignment", "jsx", `const control = useAccessControl({
   role: selectedRole,
   fetchEndpoint: '/access/permissions/' + selectedRole,
@@ -1989,7 +2033,8 @@ function App() {
         ["useDelete", "Legacy delete helper; prefer provider delete plus query invalidation"],
         ["useBootstrap", "Deprecated application hook; bootstrap lifecycle belongs to FrameworkProvider/mysqlOrmProvider"],
         ["useDynamicForm", "Lower-level dynamic form renderer; useRecordForm is the supported record create/edit workflow"],
-        ["useUpload / useTextEditor", "Usable specialized integrations with legacy dependencies that should be isolated and hardened"],
+        ["useUpload", "Specialized upload integration; keep browser and server validation aligned"],
+        ["useTextEditor", "Supported Tiptap integration with reactive HTML, dirty tracking, reset, read-only mode, and caller-owned image uploads"],
       ]),
     ],
   },
@@ -2169,13 +2214,13 @@ function App() {
           ],
           [
             "Forms and content",
-            "@tinymce/tinymce-react, dayjs, crypto-random-string, ahooks",
-            "Rich text, dates, identifiers, hook utilities",
+            "@tiptap/react, @tiptap/starter-kit, @tiptap/extensions, dayjs, crypto-random-string, ahooks",
+            "Self-hosted rich text, dates, identifiers, hook utilities",
           ],
           [
             "Data presentation",
-            "recharts, react-countup, react-highlight-words, react-skeletonify",
-            "Charts, metrics, highlighting, loading states",
+            "recharts, @xyflow/react, react-countup, react-highlight-words, react-skeletonify",
+            "Charts, interactive architecture flows, metrics, highlighting, loading states",
           ],
           [
             "Export and print",
@@ -2184,8 +2229,8 @@ function App() {
           ],
           [
             "Interaction/support",
-            "react-draggable, react-confirm-alert, mockjs, jquery",
-            "Drag behavior, confirmations, mocks, legacy interop",
+            "react-draggable, react-confirm-alert, mockjs",
+            "Drag behavior, confirmations, and development mocks",
           ],
         ],
       ),
@@ -2416,6 +2461,11 @@ function App() {
             "Feedback",
             "NotFound404, TopProgress, useNotification",
             "Status, navigation progress, and user messages",
+          ],
+          [
+            "Public documentation",
+            "pages/docs/*, pages/docs/architecture-simulator/*",
+            "Architecture reference, live hook lab, policy simulation, and public onboarding",
           ],
           [
             "Analytics/examples",

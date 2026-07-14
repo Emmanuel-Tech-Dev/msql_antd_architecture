@@ -181,7 +181,7 @@ function SandboxProviders({ children }) {
 }
 
 function DemoPanel({ children, note }) {
-  return <div className="hook-semantic">{note && <Alert type="info" showIcon message={note} />}{children}</div>;
+  return <div className="hook-semantic">{note && <Alert type="info" showIcon title={note} />}{children}</div>;
 }
 
 function JsonResult({ value, empty = 'Interact with the demo to inspect its result.' }) {
@@ -247,9 +247,13 @@ function TextEditorContent() {
   const text = useTextEditor();
   const [snapshot, setSnapshot] = useState('');
   return (
-    <DemoPanel note="This renders the actual TinyMCE integration. Its image picker uses local data URLs in this sandbox; server sanitization is still required before persistence.">
+    <DemoPanel note="This is the actual self-hosted Tiptap editor used by the framework. It needs no API key. The sandbox embeds selected images as data URLs; production screens should provide an uploadImage adapter and sanitize HTML on the server.">
       <div className="hook-semantic__editor">{text.editor('<h2>Release notes</h2><p>Describe the change here.</p>')}</div>
-      <Button type="primary" onClick={() => setSnapshot(text.editorRef.current?.getContent() ?? '')}>Read editor HTML</Button>
+      <Space wrap>
+        <Button type="primary" onClick={() => setSnapshot(text.getContent())}>Read editor HTML</Button>
+        <Button onClick={() => text.setContent('<p>A clean programmatic update.</p>', { markDirty: false })}>Set content</Button>
+        <Button onClick={() => text.reset()}>Reset</Button>
+      </Space>
       <JsonResult value={snapshot ? { html: snapshot } : null} />
     </DemoPanel>
   );
@@ -379,7 +383,7 @@ export function RegisterDemo() { return <SandboxProviders><RegisterContent /></S
 function ForgotContent() {
   const [accepted, setAccepted] = useState(null);
   const forgot = useForgotPassword({ mutationOptions: { onSuccess: setAccepted } });
-  return <DemoPanel note="The UI always shows a neutral response so account existence is not disclosed."><Form layout="vertical" onFinish={(values) => forgot.mutate(values)}><Form.Item name="email" label="Account email" rules={[{ required: true, type: 'email' }]}><Input /></Form.Item><Button type="primary" htmlType="submit" loading={forgot.isPending} icon={<SendOutlined />}>Send reset instructions</Button></Form>{accepted && <Alert type="success" showIcon message="If the account exists, reset instructions have been sent." />}</DemoPanel>;
+  return <DemoPanel note="The UI always shows a neutral response so account existence is not disclosed."><Form layout="vertical" onFinish={(values) => forgot.mutate(values)}><Form.Item name="email" label="Account email" rules={[{ required: true, type: 'email' }]}><Input /></Form.Item><Button type="primary" htmlType="submit" loading={forgot.isPending} icon={<SendOutlined />}>Send reset instructions</Button></Form>{accepted && <Alert type="success" showIcon title="If the account exists, reset instructions have been sent." />}</DemoPanel>;
 }
 
 export function ForgotDemo() { return <SandboxProviders><ForgotContent /></SandboxProviders>; }
@@ -387,7 +391,7 @@ export function ForgotDemo() { return <SandboxProviders><ForgotContent /></Sandb
 function ResetContent() {
   const [done, setDone] = useState(false);
   const reset = useResetPassword({ mutationOptions: { onSuccess: () => setDone(true) } });
-  return <DemoPanel note="The real reset mutation receives the one-time token and replacement password through AuthProvider."><Form layout="vertical" initialValues={{ token: 'sandbox-reset-token' }} onFinish={(values) => reset.mutate(values)}><Form.Item name="token" label="Reset token"><Input disabled /></Form.Item><Form.Item name="password" label="New password" rules={[{ required: true, min: 8 }]}><Input.Password /></Form.Item><Button type="primary" htmlType="submit" loading={reset.isPending}>Reset password</Button></Form>{done && <Alert type="success" showIcon message="Password reset completed in the isolated provider." />}</DemoPanel>;
+  return <DemoPanel note="The real reset mutation receives the one-time token and replacement password through AuthProvider."><Form layout="vertical" initialValues={{ token: 'sandbox-reset-token' }} onFinish={(values) => reset.mutate(values)}><Form.Item name="token" label="Reset token"><Input disabled /></Form.Item><Form.Item name="password" label="New password" rules={[{ required: true, min: 8 }]}><Input.Password /></Form.Item><Button type="primary" htmlType="submit" loading={reset.isPending}>Reset password</Button></Form>{done && <Alert type="success" showIcon title="Password reset completed in the isolated provider." />}</DemoPanel>;
 }
 
 export function ResetDemo() { return <SandboxProviders><ResetContent /></SandboxProviders>; }
@@ -404,7 +408,7 @@ export function LogoutDemo() {
 
 export function ChangePasswordDemo() {
   const [changed, setChanged] = useState(false);
-  return <DemoPanel note="The production hook rotates credentials through AuthProvider and then clears cached session data."><Form layout="vertical" onFinish={() => setChanged(true)}><Form.Item name="currentPassword" label="Current password" rules={[{ required: true }]}><Input.Password /></Form.Item><Form.Item name="newPassword" label="New password" rules={[{ required: true, min: 8 }]}><Input.Password /></Form.Item><Button type="primary" htmlType="submit" icon={<LockOutlined />}>Change password</Button></Form>{changed && <Alert type="success" showIcon message="Password changed; session cache would now be cleared." />}</DemoPanel>;
+  return <DemoPanel note="The production hook rotates credentials through AuthProvider and then clears cached session data."><Form layout="vertical" onFinish={() => setChanged(true)}><Form.Item name="currentPassword" label="Current password" rules={[{ required: true }]}><Input.Password /></Form.Item><Form.Item name="newPassword" label="New password" rules={[{ required: true, min: 8 }]}><Input.Password /></Form.Item><Button type="primary" htmlType="submit" icon={<LockOutlined />}>Change password</Button></Form>{changed && <Alert type="success" showIcon title="Password changed; session cache would now be cleared." />}</DemoPanel>;
 }
 
 export function IdentityDemo() {
@@ -425,7 +429,7 @@ export function CanDemo() {
   const [role, setRole] = useState('Moderator');
   const [granted, setGranted] = useState(['read:projects']);
   const decision = checkAccess({ resource: 'projects', action: 'edit', roles: [role], permissions: granted, resources: { projects: { permissions: { edit: 'update:projects' } } }, browserRoutes: [], isReady: true });
-  return <DemoPanel note="This uses the same checkAccess function called by useCan. SuperAdmin and dev bypass explicit permissions; other roles require the configured permission."><div className="hook-semantic__access-evaluator"><label><span>Role</span><Radio.Group value={role} onChange={(event) => setRole(event.target.value)} options={['User', 'Moderator', 'dev']} /></label><label><span>Granted permissions</span><Checkbox.Group value={granted} onChange={setGranted} options={[{ label: 'read:projects', value: 'read:projects' }, { label: 'update:projects', value: 'update:projects' }]} /></label><Alert type={decision.can ? 'success' : 'error'} showIcon message={decision.can ? 'Allowed to edit projects' : 'Edit denied'} description={decision.reason ?? 'Privileged role or required permission is present.'} /></div></DemoPanel>;
+  return <DemoPanel note="This uses the same checkAccess function called by useCan. SuperAdmin and dev bypass explicit permissions; other roles require the configured permission."><div className="hook-semantic__access-evaluator"><label><span>Role</span><Radio.Group value={role} onChange={(event) => setRole(event.target.value)} options={['User', 'Moderator', 'dev']} /></label><label><span>Granted permissions</span><Checkbox.Group value={granted} onChange={setGranted} options={[{ label: 'read:projects', value: 'read:projects' }, { label: 'update:projects', value: 'update:projects' }]} /></label><Alert type={decision.can ? 'success' : 'error'} showIcon title={decision.can ? 'Allowed to edit projects' : 'Edit denied'} description={decision.reason ?? 'Privileged role or required permission is present.'} /></div></DemoPanel>;
 }
 
 export function RouteGuardDemo() {
@@ -437,7 +441,7 @@ export function RouteGuardDemo() {
 }
 
 export function FrameworkDemo() {
-  return <DemoPanel note="This hook cannot execute yet: FrameworkProvider imports FrameworkContext but does not mount FrameworkContext.Provider."><Alert type="warning" showIcon message="Provider wiring required" description="Define a stable context value containing the intended framework services, mount FrameworkContext.Provider, and then enable the useFramework demo." /><div className="hook-semantic__provider-flow"><span>FrameworkProvider</span><i>missing value</i><span>FrameworkContext.Provider</span><i>then</i><span>useFramework()</span></div></DemoPanel>;
+  return <DemoPanel note="This hook cannot execute yet: FrameworkProvider imports FrameworkContext but does not mount FrameworkContext.Provider."><Alert type="warning" showIcon title="Provider wiring required" description="Define a stable context value containing the intended framework services, mount FrameworkContext.Provider, and then enable the useFramework demo." /><div className="hook-semantic__provider-flow"><span>FrameworkProvider</span><i>missing value</i><span>FrameworkContext.Provider</span><i>then</i><span>useFramework()</span></div></DemoPanel>;
 }
 
 export function ScrollToTopDemo() {
@@ -448,7 +452,7 @@ export function ScrollToTopDemo() {
 }
 
 export function BootstrapDemo() {
-  return <DemoPanel note="useBootstrap is intentionally deprecated; FrameworkProvider owns the bootstrap query before application features render."><div className="hook-semantic__bootstrap-flow"><div><strong>01</strong><span>Authenticate</span></div><div><strong>02</strong><span>Fetch bootstrap registry</span></div><div><strong>03</strong><span>Populate values and resources</span></div><div><strong>04</strong><span>Render authorized application</span></div></div><Alert type="warning" showIcon message="Do not add new page-level useBootstrap calls" description="Invalidate or refetch the shared ['bootstrap'] query when runtime configuration changes." /></DemoPanel>;
+  return <DemoPanel note="useBootstrap is intentionally deprecated; FrameworkProvider owns the bootstrap query before application features render."><div className="hook-semantic__bootstrap-flow"><div><strong>01</strong><span>Authenticate</span></div><div><strong>02</strong><span>Fetch bootstrap registry</span></div><div><strong>03</strong><span>Populate values and resources</span></div><div><strong>04</strong><span>Render authorized application</span></div></div><Alert type="warning" showIcon title="Do not add new page-level useBootstrap calls" description="Invalidate or refetch the shared ['bootstrap'] query when runtime configuration changes." /></DemoPanel>;
 }
 
 // The registry intentionally lives beside its demo components so each entry

@@ -209,7 +209,7 @@ console.log(storage.getDriver()); // 'asyncStorage' = IndexedDB
 // ─── Loading + error ───────────────────────────────────────────────────────
 const { loading, error } = storage;
 {loading && <Spin />}
-{error && <Alert type="error" message={error} />}
+{error && <Alert type="error" title={error} />}
 
 // ─── Escape hatch ──────────────────────────────────────────────────────────
 storage.store.config({ description: 'my store' });

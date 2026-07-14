@@ -151,6 +151,7 @@ kbd {
 
 .docs-main { min-width: 0; background: var(--docs-surface); }
 .docs-article { width: min(100%, 940px); margin: 0 auto; padding: clamp(48px, 6vw, 86px) clamp(30px, 6vw, 82px) 80px; }
+.docs-article--wide { width: min(100%, 1320px); padding-inline: clamp(24px, 4vw, 52px); }
 .docs-article__meta { gap: 0; color: var(--docs-muted); font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .docs-article__meta span + span::before { margin: 0 10px; content: "/"; color: var(--docs-rule); }
 .docs-article__meta span:first-child { color: var(--docs-accent); }

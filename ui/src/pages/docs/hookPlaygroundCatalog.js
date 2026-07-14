@@ -286,10 +286,17 @@ return dynamic.formJSX;`,
   }),
   integrationEntry({
     key: 'useTextEditor', category: 'Forms', status: 'Live · isolated',
-    summary: 'Owns TinyMCE editor state and its media upload adapter; returned HTML requires server sanitization.',
-    importPath: 'src/hooks/useTextEditor.jsx', method: 'POST', endpoint: '/upload_tinymce_file',
-    result: 'Rich HTML and uploaded media reference returned',
-    example: `const text = useTextEditor();
+    summary: 'Owns a self-hosted Tiptap editor with reactive HTML, dirty tracking, reset controls, and an optional image-upload adapter.',
+    importPath: 'src/hooks/useTextEditor.jsx', method: 'OPTIONAL POST', endpoint: 'Caller-provided uploadImage(file)',
+    result: 'Rich HTML plus text/JSON context; no editor API key required',
+    example: `const text = useTextEditor({
+  uploadImage: async (file) => {
+    const body = new FormData();
+    body.append('image', file);
+    const response = await api.post('/api/article-images', body);
+    return response.data.url;
+  },
+});
 
 return <Form onFinish={() => save({ body: text.content })}>
   {text.editor(existingBody)}

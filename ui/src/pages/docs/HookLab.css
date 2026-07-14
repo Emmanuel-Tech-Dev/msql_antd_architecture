@@ -189,7 +189,7 @@
 .hook-semantic__dynamic-form .ant-form { max-width: none !important; }
 .hook-semantic__dynamic-form .ant-space { width: 100%; padding: 12px; align-items: flex-start; background: var(--docs-surface); border: 1px solid var(--docs-rule); }
 .hook-semantic__dynamic-form .ant-form-item { margin-bottom: 10px; }
-.hook-semantic__editor { margin-bottom: 16px; overflow: hidden; border: 1px solid var(--docs-rule); }
+.hook-semantic__editor { margin-bottom: 16px; }
 .hook-semantic__permission-list { display: grid; margin-bottom: 18px; border-top: 1px solid var(--docs-rule); }
 .hook-semantic__permission-list label { display: flex; min-height: 62px; padding: 12px 4px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--docs-rule); }
 .hook-semantic__permission-list label > span { display: flex; flex-direction: column; gap: 3px; }

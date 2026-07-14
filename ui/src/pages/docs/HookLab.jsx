@@ -348,7 +348,7 @@ function UploadDemo() {
 function StatisticsDemo() {
   return (
     <PreviewSurface>
-      <Alert type="warning" showIcon message="No hook contract exists yet" description="useStatistics.jsx is empty. Define accepted datasets, aggregation behavior, null handling, return values, and tests before turning this into a live implementation." />
+      <Alert type="warning" showIcon title="No hook contract exists yet" description="useStatistics.jsx is empty. Define accepted datasets, aggregation behavior, null handling, return values, and tests before turning this into a live implementation." />
       <div className="hook-studio__planned"><span>01</span><p>Define requirements</p><span>02</span><p>Implement pure calculations</p><span>03</span><p>Add unit and visualization tests</p></div>
     </PreviewSurface>
   );
@@ -398,7 +398,7 @@ function ContractPanel({ entry }) {
       <div><small>SOURCE</small><strong>{entry.importPath}</strong></div>
       <div><small>RUNTIME</small><strong>{entry.status}</strong></div>
       <div><small>CATEGORY</small><strong>{entry.category}</strong></div>
-      <Alert showIcon type={entry.status.includes('Live') ? 'success' : entry.status === 'Not implemented' ? 'warning' : 'info'} message={entry.status.includes('Live') ? 'Executed by this documentation page' : 'Isolated from protected application state'} description={entry.status.includes('Live') ? 'Use the Preview tab controls to exercise the real hook implementation.' : 'The Preview tab models inputs, loading, success, failure, and normalized output without affecting a live session or database.'} />
+      <Alert showIcon type={entry.status.includes('Live') ? 'success' : entry.status === 'Not implemented' ? 'warning' : 'info'} title={entry.status.includes('Live') ? 'Executed by this documentation page' : 'Isolated from protected application state'} description={entry.status.includes('Live') ? 'Use the Preview tab controls to exercise the real hook implementation.' : 'The Preview tab models inputs, loading, success, failure, and normalized output without affecting a live session or database.'} />
     </div>
   );
 }

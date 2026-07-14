@@ -28,6 +28,7 @@ import {
   documentationSections,
 } from './documentationContent';
 import HookLab from './HookLab';
+import ArchitectureSimulator from './architecture-simulator/ArchitectureSimulator';
 import './Documentation.css';
 
 const toneIcons = {
@@ -179,6 +180,9 @@ function DocumentationBlock({ block, index }) {
 
   if (block.type === 'code') return <CodeBlock block={block} />;
   if (block.type === 'hook-lab') return <HookLab />;
+  if (block.type === 'architecture-simulator') {
+    return <ArchitectureSimulator headingId={headingId} title={block.title} />;
+  }
   return null;
 }
 
@@ -319,7 +323,7 @@ export default function Documentation() {
         </aside>
 
         <main className="docs-main" id="main-content">
-          <article className="docs-article">
+          <article className={`docs-article${activeSection.id === 'architecture-simulator' ? ' docs-article--wide' : ''}`}>
             <div className="docs-article__meta">
               <span>{activeSection.eyebrow}</span>
               <span>{activeSection.audience}</span>

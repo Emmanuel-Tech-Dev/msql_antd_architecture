@@ -21,7 +21,9 @@ function getEncryptionKey() {
   }
 
   if (!Buffer.isEncoding(encoding)) {
-    throw new Error(`KEY_HOOK must be a valid Buffer encoding; received "${encoding}".`);
+    throw new Error(
+      `KEY_HOOK must be a valid Buffer encoding; received "${encoding}".`,
+    );
   }
 
   const key = Buffer.from(configuredKey, encoding);
@@ -37,13 +39,14 @@ function getEncryptionKey() {
 const cache = new NodeCache({ stdTTL: 3600 });
 
 const utils = {
+  clampInteger(value, fallback, max) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+    return Math.min(parsed, max);
+  },
   encrypt: (text) => {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(
-      "aes-256-cbc",
-      getEncryptionKey(),
-      iv,
-    );
+    const cipher = crypto.createCipheriv("aes-256-cbc", getEncryptionKey(), iv);
     let encrypted = cipher.update(text, "utf8", "hex");
     encrypted += cipher.final("hex");
     return `${iv.toString("hex")}:${encrypted}`;
@@ -101,7 +104,9 @@ const utils = {
       "authorization",
       "cookie",
       ...extraKeys.map((key) =>
-        String(key).toLowerCase().replace(/[^a-z0-9]/g, ""),
+        String(key)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, ""),
       ),
     ]);
     const clone = structuredClone(data);

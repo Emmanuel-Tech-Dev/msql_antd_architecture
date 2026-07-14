@@ -286,6 +286,7 @@ class BaseRoute {
   getExtraMetaList(app) {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
       const service = new BaseService(req, res);
+      console.log("extra meta list request", req.body);
       const result = await service.lookup(req.body);
 
       res.json({

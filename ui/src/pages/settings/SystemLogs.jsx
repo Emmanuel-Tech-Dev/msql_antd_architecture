@@ -101,6 +101,9 @@ export default function SystemLogs() {
         },
     });
 
+
+    // console.log(data)
+
     const logs = data?.data?.data ?? [];
     const pagination = data?.data?.pagination ?? { total: 0, page: 1, limit: pageSize };
     const meta = data?.data?.meta ?? {};
@@ -295,7 +298,7 @@ export default function SystemLogs() {
             </Card>
 
             <Table
-                rowKey={(_, index) => index}
+                rowKey={"timestamp"}
                 dataSource={logs}
                 columns={columns}
                 loading={isLoading}
@@ -320,11 +323,11 @@ export default function SystemLogs() {
                 title="Log Entry Detail"
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
-                width={560}
+                size={560}
                 destroyOnClose
             >
                 {activeEntry && (
-                    <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                    <Space orientation="vertical" style={{ width: '100%' }} size={16}>
 
                         <div>
                             <Text type="secondary" style={{ fontSize: 12 }}>Timestamp</Text>

@@ -16,12 +16,6 @@ const SENSITIVE_COLUMNS = new Set([
   "private_key",
 ]);
 
-const clampInteger = (value, fallback, max) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
-  return Math.min(parsed, max);
-};
-
 class BaseService {
   constructor(request, response) {
     this.request = request;
@@ -33,7 +27,10 @@ class BaseService {
       throw new AppError("ERR_INVALID_INPUT", "Record must be an object");
     }
     if (Object.keys(payload).length === 0) {
-      throw new AppError("ERR_INVALID_INPUT", "Record must contain at least one field");
+      throw new AppError(
+        "ERR_INVALID_INPUT",
+        "Record must contain at least one field",
+      );
     }
 
     const writableColumns = this.request.validatedResource?.fields ?? [];
@@ -67,8 +64,12 @@ class BaseService {
       // The route resource is authoritative. Browser headers cannot redirect
       // schema discovery or raw/full-text expressions to another table.
       table: resources,
-      maxLimit: clampInteger(options.maxLimit ?? headerConfig.maxLimit, 100, 500),
-      defaultLimit: clampInteger(
+      maxLimit: utils.clampInteger(
+        options.maxLimit ?? headerConfig.maxLimit,
+        100,
+        500,
+      ),
+      defaultLimit: utils.clampInteger(
         options.defaultLimit ?? headerConfig.defaultLimit,
         20,
         100,
@@ -168,7 +169,11 @@ class BaseService {
 
   async bulkCreate(payload) {
     const { resources } = this.request.params;
-    if (!Array.isArray(payload) || payload.length === 0 || payload.length > 500) {
+    if (
+      !Array.isArray(payload) ||
+      payload.length === 0 ||
+      payload.length > 500
+    ) {
       throw new AppError(
         "ERR_INVALID_INPUT",
         "Bulk records must contain between 1 and 500 items",
@@ -187,7 +192,10 @@ class BaseService {
     const writableRecord = { ...this.validateWriteRecord(payload) };
     delete writableRecord[primaryKey];
     if (Object.keys(writableRecord).length === 0) {
-      throw new AppError("ERR_INVALID_INPUT", "No editable fields were provided");
+      throw new AppError(
+        "ERR_INVALID_INPUT",
+        "No editable fields were provided",
+      );
     }
     return new Model()
       .update(resources, writableRecord)
@@ -234,7 +242,7 @@ class BaseService {
       for (const filter of definition.filters) {
         model.where(filter.column, filter.operator, filter.value);
       }
-      const rows = await model.limit(definition.limit).execute();
+      const rows = await model.limit(definition?.limit).execute();
       results[definition.storeName] = utils.redactSensitiveData(rows);
     }
 
@@ -266,7 +274,9 @@ class BaseService {
       model.where(where.column, "=", where.value);
     }
 
-    const rows = await model.limit(clampInteger(limit, 500, 500)).execute();
+    const rows = await model
+      // .limit(utils.clampInteger(limit, 500, 500))
+      .execute();
     return utils.redactSensitiveData(rows);
   }
 }

@@ -215,6 +215,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                                 setExtraMetaList((r) => [...r, name]);
 
                                 const lookupPayload = legacySqlToLookup(sql);
+                                //  console.log(lookupPayload)
                                 if (!lookupPayload) {
                                     throw new Error(`Unsupported lookup definition for ${name}`);
                                 }
@@ -517,7 +518,11 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                         html.push(
                             <div key={`${name}_editable`} className={marginBottom}>
                                 <label className={`font-bold ${marginBottom}`}>Enter {realName}{showValidatorIndicator}</label>
-                                {editor.editor()}
+                                {editor.editor(value, {
+                                    disabled,
+                                    ariaLabel: realName,
+                                    onChange: (htmlValue) => changeValue(htmlValue, key),
+                                })}
                             </div>
                         );
                         break;

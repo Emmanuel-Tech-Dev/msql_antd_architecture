@@ -165,7 +165,7 @@ export default function ProfileSettings() {
                                 className="profile-card__note"
                                 type="info"
                                 showIcon
-                                message="Your email and user ID are identity fields and cannot be changed here."
+                                title="Your email and user ID are identity fields and cannot be changed here."
                             />
                             <Form form={profileForm} layout="vertical" requiredMark={false} onFinish={saveProfile}>
                                 <Row gutter={16}>

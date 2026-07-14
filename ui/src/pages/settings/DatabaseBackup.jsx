@@ -182,7 +182,7 @@ export default function DatabaseBackup() {
                             className="backup-notice"
                             type="warning"
                             showIcon
-                            message="Backups contain sensitive application data"
+                            title="Backups contain sensitive application data"
                             description="Store the SQL file securely. It may contain personal records, password hashes, and encrypted system values."
                         />
 
@@ -208,7 +208,7 @@ export default function DatabaseBackup() {
                                 className="backup-permission-alert"
                                 type="error"
                                 showIcon
-                                message="You do not have permission to create database backups."
+                                title="You do not have permission to create database backups."
                             />
                         )}
                     </Card>

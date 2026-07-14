@@ -1,0 +1,241 @@
+.framework-rich-editor {
+    width: 100%;
+    overflow: hidden;
+    color: var(--color-text-primary, #171717);
+    background: var(--color-bg-container, #ffffff);
+    border: 1px solid var(--color-border, #d9d9d9);
+    border-radius: var(--app-radius, 8px);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.framework-rich-editor:focus-within {
+    border-color: var(--color-accent, #1677ff);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #1677ff) 14%, transparent);
+}
+
+.framework-rich-editor.is-readonly:focus-within {
+    border-color: var(--color-border, #d9d9d9);
+    box-shadow: none;
+}
+
+.framework-rich-editor.is-loading {
+    min-height: var(--framework-editor-min-height, 280px);
+    background: var(--color-bg-elevated, #fafafa);
+}
+
+.framework-rich-editor__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 10px;
+    background: var(--color-bg-elevated, #fafafa);
+    border-bottom: 1px solid var(--color-border-subtle, #eeeeee);
+}
+
+.framework-rich-editor__tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 6px;
+    margin-right: 1px;
+    border-right: 1px solid var(--color-border-subtle, #eeeeee);
+}
+
+.framework-rich-editor__tool-group:last-child {
+    padding-right: 0;
+    border-right: 0;
+}
+
+.framework-rich-editor__tool.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    color: var(--color-text-secondary, #595959);
+    border-radius: calc(var(--app-radius, 8px) * 0.65);
+}
+
+.framework-rich-editor__tool.ant-btn:not(:disabled):hover,
+.framework-rich-editor__tool.ant-btn.is-active {
+    color: var(--color-accent, #1677ff);
+    background: color-mix(in srgb, var(--color-accent, #1677ff) 11%, transparent);
+}
+
+.framework-rich-editor__format-select {
+    width: 118px;
+}
+
+.framework-rich-editor__justify-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: underline overline;
+}
+
+.framework-rich-editor__file-input {
+    display: none;
+}
+
+.framework-rich-editor__error {
+    padding: 8px 16px;
+    color: var(--color-error, #ff4d4f);
+    font-size: 13px;
+    background: color-mix(in srgb, var(--color-error, #ff4d4f) 7%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-error, #ff4d4f) 20%, transparent);
+}
+
+.framework-rich-editor .tiptap.framework-rich-editor__content {
+    min-height: var(--framework-editor-min-height, 280px);
+    padding: 18px 20px 24px;
+    color: var(--color-text-primary, #171717);
+    font-family: var(--font-body, inherit);
+    font-size: var(--font-size-base, 14px);
+    line-height: 1.7;
+    outline: none;
+    overflow-wrap: anywhere;
+}
+
+.framework-rich-editor.is-readonly .tiptap.framework-rich-editor__content {
+    min-height: auto;
+    background: var(--color-bg-elevated, #fafafa);
+}
+
+.framework-rich-editor .tiptap > *:first-child {
+    margin-top: 0;
+}
+
+.framework-rich-editor .tiptap > *:last-child {
+    margin-bottom: 0;
+}
+
+.framework-rich-editor .tiptap h1,
+.framework-rich-editor .tiptap h2,
+.framework-rich-editor .tiptap h3 {
+    margin: 1.2em 0 0.45em;
+    color: inherit;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.framework-rich-editor .tiptap h1 { font-size: 2em; }
+.framework-rich-editor .tiptap h2 { font-size: 1.55em; }
+.framework-rich-editor .tiptap h3 { font-size: 1.25em; }
+
+.framework-rich-editor .tiptap p {
+    margin: 0 0 0.8em;
+}
+
+.framework-rich-editor .tiptap ul,
+.framework-rich-editor .tiptap ol {
+    padding-left: 1.6rem;
+    margin: 0.75rem 0;
+}
+
+.framework-rich-editor .tiptap blockquote {
+    padding: 2px 0 2px 16px;
+    margin: 1rem 0;
+    color: var(--color-text-secondary, #595959);
+    border-left: 3px solid var(--color-accent, #1677ff);
+}
+
+.framework-rich-editor .tiptap code {
+    padding: 0.15em 0.35em;
+    font-size: 0.9em;
+    background: var(--color-bg-elevated, #f5f5f5);
+    border: 1px solid var(--color-border-subtle, #eeeeee);
+    border-radius: 4px;
+}
+
+.framework-rich-editor .tiptap pre {
+    padding: 14px 16px;
+    overflow-x: auto;
+    color: var(--color-text-primary, #f5f5f5);
+    background: #171717;
+    border-radius: calc(var(--app-radius, 8px) * 0.8);
+}
+
+.framework-rich-editor .tiptap pre code {
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+}
+
+.framework-rich-editor .tiptap a {
+    color: var(--color-accent, #1677ff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.framework-rich-editor .tiptap hr {
+    margin: 1.5rem 0;
+    border: 0;
+    border-top: 1px solid var(--color-border, #d9d9d9);
+}
+
+.framework-rich-editor .tiptap img.framework-rich-editor__image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem auto;
+    border-radius: calc(var(--app-radius, 8px) * 0.8);
+}
+
+.framework-rich-editor .tiptap p.is-editor-empty:first-child::before {
+    float: left;
+    height: 0;
+    color: var(--color-text-tertiary, #8c8c8c);
+    content: attr(data-placeholder);
+    pointer-events: none;
+}
+
+.framework-rich-editor__status {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    min-height: 32px;
+    padding: 7px 12px;
+    color: var(--color-text-tertiary, #8c8c8c);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    background: var(--color-bg-elevated, #fafafa);
+    border-top: 1px solid var(--color-border-subtle, #eeeeee);
+}
+
+.framework-rich-editor__link-popover {
+    display: grid;
+    gap: 10px;
+    width: min(320px, 70vw);
+}
+
+.framework-rich-editor__link-popover .ant-space {
+    justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+    .framework-rich-editor__toolbar {
+        align-items: flex-start;
+        overflow-x: auto;
+    }
+
+    .framework-rich-editor__tool-group {
+        border-right: 0;
+    }
+
+    .framework-rich-editor .tiptap.framework-rich-editor__content {
+        padding: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .framework-rich-editor {
+        transition: none;
+    }
+}
