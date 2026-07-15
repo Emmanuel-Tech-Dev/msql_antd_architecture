@@ -30,7 +30,7 @@ export const PageHeader = ({
 
                     <div className="page-header__title-row">
                         {icon && (
-                            <span className="page-header__icon" aria-hidden="true" p-4 border >
+                            <span className="page-header__icon" aria-hidden="true">
                                 {icon}
                             </span>
                         )}

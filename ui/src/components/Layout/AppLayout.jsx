@@ -170,7 +170,7 @@ export default function AppLayout() {
 
   return sider.layoutJSX({
     siderHeader,
-    header: workspaceHeader,
+    // header: workspaceHeader,
     trigger: null,
   });
 }

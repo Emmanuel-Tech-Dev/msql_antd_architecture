@@ -1,536 +1,307 @@
-import React, { useEffect, useState } from 'react';
-import { Tag, Button, Tooltip, Divider, Avatar, Badge, Empty, Select } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    UserOutlined,
-    PlusOutlined,
-    CloseOutlined,
-    EditOutlined,
-    StopOutlined,
+    Avatar,
+    Badge,
+    Button,
+    Empty,
+    Popconfirm,
+    Segmented,
+    Skeleton,
+    Tabs,
+    Tag,
+    Tooltip,
+    Typography,
+} from 'antd';
+import {
     CheckCircleFilled,
-    WarningFilled,
-    InfoCircleFilled,
+    ClockCircleOutlined,
     CloseCircleFilled,
+    InfoCircleFilled,
+    KeyOutlined,
+    SafetyCertificateOutlined,
+    TeamOutlined,
+    UserOutlined,
+    WarningFilled,
 } from '@ant-design/icons';
-import { SkeletonWrapper } from 'react-skeletonify';
 import useApi from '../../hooks/useApi';
-import utils from '../../utils/function_utils';
-import { useRef } from 'react';
 import useGlobalSelect from '../../hooks/useGlobalSelect';
 import useNotification from '../../hooks/useNotification';
+import utils from '../../utils/function_utils';
+import UserAuthorityPanel from '../access/UserAuthorityPanel';
+import './UserInfo.css';
 
+const { Text, Title } = Typography;
+const ACTIVITY_FILTERS = ['All', 'Login', 'Security', 'Access'];
 
-/* ─── mock data ────────────────────────────────────────────────── */
-const user = {
-    name: 'Emmanuel Kusi Sarfo',
-    email: 'emmanuelkusi345@gmail.com',
-    phone: '0554 205 473',
-    custom_id: 'REG20260224004',
-    authMethod: 'Password',
-    lastLogin: '21 Apr 2026, 09:14',
-    lastLogout: '20 Apr 2026, 18:42',
-    joined: '24 Feb 2026',
-    forcePwdChange: false,
-    status: 'active',
-    initials: 'EK',
-    roles: [
-        { label: 'SuperAdmin', color: '#185FA5' },
-        { label: 'Admin', color: '#BA7517' },
-    ],
-    stats: [
-        { label: 'Logins (30d)', value: 14 },
-        { label: 'Pwd resets', value: 2 },
-        { label: 'Permissions', value: 8 },
-        { label: 'Routes', value: 6 },
-    ],
-    activity: [
-        {
-            type: 'success',
-            title: 'Logged in successfully',
-            sub: 'IP 197.255.42.11 · Chrome / Windows',
-            time: 'Today 09:14',
-        },
-        {
-            type: 'warning',
-            title: 'Password reset requested',
-            sub: 'Reset token sent to email · token used',
-            time: '20 Apr 18:03',
-        },
-        {
-            type: 'info',
-            title: 'Role assigned — Admin',
-            sub: 'Assigned by superadmin@system.com',
-            time: '18 Apr 11:30',
-        },
-        {
-            type: 'danger',
-            title: 'Access denied — DELETE /api/admin_roles',
-            sub: 'Insufficient permissions · ERR_ACCESS_DENIED',
-            time: '17 Apr 14:55',
-        },
-        {
-            type: 'success',
-            title: 'Logged in successfully',
-            sub: 'IP 197.255.42.11 · Chrome / Windows',
-            time: '17 Apr 08:50',
-        },
-        {
-            type: 'warning',
-            title: 'Password reset — limit reached',
-            sub: '3 of 3 reset attempts used · locked 30 min',
-            time: '15 Apr 20:11',
-        },
-    ],
-    access: [
-        { resource: 'Users', perms: ['read', 'create', 'update', 'delete'] },
-        { resource: 'Roles', perms: ['read', 'create', null, null], denied: ['delete'] },
-        { resource: 'Settings', perms: ['read', null], denied: ['update'] },
-        { resource: 'Logs', perms: ['read', null], denied: ['delete'] },
-        { resource: 'Permissions', perms: [null, null], denied: ['read', 'create'] },
-    ],
+function activityCategory(activity) {
+    const value = `${activity?.activity_type ?? ''} ${activity?.title ?? ''}`.toLowerCase();
+    if (value.includes('login') || value.includes('logout')) return 'Login';
+    if (value.includes('password') || value.includes('auth') || value.includes('denied')) return 'Security';
+    return 'Access';
+}
+
+function activityTone(activity) {
+    const value = `${activity?.title ?? ''} ${activity?.description ?? ''}`.toLowerCase();
+    if (value.includes('fail') || value.includes('denied') || value.includes('error')) return 'danger';
+    if (value.includes('reset') || value.includes('warning') || value.includes('limit')) return 'warning';
+    if (value.includes('success') || value.includes('login')) return 'success';
+    return 'info';
+}
+
+const ACTIVITY_ICONS = {
+    success: <CheckCircleFilled />,
+    warning: <WarningFilled />,
+    info: <InfoCircleFilled />,
+    danger: <CloseCircleFilled />,
 };
 
-const activityIcon = {
-    success: <CheckCircleFilled style={{ color: '#22c55e', fontSize: 14 }} />,
-    warning: <WarningFilled style={{ color: '#f59e0b', fontSize: 14 }} />,
-    info: <InfoCircleFilled style={{ color: '#3b82f6', fontSize: 14 }} />,
-    danger: <CloseCircleFilled style={{ color: '#ef4444', fontSize: 14 }} />,
-};
-
-const dotColor = {
-    success: '#22c55e',
-    warning: '#f59e0b',
-    info: '#3b82f6',
-    danger: '#ef4444',
-};
-
-const filters = ['All', 'Login', 'Security', 'Access'];
-
-/* ─── helper: access permission pill ───────────────────────────── */
-function PermPill({ label, granted }) {
+function DetailRow({ label, value, mono = false, copyable = false }) {
     return (
-        <span
-            style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '2px 9px',
-                borderRadius: 20,
-                fontSize: 10,
-                fontWeight: 500,
-                border: `0.5px solid ${granted ? '#bbf7d0' : '#e5e7eb'}`,
-                background: granted ? '#f0fdf4' : '#f9fafb',
-                color: granted ? '#15803d' : '#9ca3af',
-            }}
-        >
-            {label}
-        </span>
+        <div className="user-workspace__detail-row">
+            <span>{label}</span>
+            <Text className={mono ? 'is-mono' : ''} copyable={copyable && Boolean(value)} title={value}>
+                {value || 'Not available'}
+            </Text>
+        </div>
     );
 }
 
-/* ─── main component ────────────────────────────────────────────── */
-export default function UserInfo({ user: payload }) {
-    const { message } = useNotification();
-    const [activeFilter, setActiveFilter] = useState('All');
-    const [roles, setRoles] = useState(payload?.roles || []);
-
-    const removeRole = (label) => setRoles((r) => r.filter((x) => x.label !== label));
-
-    const selectJsx = useGlobalSelect("role_name", "admin_roles")
-    // AFTER — fires exactly once, even in StrictMode
-    const { run, loading, data: rawData } = useApi("get", `/access/user_info/${payload?.custom_id}`,)
-
-    const data = rawData?.data
-    const hasFetched = useRef(false);
-
-    useEffect(() => {
-        if (hasFetched.current) return;   // guard: skip the StrictMode re-run
-        hasFetched.current = true;
-        run();
-    }, []);
-
-
-    const { run: runAssignedRoles } = useApi("post", "/access/assign/roles", {
-        onSuccess: () => {
-            message.success("Role assigned successfully");
-            run();
-        },
-        onError: (error) => {
-            message.error("Failed to assign role. Please try again.");
-        },
-
-    })
-
-    // console.log(data)
-
-
-    // "create:admin"        → action=create,  resource=Admin
-    // "read:admin_resources"→ action=read,    resource=Admin Resources  
-    // "read:roles"          → action=read,    resource=Roles
-
-    const permsByResource = (data?.permissions ?? []).reduce((acc, p) => {
-        const [action, ...resourceParts] = (p.permission ?? '').split(':');
-        if (!resourceParts.length) return acc;
-
-        // "admin_resources" → "Admin Resources", "admin" → "Admin", "roles" → "Roles"
-        const key = resourceParts
-            .join(':')                        // rejoin in case resource had colons
-            .split('_')                       // split snake_case
-            .map(w => w.charAt(0).toUpperCase() + w.slice(1))  // capitalise each word
-            .join(' ');
-
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(action);
-        return acc;
-    }, {});
-
-    // Result:
-    // {
-    //   "Admin":           ["create", "delete"],
-    //   "Admin Resources": ["read"],
-    //   "Roles":           ["read"],
-    // }
-
-
-    useEffect(() => {
-        // selectJsx.setStyles({
-
-        // })
-
-        //  selectJsx.setPlaceHolder("Testing Global Selection")
-    }, [])
+function OverviewTab({ data, user }) {
+    const [filter, setFilter] = useState('All');
+    const activities = useMemo(() => (data.activities ?? []).filter(
+        (activity) => filter === 'All' || activityCategory(activity) === filter,
+    ), [data.activities, filter]);
 
     return (
-        <SkeletonWrapper loading={loading || !data}>
-            <div
-                style={{
-                    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-                    background: '#fff',
-                    //  border: '1px solid #e5e7eb',
-                    //  borderRadius: 14,
-                    // overflow: 'hidden',
-                    display: 'grid',
-                    gridTemplateColumns: '260px 1fr',
-                    //  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                    //  maxWidth: 960,
-                    // margin: '0 auto',
-                }}
-            >
-                {/* ── LEFT COLUMN ─────────────────────────────────────────── */}
-                <div
-                    style={{
-                        borderRight: '1px solid #f0f0f0',
-                        padding: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 0,
-                        background: '#fafafa',
-                    }}
-                >
-                    {/* Avatar + name */}
-                    <div style={{ textAlign: 'center', paddingBottom: 16 }}>
-                        <Avatar
-                            size={72}
-                            src={payload?.avatar || payload.profile_picture || undefined}
-                            style={{
-                                background: utils.avatarColor(payload?.name),
-                                fontSize: 13,
-                                fontWeight: 600,
-                                flexShrink: 0,
-                            }}
-
-                        >
-                            {utils.getInitials_v2(payload?.name)}
-                        </Avatar>
-                        <p className='mt-2' style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 3 }}>
-                            {payload?.name}
-                        </p>
-                        <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>{payload?.email}</p>
-                        <Badge
-                            status={payload?.status === 1 ? 'success' : 'default'}
-                            text={
-                                <span style={{ fontSize: 12, fontWeight: 500, color: payload?.status === 1 ? '#059669' : '#9ca3af' }}>
-                                    {payload?.status === 1 ? 'Active' : 'Inactive'}
-                                </span>
-                            }
-                        />
-                    </div>
-
-                    <Divider style={{ margin: '0 0 14px' }} />
-
-                    {/* Details */}
-                    <div style={{ marginBottom: 14 }}>
-                        <SectionTitle>Details</SectionTitle>
-                        {[
-                            { label: 'User ID', value: payload?.custom_id, mono: true },
-                            { label: 'Email', value: payload?.email, small: true },
-                            { label: 'Phone', value: payload?.phone || "-" },
-                            { label: 'Auth method', value: payload?.authMethod || "-" },
-                            { label: 'Last login', value: utils.getDateAndTime(payload?.last_login) || "-" },
-                            { label: 'Last logout', value: utils.getDateAndTime(payload?.last_logout) || "-" },
-                            { label: 'Joined', value: utils.formatDateV3(payload?.createdAt) },
-                        ].map((row) => (
-                            <DetailRow key={row.label} label={row.label}>
-                                <span
-                                    style={{
-                                        fontSize: row.mono ? 10 : row.small ? 11 : 12,
-                                        fontFamily: row.mono ? 'monospace' : 'inherit',
-                                        fontWeight: 500,
-                                        color: '#111827',
-                                    }}
-                                >
-                                    {row.value}
-                                </span>
-                            </DetailRow>
-                        ))}
-                        <DetailRow label="Force pwd change">
-                            <span
-                                style={{
-                                    display: 'inline-flex',
-                                    padding: '2px 8px',
-                                    borderRadius: 20,
-                                    fontSize: 10,
-                                    fontWeight: 500,
-                                    background: '#f3f4f6',
-                                    color: '#6b7280',
-                                    border: '0.5px solid #e5e7eb',
-                                }}
-                            >
-                                No
-                            </span>
-                        </DetailRow>
-                    </div>
-
-                    <Divider style={{ margin: '0 0 14px' }} />
-
-                    {/* Roles */}
-                    <div style={{ marginBottom: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <SectionTitle style={{ margin: 0 }}>Roles</SectionTitle>
-                            {selectJsx.selected &&
-                                <Tooltip title="Add role">
-                                    <div
-                                        style={{
-                                            width: 18,
-                                            height: 18,
-                                            border: '0.5px solid #d1d5db',
-                                            borderRadius: 4,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            background: '#fff',
-                                        }}
-                                    >
-                                        <PlusOutlined style={{ fontSize: 10, color: '#6b7280' }} onClick={() => runAssignedRoles({ custom_id: payload?.custom_id, role: selectJsx?.selected })} />
-                                    </div>
-                                </Tooltip>}
-                        </div>
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                            {data?.roles.map((r) => (
-                                <span
-                                    key={r?.role_id}
-                                    style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 5,
-                                        padding: '3px 9px 3px 7px',
-                                        borderRadius: 20,
-                                        fontSize: 11,
-                                        background: '#fff',
-                                        border: '0.5px solid #e5e7eb',
-                                        color: '#111827',
-                                    }}
-                                >
-                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-                                    {r.role_id}
-                                    <CloseOutlined
-                                        style={{ fontSize: 9, color: '#9ca3af', marginLeft: 2, cursor: 'pointer' }}
-                                        onClick={() => removeRole(r.role_id)}
-                                    />
-                                </span>
-                            ))}
-                        </div>
-
-                        <div
-
-                        >
-
-
-
-
-
-                            {selectJsx.SelectJsx({
-                                placeholder: "Add role", style: {
-                                    width: '100%', border: '0.5px dashed #d1d5db',
-                                    borderRadius: 8,
-                                    padding: '6px 10px',
-                                    fontSize: 11,
-                                    color: '#9ca3af',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    cursor: 'pointer',
-                                    background: '#fff',
-                                }
-                            })}
-                        </div>
-                    </div>
-
-                    <Divider style={{ margin: '0 0 14px' }} />
-
-                    {/* Action buttons */}
-
-                </div>
-
-                {/* ── RIGHT COLUMN ────────────────────────────────────────── */}
-                <div style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-
-                    {/* Header + filter pills */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                        <SectionTitle style={{ margin: 0 }}>Activity &amp; access</SectionTitle>
-                        <div style={{ display: 'flex', gap: 5 }}>
-                            {filters.map((f) => (
-                                <button
-                                    key={f}
-                                    onClick={() => setActiveFilter(f)}
-                                    style={{
-                                        padding: '3px 10px',
-                                        borderRadius: 20,
-                                        fontSize: 10,
-                                        cursor: 'pointer',
-                                        border: `0.5px solid ${activeFilter === f ? '#6b7280' : '#e5e7eb'}`,
-                                        color: activeFilter === f ? '#111827' : '#6b7280',
-                                        background: activeFilter === f ? '#f3f4f6' : 'transparent',
-                                        fontWeight: activeFilter === f ? 500 : 400,
-                                        transition: 'all 0.15s',
-                                    }}
-                                >
-                                    {f}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Stat cards */}
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                        {data?.stats.map((s) => (
-                            <div
-                                key={s.label}
-                                style={{
-                                    flex: 1,
-                                    background: '#f9fafb',
-                                    borderRadius: 10,
-                                    padding: '10px 12px',
-                                    border: '0.5px solid #f0f0f0',
-                                }}
-                            >
-                                <p style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>{s.label}</p>
-                                <p style={{ fontSize: 20, fontWeight: 600, color: '#111827', lineHeight: 1 }}>{s.value}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <Divider style={{ margin: '0 0 12px' }} />
-
-                    {/* Recent activity */}
-                    <SectionTitle style={{ marginBottom: 10 }}>Recent activity</SectionTitle>
+        <div className="user-workspace__overview">
+            <section aria-labelledby="user-account-summary">
+                <div className="user-workspace__section-heading">
                     <div>
-
-                        {data?.activities.length == 0 ? <Empty description="No recent activities for this user" /> :
-
-                            data?.activities?.map((item, i) => (
-                                <div
-                                    key={item?.id}
-                                    style={{
-                                        display: 'flex',
-                                        gap: 10,
-                                        padding: '9px 0',
-                                        borderBottom: i < data?.activities.length - 1 ? '0.5px solid #f3f4f6' : 'none',
-                                        alignItems: 'flex-start',
-                                    }}
-                                >
-                                    <span style={{ marginTop: 1, flexShrink: 0 }}>{activityIcon[item.title]}</span>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{ fontSize: 12, fontWeight: 500, color: '#111827', marginBottom: 2 }}>{item.activity_type}</p>
-                                        <p style={{ fontSize: 11, color: '#6b7280' }}>{item.description}</p>
-                                        <p style={{ fontSize: 11, color: '#6b7280' }}><span className='font-semibold'>User Agent:</span> : {item?.user_agent}</p>
-                                    </div>
-                                    <span style={{ fontSize: 11, color: '#9ca3af', whiteSpace: 'nowrap', paddingLeft: 8 }}>{utils.fromNow(item.createdAt)}</span>
-                                </div>
-                            ))}
+                        <span>Account signals</span>
+                        <Title level={4} id="user-account-summary">Security and access summary</Title>
                     </div>
-
-                    <Divider style={{ margin: '14px 0' }} />
-
-                    {/* Effective access */}
-                    <SectionTitle style={{ marginBottom: 10 }}>
-                        Effective access{' '}
-                        <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 9 }}>
-                            (read-only · computed from roles)
-                        </span>
-                    </SectionTitle>
-
-                    {Object.entries(permsByResource).map(([resource, actions], i, arr) => (
-                        <div
-                            key={resource}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '6px 0',
-                                borderBottom: i < arr.length - 1 ? '0.5px solid #f3f4f6' : 'none',
-                            }}
-                        >
-                            <span style={{ fontSize: 11, color: '#6b7280', width: 100, flexShrink: 0 }}>
-                                {resource}
-                            </span>
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                                {actions.map((a) => (
-                                    <PermPill key={a} label={a} granted />
-                                ))}
-                            </div>
+                </div>
+                <div className="user-workspace__stats">
+                    {(data.stats ?? []).map((stat) => (
+                        <div className="user-workspace__stat" key={stat.label}>
+                            <strong>{stat.value}</strong>
+                            <span>{stat.label}</span>
                         </div>
                     ))}
+                </div>
+            </section>
 
+            <section className="user-workspace__activity" aria-labelledby="recent-user-activity">
+                <div className="user-workspace__section-heading user-workspace__section-heading--activity">
+                    <div>
+                        <span>Audit trail</span>
+                        <Title level={4} id="recent-user-activity">Recent activity</Title>
+                    </div>
+                    <Segmented
+                        aria-label="Filter user activity"
+                        options={ACTIVITY_FILTERS}
+                        size="small"
+                        value={filter}
+                        onChange={setFilter}
+                    />
+                </div>
+
+                {activities.length === 0 ? (
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`No ${filter.toLowerCase()} activity found`} />
+                ) : (
+                    <div className="user-workspace__timeline">
+                        {activities.map((activity) => {
+                            const tone = activityTone(activity);
+                            return (
+                                <article className="user-workspace__activity-row" key={activity.id}>
+                                    <span className={`user-workspace__activity-icon is-${tone}`} aria-hidden="true">
+                                        {ACTIVITY_ICONS[tone]}
+                                    </span>
+                                    <div className="user-workspace__activity-copy">
+                                        <strong>{activity.activity_type || activity.title || 'Account activity'}</strong>
+                                        <p>{activity.description || 'No additional details were recorded.'}</p>
+                                        <Tooltip title={activity.user_agent || 'User agent not recorded'}>
+                                            <small>{activity.ip_address ? `${activity.ip_address} · ` : ''}{activity.user_agent || 'Unknown device'}</small>
+                                        </Tooltip>
+                                    </div>
+                                    <time dateTime={activity.created_at}>
+                                        {activity.created_at ? utils.fromNow(activity.created_at) : 'Unknown time'}
+                                    </time>
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
+
+            <section className="user-workspace__account-details" aria-labelledby="account-details">
+                <div className="user-workspace__section-heading">
+                    <div>
+                        <span>Identity record</span>
+                        <Title level={4} id="account-details">Account details</Title>
+                    </div>
+                </div>
+                <div className="user-workspace__detail-grid">
+                    <DetailRow label="User ID" value={user.custom_id} mono copyable />
+                    <DetailRow label="Email" value={user.email} />
+                    <DetailRow label="Phone" value={user.phone_no || user.phone} />
+                    <DetailRow label="Authentication" value={user.oauth_provider || 'Password'} />
+                    <DetailRow label="Last login" value={user.last_login ? utils.getDateAndTime(user.last_login) : 'Never'} />
+                    <DetailRow label="Last logout" value={user.last_logout ? utils.getDateAndTime(user.last_logout) : 'Not available'} />
+                    <DetailRow label="Created" value={user.created_at || user.createdAt ? utils.formatDateV3(user.created_at || user.createdAt) : 'Not available'} />
+                    <DetailRow label="Password change" value={Number(user.forced_password_change) === 1 ? 'Required at next login' : 'Not required'} />
+                </div>
+            </section>
+        </div>
+    );
+}
+
+function RolesTab({ data, userId, roleSelect, assigning, onAssign }) {
+    const roles = data.roles ?? [];
+    return (
+        <section className="user-workspace__roles" aria-labelledby="user-role-management">
+            <div className="user-workspace__section-heading">
+                <div>
+                    <span>Role-based access</span>
+                    <Title level={4} id="user-role-management">Primary role assignment</Title>
+                </div>
+                <Tag icon={<TeamOutlined />}>{roles.length} assigned</Tag>
+            </div>
+
+            <div className="user-workspace__role-current">
+                <div>
+                    <strong>Current role</strong>
+                    <p>The user inherits permissions and browser routes from this role.</p>
+                </div>
+                <div className="user-workspace__role-tags">
+                    {roles.length
+                        ? roles.map((role) => <Tag color="processing" key={role.role_id}>{role.role_id}</Tag>)
+                        : <Tag>No role assigned</Tag>}
                 </div>
             </div>
-        </SkeletonWrapper>
 
+            <div className="user-workspace__role-editor">
+                <label htmlFor={`user-role-${userId}`}>Replace primary role</label>
+                <p>This updates only this user. Their effective access refreshes immediately after the change.</p>
+                <div className="user-workspace__role-controls">
+                    {roleSelect.SelectJsx({
+                        id: `user-role-${userId}`,
+                        'aria-label': 'Select a replacement role',
+                        placeholder: 'Select a role',
+                        style: { width: '100%' },
+                    })}
+                    <Popconfirm
+                        title="Replace this user’s role?"
+                        description="Their inherited permissions and navigation access will change immediately."
+                        okText="Replace role"
+                        cancelText="Cancel"
+                        disabled={!roleSelect.selected}
+                        onConfirm={() => onAssign(roleSelect.selected)}
+                    >
+                        <Button type="primary" loading={assigning} disabled={!roleSelect.selected}>
+                            Replace role
+                        </Button>
+                    </Popconfirm>
+                </div>
+            </div>
+        </section>
     );
 }
 
-/* ─── tiny helpers ──────────────────────────────────────────────── */
-function SectionTitle({ children, style }) {
-    return (
-        <p
-            style={{
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: '0.07em',
-                textTransform: 'uppercase',
-                color: '#9ca3af',
-                marginBottom: 8,
-                ...style,
-            }}
-        >
-            {children}
-        </p>
-    );
-}
+export default function UserInfo({ user }) {
+    const { message } = useNotification();
+    const hasFetched = useRef(false);
+    const roleSelect = useGlobalSelect('role_name', 'admin_roles');
+    const { run, loading, data: rawData } = useApi('get', `/access/user_info/${user?.custom_id}`);
+    const data = rawData?.data;
 
-function DetailRow({ label, children }) {
+    useEffect(() => {
+        if (!user?.custom_id || hasFetched.current) return;
+        hasFetched.current = true;
+        run();
+    }, [run, user?.custom_id]);
+
+    const { run: assignRole, loading: assigning } = useApi('post', '/access/assign/roles', {
+        onSuccess: () => {
+            message.success('Primary role updated');
+            roleSelect.reset();
+            run();
+        },
+        onError: () => message.error('The role could not be updated. Please try again.'),
+    });
+
+    if (loading || !data) {
+        return <div className="user-workspace__loading"><Skeleton active avatar paragraph={{ rows: 12 }} /></div>;
+    }
+
+    const effectivePermissions = (data.permissions ?? []).map((row) => row.permission).filter(Boolean);
+    const statusActive = Number(user.status) === 1;
+
     return (
-        <div
-            style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '7px 0',
-                borderBottom: '0.5px solid #f3f4f6',
-            }}
-        >
-            <span style={{ fontSize: 12, color: '#6b7280' }}>{label}</span>
-            {children}
+        <div className="user-workspace">
+            <aside className="user-workspace__identity" aria-label="User identity summary">
+                <Avatar
+                    className="user-workspace__avatar"
+                    size={76}
+                    src={user.avatar || user.profile_picture || undefined}
+                    style={{ backgroundColor: utils.avatarColor(user.name) }}
+                >
+                    {utils.getInitials_v2(user.name)}
+                </Avatar>
+                <Title level={3}>{user.name}</Title>
+                <Text title={user.email}>{user.email}</Text>
+                <Badge
+                    status={statusActive ? 'success' : 'default'}
+                    text={statusActive ? 'Active account' : 'Inactive account'}
+                />
+
+                <div className="user-workspace__identity-meta">
+                    <div><UserOutlined /><span>Identity</span><strong>{user.custom_id}</strong></div>
+                    <div><KeyOutlined /><span>Sign-in</span><strong>{user.oauth_provider || 'Password'}</strong></div>
+                    <div><ClockCircleOutlined /><span>Last seen</span><strong>{user.last_login ? utils.fromNow(user.last_login) : 'Never'}</strong></div>
+                </div>
+
+                <div className="user-workspace__context-note">
+                    <SafetyCertificateOutlined aria-hidden="true" />
+                    <p><strong>Access model</strong>Role permissions are inherited. Direct authority can add or deny exceptions for this user.</p>
+                </div>
+            </aside>
+
+            <div className="user-workspace__main">
+                <Tabs
+                    defaultActiveKey="overview"
+                    items={[
+                        {
+                            key: 'overview',
+                            label: 'Overview',
+                            children: <OverviewTab data={data} user={user} />,
+                        },
+                        {
+                            key: 'roles',
+                            label: `Roles (${data.roles?.length ?? 0})`,
+                            children: (
+                                <RolesTab
+                                    assigning={assigning}
+                                    data={data}
+                                    roleSelect={roleSelect}
+                                    userId={user.custom_id}
+                                    onAssign={(role) => assignRole({ custom_id: user.custom_id, role })}
+                                />
+                            ),
+                        },
+                        {
+                            key: 'authority',
+                            label: 'Direct authority',
+                            children: (
+                                <UserAuthorityPanel
+                                    fallbackPermissions={effectivePermissions}
+                                    userId={user.custom_id}
+                                />
+                            ),
+                        },
+                    ]}
+                />
+            </div>
         </div>
     );
 }

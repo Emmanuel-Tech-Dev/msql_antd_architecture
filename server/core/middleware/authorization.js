@@ -1,10 +1,9 @@
 const AppError = require("../../shared/helpers/AppError");
-const Model = require("../model/model");
 const utils = require("../../shared/utils/functions");
 const {
   canAccessResource,
-  isPrivilegedSystemRole,
 } = require("../lib/authorizationPolicy");
+const { loadUserAuthority } = require("../lib/authorityService");
 
 const permissionCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -52,10 +51,8 @@ function matchesOpenEndpoint(pattern, requestedPath) {
 }
 
 async function loadPermissionContext(userId) {
-  const userRoles = await new Model()
-    .select(["user_id", "role_id"], "admin_user_roles")
-    .where("user_id", "=", userId)
-    .execute();
+  const authority = await loadUserAuthority(userId);
+  const { userRoles } = authority;
 
   if (!userRoles?.length) {
     throw new AppError("ERR_NO_RESOURCES", null, {
@@ -64,42 +61,10 @@ async function loadPermissionContext(userId) {
     });
   }
 
-  const roleIds = userRoles.map((role) => role.role_id);
-  const permissionRows = await new Model()
-    .select(["permission"], "admin_role_permissions")
-    .whereIn("role_id", roleIds)
-    .execute();
-  const permissionNames = permissionRows.map((row) => row.permission);
-
-  // SuperAdmin and dev are explicit privileged system roles. They bypass
-  // endpoint mappings while still carrying declared permissions for UI context.
-  if (isPrivilegedSystemRole(userRoles)) {
-    return { userRoles, permissionNames, resources: [], privileged: true };
-  }
-
-  if (!permissionNames.length) {
-    return {
-      userRoles,
-      permissionNames: [],
-      resources: [],
-      privileged: false,
-    };
-  }
-
-  const permissionResources = await new Model()
-    .select(["resource"], "admin_permission_resources")
-    .whereIn("permission", permissionNames)
-    .execute();
-  const resourceNames = permissionResources.map((row) => row.resource);
-  const resources = resourceNames.length
-    ? await new Model()
-        .select(["*"], "admin_resources")
-        .where("resource_type", "=", "API_ENDPOINT")
-        .whereIn("resource", resourceNames)
-        .execute()
-    : [];
-
-  return { userRoles, permissionNames, resources, privileged: false };
+  return {
+    ...authority,
+    permissionNames: authority.effectivePermissions,
+  };
 }
 
 const authorization = async (req, res, next) => {
@@ -124,6 +89,8 @@ const authorization = async (req, res, next) => {
     req.roles = userRoles;
     req.permissions = permissionNames;
     req.resources = resources;
+    req.isPrivileged = privileged;
+    req.authority = context;
 
     if (AUTHENTICATED_CORE_ENDPOINTS.has(requestedPath)) {
       return next();

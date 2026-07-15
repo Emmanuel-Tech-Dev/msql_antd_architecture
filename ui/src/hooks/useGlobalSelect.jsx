@@ -13,7 +13,6 @@
 import { Select, Tag } from 'antd';
 import { useCallback, useRef, useState } from 'react';
 import useApi from './useApi';
-import utils from '../utils/function_utils';
 import { createLookupPayload } from '../utils/lookup_utils';
 
 const useGlobalSelect = (col, tblName, multi = false, groupBy = null) => {
@@ -100,7 +99,7 @@ const useGlobalSelect = (col, tblName, multi = false, groupBy = null) => {
                     {label}
                 </Tag>
             ) : undefined}
-            onDropdownVisibleChange={handleDropdownOpen}
+            onOpenChange={handleDropdownOpen}
             notFoundContent={loading ? 'Loading...' : 'No results'}
             onChange={(val, opt) => {
                 handleChange(val);
@@ -110,7 +109,7 @@ const useGlobalSelect = (col, tblName, multi = false, groupBy = null) => {
             onClear={() => setSelected(multi ? [] : undefined)}
             {...rest}
         />
-    ), [col, multi, selected, options, loading, handleDropdownOpen, handleChange]);
+    ), [col, multi, selected, options, loading, handleDropdownOpen, handleChange, styles]);
 
     return {
         SelectJsx,

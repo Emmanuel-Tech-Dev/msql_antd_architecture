@@ -4,6 +4,7 @@ import {
     Space, Tag, Typography, Upload,
 } from 'antd';
 import {
+    BookOutlined,
     CameraOutlined, CheckCircleFilled, KeyOutlined, LockOutlined, MailOutlined,
     PhoneOutlined, SafetyCertificateOutlined, SaveOutlined, UserOutlined,
 } from '@ant-design/icons';
@@ -118,7 +119,17 @@ export default function ProfileSettings() {
                     <Title level={2}>Profile settings</Title>
                     <Paragraph>Keep your identity current and review the access inherited from your assigned roles.</Paragraph>
                 </div>
-                <Tag icon={<CheckCircleFilled />} color="success">Authenticated session</Tag>
+                <Space>
+                    <Button
+                        className="workspace-header__docs"
+                        icon={<BookOutlined />}
+                        onClick={() => navigate('/docs')}
+                    >
+                        Documentation
+                    </Button>
+                    <Tag icon={<CheckCircleFilled />} color="success">Authenticated session</Tag>
+
+                </Space>
             </header>
 
             <Row gutter={[20, 20]} align="stretch">

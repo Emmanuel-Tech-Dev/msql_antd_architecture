@@ -3,10 +3,16 @@ import { Button, Card, Input, Table, Tooltip } from 'antd';
 import utils from '../utils/function_utils';
 import './CustomTable.css';
 
-const CustomTable = ({ tableConfig, columns, showToolbar = true }) => {
+const CustomTable = ({ tableConfig, columns, showToolbar = true, label = 'Data records' }) => {
     const tableProps = tableConfig?.tableProps ?? {};
     return (
-        <Card className="data-table-shell" styles={{ body: { padding: 0 } }}>
+        <Card
+            className="data-table-shell"
+            aria-busy={Boolean(tableConfig?.loading)}
+            aria-label={label}
+            role="region"
+            styles={{ body: { padding: 0 } }}
+        >
             {showToolbar && (
                 <div className="data-table-toolbar">
                     <Input

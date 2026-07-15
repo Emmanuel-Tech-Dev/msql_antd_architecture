@@ -1,0 +1,75 @@
+.user-authority {
+  --authority-allow: #16805c;
+  --authority-deny: #c93f3f;
+  --authority-inherited: #2c64a4;
+  color: var(--color-text-primary, #17202a);
+}
+
+.user-authority__heading,
+.user-authority__toolbar,
+.user-authority__row,
+.user-authority__commit-heading,
+.user-authority__commit-actions {
+  display: flex;
+  align-items: center;
+}
+
+.user-authority__heading { justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.user-authority__heading > div:first-child { min-width: 0; }
+.user-authority__heading > div:first-child > span {
+  color: var(--color-primary, #b04c10);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.user-authority__heading h3 { margin: 3px 0 0; font-size: 19px; letter-spacing: -.025em; }
+.user-authority__metrics { display: flex; gap: 5px; }
+.user-authority__metrics span { min-width: 72px; padding: 7px 9px; background: var(--color-bg-layout, #f7f6f3); font-size: 10px; text-align: center; }
+.user-authority__metrics strong { display: block; font-size: 17px; line-height: 1.1; }
+.user-authority > .ant-alert { margin-bottom: 13px; border-radius: 3px; }
+
+.user-authority__toolbar { gap: 8px; margin-bottom: 4px; }
+.user-authority__toolbar .ant-input-affix-wrapper { flex: 1; min-height: 38px; border-radius: 3px; }
+.user-authority__toolbar .ant-btn { min-width: 38px; height: 38px; border-radius: 3px; }
+.user-authority .ant-tabs-nav { margin-bottom: 8px; }
+
+.user-authority__list { max-height: 410px; overflow-y: auto; border: 1px solid var(--color-border-secondary, #e7e3dc); scrollbar-width: thin; }
+.user-authority__row { min-height: 82px; padding: 11px 12px; gap: 10px; border-bottom: 1px solid var(--color-border-secondary, #eeeae4); }
+.user-authority__row:last-child { border-bottom: 0; }
+.user-authority__state { display: grid; width: 31px; height: 31px; flex: 0 0 31px; background: #f1f1ee; color: #8c918d; place-items: center; }
+.user-authority__state.is-allow { color: var(--authority-allow); background: color-mix(in srgb, var(--authority-allow) 11%, transparent); }
+.user-authority__state.is-deny { color: var(--authority-deny); background: color-mix(in srgb, var(--authority-deny) 10%, transparent); }
+.user-authority__state.is-inherited { color: var(--authority-inherited); background: color-mix(in srgb, var(--authority-inherited) 10%, transparent); }
+.user-authority__identity { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.user-authority__identity strong { font-size: 13px; line-height: 1.3; }
+.user-authority__identity code { margin-top: 2px; overflow: hidden; color: var(--color-text-secondary, #66706a); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.user-authority__identity small { margin-top: 4px; overflow: hidden; color: var(--color-text-tertiary, #7f8781); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.user-authority__source.ant-tag { min-width: 76px; margin: 0; border: 0; border-radius: 2px; font-size: 10px; text-align: center; }
+.user-authority__source.is-allow { color: var(--authority-allow); background: color-mix(in srgb, var(--authority-allow) 10%, transparent); }
+.user-authority__source.is-deny { color: var(--authority-deny); background: color-mix(in srgb, var(--authority-deny) 10%, transparent); }
+.user-authority__source.is-inherited { color: var(--authority-inherited); background: color-mix(in srgb, var(--authority-inherited) 9%, transparent); }
+.user-authority__source.is-none { color: #747b76; background: #f1f1ee; }
+.user-authority__row .ant-segmented { flex: 0 0 auto; border-radius: 3px; font-size: 11px; }
+
+.user-authority__commit { margin-top: 13px; padding: 13px; background: var(--color-bg-layout, #f8f7f4); border: 1px solid var(--color-border-secondary, #e7e3dc); }
+.user-authority__commit-heading { justify-content: space-between; margin-bottom: 8px; }
+.user-authority__commit-heading > span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; }
+.user-authority__commit-heading .ant-btn { font-size: 11px; }
+.user-authority__commit .ant-input { border-radius: 3px; }
+.user-authority__commit-actions { margin-top: 10px; gap: 10px; }
+.user-authority__commit-actions > span { flex: 1; color: var(--color-text-secondary, #69716c); font-size: 10px; }
+.user-authority__commit-actions .ant-picker,
+.user-authority__commit-actions .ant-btn { min-height: 38px; border-radius: 3px; }
+
+.user-authority--readonly > p { margin: 0 0 12px; color: var(--color-text-secondary, #69716c); font-size: 12px; }
+.user-authority__readonly-tags { display: flex; max-height: 210px; padding: 11px; overflow-y: auto; flex-wrap: wrap; gap: 5px; background: var(--color-bg-layout, #f8f7f4); border: 1px solid var(--color-border-secondary, #e7e3dc); }
+.user-authority__readonly-tags .ant-tag { margin: 0; }
+
+@media (max-width: 760px) {
+  .user-authority__row { align-items: flex-start; flex-wrap: wrap; }
+  .user-authority__identity { min-width: calc(100% - 45px); }
+  .user-authority__source.ant-tag { margin-left: 41px; }
+  .user-authority__commit-actions { align-items: stretch; flex-direction: column; }
+  .user-authority__commit-actions > span { order: -1; }
+}

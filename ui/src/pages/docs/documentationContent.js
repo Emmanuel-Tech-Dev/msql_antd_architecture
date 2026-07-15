@@ -567,11 +567,11 @@ return <CustomTable dataSource={query.data?.data} />;`,
     id: "identity-access",
     group: "Security",
     title: "Identity and access control",
-    eyebrow: "Authentication + RBAC",
+    eyebrow: "Authentication + hybrid RBAC",
     audience: "All technical roles",
-    readTime: "18 min",
+    readTime: "28 min",
     summary:
-      "Session lifecycle, role semantics, permission mappings, public routes, cache invalidation, and security rules.",
+      "Session lifecycle, role inheritance, user-specific ALLOW/DENY authority, permission mappings, route overrides, cache invalidation, and delegation safety.",
     blocks: [
       flow("Sign-in and authorization", [
         "Login verifies email, status, and password hash",
@@ -629,8 +629,82 @@ return <CustomTable dataSource={query.data?.data} />;`,
             "admin_permission_resources",
             "Permission-to-endpoint or route mappings",
           ],
+          [
+            "admin_user_permission_overrides",
+            "Audited user-specific ALLOW or DENY exceptions for named permissions",
+          ],
+          [
+            "admin_user_browser_route_overrides",
+            "Audited user-specific navigation exceptions, kept separate from API authority",
+          ],
         ],
       ),
+      callout(
+        "Why this is hybrid RBAC",
+        "Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. Time-limited overrides introduce one controlled ABAC-style environment condition; richer subject, resource, and environment policies can be added later without replacing the RBAC foundation.",
+      ),
+      code(
+        "Effective authority precedence",
+        "text",
+        `Normal user:
+  effective permissions = (role permissions + direct ALLOW) - direct DENY
+  effective routes      = ((role routes + direct ALLOW) - direct DENY) + public routes
+
+System role:
+  SuperAdmin or dev -> privileged bypass
+  Direct overrides cannot create, expand, or restrict that bypass
+
+Default:
+  Anything not explicitly effective is denied`,
+      ),
+      flow("Managing one user's authority", [
+        "Open Administration > Users and choose Manage user",
+        "Locate Direct user exceptions in the user drawer",
+        "Use Inherit to follow the role, Allow to add authority, or Deny to remove inherited authority",
+        "Review Permissions and Navigation separately because a visible page is not API authority",
+        "Optionally choose an expiration and provide the required audit reason",
+        "Save authority; the server validates targets, delegation ceiling, and privileged-role rules in one transaction",
+        "The permission cache is cleared and access-changed immediately refreshes the affected user's auth_user context",
+      ]),
+      table(
+        "Override states",
+        ["State", "Meaning", "Typical use"],
+        [
+          ["Inherit", "No direct row; the current role/public-route result applies", "Normal access that should evolve with the role"],
+          ["ALLOW", "Adds one permission or browser route for this user", "Temporary reporting, operational, or support responsibility"],
+          ["DENY", "Removes inherited authority for this user; deny wins", "Separation of duties or individual restriction"],
+        ],
+      ),
+      code(
+        "Authority management API",
+        "http",
+        `GET /access/user_authority/REG20260224004
+
+POST /access/user_authority/save
+Content-Type: application/json
+
+{
+  "user_id": "REG20260224004",
+  "permissionOverrides": [
+    { "permission": "read:system_logs", "effect": "ALLOW" },
+    { "permission": "delete:admin", "effect": "DENY" }
+  ],
+  "routeOverrides": [
+    { "resource": "System Logs", "effect": "ALLOW" }
+  ],
+  "reason": "Temporary incident-response responsibility",
+  "valid_until": "2026-07-21T18:00:00.000Z"
+}`,
+      ),
+      bullets("Delegation and audit safeguards", [
+        "Only SuperAdmin and dev receive manage:user_authority during migration; it can later be delegated deliberately.",
+        "A non-privileged authority manager can ALLOW only permissions and routes they already possess.",
+        "A non-privileged manager cannot delegate manage:user_authority, modify their own direct authority, or manage a privileged target.",
+        "Permission names and browser resources are validated against their registries; arbitrary attributes or paths are rejected.",
+        "Authenticated-public routes cannot be overridden for one user; their public policy remains system-wide and predictable.",
+        "Every save requires a reason, records the grantor and optional expiration, writes both override collections transactionally, and creates a structured security log.",
+        "Expired and not-yet-active rows do not enter effective authority. The server evaluates validity; the browser never supplies trusted access attributes.",
+      ]),
       bullets("Session protections", [
         "Access tokens are verified on every protected request and checked against token version/revocation state.",
         "Refresh tokens use an HttpOnly cookie; secure cookie behavior is enabled in production.",

@@ -10,7 +10,7 @@ const {
   clearPermissionCache,
 } = require("../core/middleware/authorization");
 
-function mockPermissionData({ userId, roles, permissions = [] }) {
+function mockPermissionData({ userId, roles, permissions = [], overrides = [], permissionResources = [], resources = [] }) {
   Model.mockImplementation(() => {
     let tableName;
     const builder = {
@@ -27,6 +27,11 @@ function mockPermissionData({ userId, roles, permissions = [] }) {
         if (tableName === "admin_role_permissions") {
           return permissions.map((permission) => ({ permission }));
         }
+        if (tableName === "admin_user_permission_overrides") return overrides;
+        if (tableName === "admin_permission_resources") {
+          return permissionResources.map((resource) => ({ resource }));
+        }
+        if (tableName === "admin_resources") return resources;
         return [];
       }),
     };
@@ -68,5 +73,43 @@ describe("authorization middleware baseline access", () => {
 
     const [error] = next.mock.calls[0];
     expect(error?.errorCode).toBe("ERR_ACCESS_DENIED");
+  });
+
+  test("allows an API through a direct user permission grant", async () => {
+    const userId = "authority-user:allow";
+    mockPermissionData({
+      userId,
+      roles: ["Admin"],
+      overrides: [{ permission: "export:reports", effect: "ALLOW" }],
+      permissionResources: ["export:reports:api"],
+      resources: [{ resource: "export:reports:api", resource_path: "/api/reports/export", http_method: "POST" }],
+    });
+    const next = jest.fn();
+    const req = { path: "/api/reports/export", method: "POST", user: { sub: userId } };
+
+    await authorization(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.permissions).toContain("export:reports");
+  });
+
+  test("direct user deny removes inherited API access", async () => {
+    const userId = "authority-user:deny";
+    mockPermissionData({
+      userId,
+      roles: ["Admin"],
+      permissions: ["delete:users"],
+      overrides: [{ permission: "delete:users", effect: "DENY" }],
+      permissionResources: ["delete:users:api"],
+      resources: [{ resource: "delete:users:api", resource_path: "/api/users/:id", http_method: "DELETE" }],
+    });
+    const next = jest.fn();
+    const req = { path: "/api/users/42", method: "DELETE", user: { sub: userId } };
+
+    await authorization(req, {}, next);
+
+    const [error] = next.mock.calls[0];
+    expect(error?.errorCode).toBe("ERR_ACCESS_DENIED");
+    expect(req.permissions).not.toContain("delete:users");
   });
 });

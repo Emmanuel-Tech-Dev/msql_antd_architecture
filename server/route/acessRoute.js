@@ -2,6 +2,44 @@ const Model = require("../core/model/model");
 const { clearPermissionCache } = require("../core/middleware/authorization");
 const AppError = require("../shared/helpers/AppError");
 const authorizationEvents = require("../core/lib/authorizationEvents");
+const logger = require("../shared/helpers/logger");
+const {
+  loadBrowserRouteAuthority,
+  loadUserAuthority,
+  resolveOverrides,
+} = require("../core/lib/authorityService");
+
+const MANAGE_AUTHORITY_PERMISSION = "manage:user_authority";
+const EFFECTS = new Set(["ALLOW", "DENY"]);
+
+function normalizeAuthorityRows(rows, key) {
+  if (!Array.isArray(rows) || rows.length > 1000) {
+    throw new AppError("ERR_VALIDATION_FAILED", "Authority overrides must be a list of no more than 1000 entries");
+  }
+
+  const seen = new Set();
+  return rows.map((row) => {
+    const target = String(row?.[key] ?? "").trim();
+    const effect = String(row?.effect ?? "").trim().toUpperCase();
+    if (!target || !EFFECTS.has(effect)) {
+      throw new AppError("ERR_VALIDATION_FAILED", "Each authority override requires a valid target and effect");
+    }
+    if (seen.has(target)) {
+      throw new AppError("ERR_VALIDATION_FAILED", `Duplicate authority override: ${target}`);
+    }
+    seen.add(target);
+    return { [key]: target, effect };
+  });
+}
+
+function normalizeExpiry(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime()) || parsed.getTime() <= Date.now()) {
+    throw new AppError("ERR_VALIDATION_FAILED", "Authority expiration must be a valid future date");
+  }
+  return parsed.toISOString().slice(0, 19).replace("T", " ");
+}
 
 class AccessRoute {
   constructor(app) {
@@ -10,12 +48,229 @@ class AccessRoute {
     this.getPermissions(app);
     this.getRoutes(app);
     this.getUserInfo(app);
+    this.getUserAuthority(app);
+    this.saveUserAuthority(app);
     this.savePermissions(app);
     this.saveRoutes(app);
     this.toggleUserStatus(app);
     this.assignedRoles(app);
 
     return this;
+  }
+
+  getUserAuthority(app) {
+    app.get("/access/user_authority/:user", async (req, res, next) => {
+      try {
+        const userId = String(req.params.user ?? "").trim();
+        const [user] = await new Model()
+          .select(["custom_id", "name", "email", "status"], "admin")
+          .where("custom_id", "=", userId)
+          .execute();
+        if (!user) throw new AppError("ERR_USER_NOT_FOUND");
+
+        const permissionAuthority = await loadUserAuthority(userId);
+        const routeAuthority = await loadBrowserRouteAuthority(
+          userId,
+          permissionAuthority.userRoles,
+        );
+        const allPermissions = await new Model()
+          .select(["permission_name", "description", "alias"], "admin_permissions")
+          .orderBy("permission_name", "ASC")
+          .execute();
+
+        return res.json({
+          success: true,
+          data: {
+            user,
+            roles: permissionAuthority.userRoles,
+            privileged: permissionAuthority.privileged,
+            allPermissions,
+            permissionOverrides: permissionAuthority.permissionOverrides,
+            inheritedPermissions: permissionAuthority.inheritedPermissions,
+            directPermissionAllows: permissionAuthority.directPermissionAllows,
+            directPermissionDenies: permissionAuthority.directPermissionDenies,
+            effectivePermissions: permissionAuthority.effectivePermissions,
+            allRoutes: routeAuthority.allRoutes,
+            routeOverrides: routeAuthority.routeOverrides,
+            inheritedRoutes: routeAuthority.inheritedRoutes,
+            directRouteAllows: routeAuthority.directRouteAllows,
+            directRouteDenies: routeAuthority.directRouteDenies,
+            effectiveRoutes: routeAuthority.effectiveRouteNames,
+          },
+        });
+      } catch (error) {
+        return next(error);
+      }
+    });
+  }
+
+  saveUserAuthority(app) {
+    app.post("/access/user_authority/save", async (req, res, next) => {
+      try {
+        const userId = String(req.body?.user_id ?? "").trim();
+        const reason = String(req.body?.reason ?? "").trim();
+        if (!userId) throw new AppError("ERR_MISSING_REQUIRED_FIELD", "A target user is required");
+        if (reason.length < 8 || reason.length > 500) {
+          throw new AppError("ERR_VALIDATION_FAILED", "Provide an audit reason between 8 and 500 characters");
+        }
+
+        const permissionOverrides = normalizeAuthorityRows(
+          req.body?.permissionOverrides ?? [],
+          "permission",
+        );
+        const routeOverrides = normalizeAuthorityRows(
+          req.body?.routeOverrides ?? [],
+          "resource",
+        );
+        const validUntil = normalizeExpiry(req.body?.valid_until);
+        const grantorId = req.user.sub;
+
+        const [targetUser] = await new Model()
+          .select(["custom_id", "name", "email"], "admin")
+          .where("custom_id", "=", userId)
+          .execute();
+        if (!targetUser) throw new AppError("ERR_USER_NOT_FOUND");
+
+        const targetAuthority = await loadUserAuthority(userId);
+        if (targetAuthority.privileged && !req.isPrivileged) {
+          throw new AppError("ERR_ACCESS_DENIED", "Only a privileged system role can manage authority for a privileged user");
+        }
+        if (grantorId === userId && !req.isPrivileged) {
+          throw new AppError("ERR_ACCESS_DENIED", "You cannot modify your own direct authority");
+        }
+
+        const allPermissionRows = await new Model()
+          .select(["permission_name"], "admin_permissions")
+          .execute();
+        const validPermissions = new Set(allPermissionRows.map((row) => row.permission_name));
+        const unknownPermission = permissionOverrides.find((row) => !validPermissions.has(row.permission));
+        if (unknownPermission) {
+          throw new AppError("ERR_VALIDATION_FAILED", `Unknown permission: ${unknownPermission.permission}`);
+        }
+
+        const allRouteRows = await new Model()
+          .select(["resource", "is_public"], "admin_resources")
+          .where("resource_type", "=", "BROWSER_ROUTE")
+          .execute();
+        const validRoutes = new Set(allRouteRows.map((row) => row.resource));
+        const unknownRoute = routeOverrides.find((row) => !validRoutes.has(row.resource));
+        if (unknownRoute) {
+          throw new AppError("ERR_VALIDATION_FAILED", `Unknown browser route: ${unknownRoute.resource}`);
+        }
+        const publicRoutes = new Set(
+          allRouteRows
+            .filter((row) => [true, 1, "1", "true"].includes(row.is_public))
+            .map((row) => row.resource),
+        );
+        const publicRouteOverride = routeOverrides.find((row) => publicRoutes.has(row.resource));
+        if (publicRouteOverride) {
+          throw new AppError("ERR_VALIDATION_FAILED", "Authenticated-public routes cannot be overridden per user");
+        }
+
+        // Delegation ceiling: non-privileged managers can grant only authority
+        // they currently possess. The management capability itself is reserved
+        // so it cannot recursively manufacture more authority managers.
+        if (!req.isPrivileged) {
+          const grantorPermissions = new Set(req.permissions ?? []);
+          const currentTargetPermissions = new Set(targetAuthority.effectivePermissions);
+          const proposedTargetPermissions = resolveOverrides(
+            targetAuthority.inheritedPermissions.map((permission) => ({ permission })),
+            permissionOverrides,
+            "permission",
+          ).effective;
+          const invalidGrant = proposedTargetPermissions.find(
+            (permission) => !currentTargetPermissions.has(permission)
+              && (permission === MANAGE_AUTHORITY_PERMISSION || !grantorPermissions.has(permission)),
+          );
+          if (invalidGrant) {
+            throw new AppError("ERR_ACCESS_DENIED", "You cannot delegate authority that you do not possess");
+          }
+
+          const grantorRoutes = await loadBrowserRouteAuthority(grantorId, req.roles);
+          const grantorRouteNames = new Set(grantorRoutes.effectiveRouteNames);
+          const targetRoutes = await loadBrowserRouteAuthority(userId, targetAuthority.userRoles);
+          const currentTargetRoutes = new Set(targetRoutes.effectiveRouteNames);
+          const proposedTargetRoutes = resolveOverrides(
+            targetRoutes.inheritedRoutes.map((resource) => ({ resource })),
+            routeOverrides,
+            "resource",
+          ).effective;
+          const invalidRouteGrant = proposedTargetRoutes.find(
+            (resource) => !currentTargetRoutes.has(resource) && !grantorRouteNames.has(resource),
+          );
+          if (invalidRouteGrant) {
+            throw new AppError("ERR_ACCESS_DENIED", "You cannot delegate a browser route that you cannot access");
+          }
+        }
+
+        await new Model().transaction(async (transaction) => {
+          await transaction.query(
+            "DELETE FROM admin_user_permission_overrides WHERE user_id = ?",
+            [userId],
+          );
+          await transaction.query(
+            "DELETE FROM admin_user_browser_route_overrides WHERE user_id = ?",
+            [userId],
+          );
+
+          if (permissionOverrides.length) {
+            await transaction.query(
+              `INSERT INTO admin_user_permission_overrides
+                (user_id, permission, effect, reason, granted_by, valid_from, valid_until)
+               VALUES ${permissionOverrides.map(() => "(?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)").join(", ")}`,
+              permissionOverrides.flatMap((row) => [
+                userId,
+                row.permission,
+                row.effect,
+                reason,
+                grantorId,
+                validUntil,
+              ]),
+            );
+          }
+
+          if (routeOverrides.length) {
+            await transaction.query(
+              `INSERT INTO admin_user_browser_route_overrides
+                (user_id, resource, effect, reason, granted_by, valid_from, valid_until)
+               VALUES ${routeOverrides.map(() => "(?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)").join(", ")}`,
+              routeOverrides.flatMap((row) => [
+                userId,
+                row.resource,
+                row.effect,
+                reason,
+                grantorId,
+                validUntil,
+              ]),
+            );
+          }
+        });
+
+        clearPermissionCache(userId);
+        authorizationEvents.publish([userId], "user-authority-changed");
+        logger.security("User authority overrides updated", {
+          operation: "user-authority.update",
+          actorUserId: grantorId,
+          targetUserId: userId,
+          permissionOverrideCount: permissionOverrides.length,
+          routeOverrideCount: routeOverrides.length,
+          expires: validUntil,
+          requestId: req.requestId,
+        });
+
+        return res.json({
+          success: true,
+          message: "User authority updated",
+          data: {
+            user_id: userId,
+            permissionOverrideCount: permissionOverrides.length,
+            routeOverrideCount: routeOverrides.length,
+          },
+        });
+      } catch (error) {
+        return next(error);
+      }
+    });
   }
 
   getUsersByRole(app) {
@@ -133,24 +388,11 @@ class AccessRoute {
         .first();
 
       // ── 2c. STAT — total distinct permissions (via roles) ─────────────────
-      const permCountQuery = new Model().raw(
-        `SELECT COUNT(DISTINCT arp.permission) AS permission_count
-         FROM admin_role_permissions arp
-         INNER JOIN admin_user_roles aur ON aur.role_id = arp.role_id
-         WHERE aur.user_id = ?`,
-        [custom_id],
-      );
+      const authorityQuery = loadUserAuthority(custom_id);
 
       // ── 2d. STAT — browser routes count (via roles) ───────────────────────
-      const routeCountQuery = new Model().raw(
-        `SELECT COUNT(DISTINCT ar.id) AS route_count
-         FROM admin_resources ar
-         INNER JOIN admin_role_permissions arp ON arp.permission = ar.resource
-         INNER JOIN admin_user_roles aur        ON aur.role_id   = arp.role_id
-         WHERE aur.user_id = ?
-           AND ar.resource_type = 'BROWSER_ROUTE'`,
-        [custom_id],
-      );
+      const routeAuthorityQuery = authorityQuery.then((authority) =>
+        loadBrowserRouteAuthority(custom_id, authority.userRoles));
 
       // ── 3. ACTIVITIES — top 5 most recent ────────────────────────────────
       const activitiesQuery = new Model()
@@ -172,39 +414,19 @@ class AccessRoute {
         .execute();
 
       // ── 4. PERMISSIONS — flat distinct list from all assigned roles ───────
-      const permissionsQuery = new Model().raw(
-        `SELECT DISTINCT arp.permission
-         FROM admin_role_permissions arp
-         INNER JOIN admin_user_roles aur ON aur.role_id = arp.role_id
-         WHERE aur.user_id = ?`,
-        [custom_id],
-      );
+      const permissionsQuery = authorityQuery.then((authority) =>
+        authority.effectivePermissions.map((permission) => ({ permission })));
 
       // ── 5. BROWSER ROUTES — pages this user can access ───────────────────
-      const routesQuery = new Model().raw(
-        `SELECT DISTINCT
-           ar.id,
-           ar.resource,
-           ar.resource_path,
-           ar.icon,
-           ar.category,
-           ar.display_order
-         FROM admin_resources ar
-         INNER JOIN admin_role_permissions arp ON arp.permission = ar.resource
-         INNER JOIN admin_user_roles aur        ON aur.role_id   = arp.role_id
-         WHERE aur.user_id = ?
-           AND ar.resource_type = 'BROWSER_ROUTE'
-         ORDER BY ar.display_order ASC`,
-        [custom_id],
-      );
+      const routesQuery = routeAuthorityQuery.then((authority) => authority.effectiveRoutes);
 
       // ── Fire all 8 queries concurrently ──────────────────────────────────
       const [
         roles,
         loginCountRows,
         credentials,
-        permCountRows,
-        routeCountRows,
+        authority,
+        routeAuthority,
         activities,
         permissions,
         routes,
@@ -212,8 +434,8 @@ class AccessRoute {
         rolesQuery, // 1. roles
         loginCountQuery, // 2a. login count
         credentialsQuery, // 2b. pwd reset count
-        permCountQuery, // 2c. permission count
-        routeCountQuery, // 2d. route count
+        authorityQuery,
+        routeAuthorityQuery,
         activitiesQuery, // 3. recent activities
         permissionsQuery, // 4. permission list
         routesQuery, // 5. browser routes
@@ -226,9 +448,9 @@ class AccessRoute {
         { label: "Pwd resets", value: credentials?.reset_limit ?? 0 },
         {
           label: "Permissions",
-          value: permCountRows?.[0]?.permission_count ?? 0,
+          value: authority.effectivePermissions.length,
         },
-        { label: "Routes", value: routeCountRows?.[0]?.route_count ?? 0 },
+        { label: "Routes", value: routeAuthority.effectiveRoutes.length },
       ];
 
       return res.json({

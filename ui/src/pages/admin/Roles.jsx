@@ -1,221 +1,192 @@
-// src/pages/admin/Roles.jsx
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Divider, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { Badge, Button, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import {
-    PlusOutlined, EditOutlined, DeleteOutlined,
-    ReloadOutlined, SaveOutlined, SafetyCertificateOutlined,
+    DeleteOutlined,
+    EditOutlined,
+    ReloadOutlined,
+    SafetyCertificateOutlined,
+    SaveOutlined,
+    SettingOutlined,
+    TeamOutlined,
+    PlusOutlined,
 } from '@ant-design/icons';
+import BrowserRoutes from '../../components/access/BrowserRoutes';
+import PermissionMatrix from '../../components/access/PermissionsMetrix';
 import CustomTable from '../../components/CustomTable';
-import useTableApi from '../../hooks/useTableApi';
-import useRecordForm from '../../hooks/useRecordForm';
+import { PageHeader } from '../../components/PageHeader';
 import useDelete from '../../hooks/useDelete';
 import useDrawer from '../../hooks/useDrawer';
-import { PageHeader } from '../../components/PageHeader';
-import PermissionMatrix from '../../components/access/PermissionsMetrix';
-import BrowserRoutes from '../../components/access/BrowserRoutes';
+import useRecordForm from '../../hooks/useRecordForm';
+import useTableApi from '../../hooks/useTableApi';
+import { AdminEntity } from './AdminWorkspace';
+import './AdminWorkspace.css';
 
 const { Text } = Typography;
+
+function RoleAccessWorkspace({ role }) {
+    const matrixRef = useRef(null);
+    const routesRef = useRef(null);
+    const [activeTab, setActiveTab] = useState('permissions');
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const activeRef = activeTab === 'permissions' ? matrixRef : routesRef;
+
+    const changeTab = (key) => {
+        setActiveTab(key);
+        setIsDirty(false);
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="role-access-workspace">
+            <div className="role-access-workspace__intro">
+                <div>
+                    <span>Role policy editor</span>
+                    <h3>{role.role_name}</h3>
+                    <p>Changes affect every user assigned to this role. Review both capabilities and navigation before saving.</p>
+                </div>
+                <Badge status={isDirty ? 'warning' : 'success'} text={isDirty ? 'Unsaved changes' : 'Configuration saved'} />
+            </div>
+
+            <Tabs
+                activeKey={activeTab}
+                onChange={changeTab}
+                items={[
+                    {
+                        key: 'permissions',
+                        label: 'Capabilities',
+                        children: (
+                            <PermissionMatrix
+                                ref={matrixRef}
+                                role_name={role.role_name}
+                                onDirtyChange={setIsDirty}
+                                onSavingChange={setIsSaving}
+                            />
+                        ),
+                    },
+                    {
+                        key: 'browser_routes',
+                        label: 'Navigation access',
+                        children: (
+                            <BrowserRoutes
+                                ref={routesRef}
+                                role={role}
+                                onDirtyChange={setIsDirty}
+                                onSavingChange={setIsSaving}
+                            />
+                        ),
+                    },
+                ]}
+            />
+
+            <div className="role-access-workspace__commit">
+                <span>{isDirty ? 'Review your changes, then save this policy.' : 'No unpublished changes.'}</span>
+                <Space>
+                    <Button icon={<ReloadOutlined />} disabled={!isDirty || isSaving} onClick={() => activeRef.current?.reset()}>
+                        Discard changes
+                    </Button>
+                    <Button type="primary" icon={<SaveOutlined />} disabled={!isDirty} loading={isSaving} onClick={() => activeRef.current?.save()}>
+                        Save role policy
+                    </Button>
+                </Space>
+            </div>
+        </div>
+    );
+}
 
 export default function Roles() {
     const recordForm = useRecordForm('tables_metadata', 'table_name');
     const { confirm, saveCompleted: deleteCompleted } = useDelete({ resource: 'admin_roles' });
-
-    const accessDrawer = useDrawer({ width: 800, destroyOnClose: true });
-
-    // ── One ref per tab — footer routes to whichever is active ───────────
-    const matrixRef = useRef(null);
-    const routesRef = useRef(null);
-
-    // ── Shared footer state — updated by whichever tab is active ─────────
-    const [isDirty, setIsDirty] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState('permissions');
-    const [activeRole, setActiveRole] = useState('');
-
-    // ── Active ref — whichever tab is showing ────────────────────────────
-    const activeRef = activeTab === 'permissions' ? matrixRef : routesRef;
-
+    const accessDrawer = useDrawer({
+        width: 920,
+        destroyOnClose: true,
+        rootClassName: 'admin-drawer admin-role-drawer',
+        styles: { body: { padding: 0 } },
+    });
     const table = useTableApi(
         { pagination: { current: 1, pageSize: 10 } },
         { manual: false },
         'id',
-        { table: 'admin_roles', defaultLimit: 10, maxLimit: 100, searchable: ['role_name'] }
+        { table: 'admin_roles', defaultLimit: 10, maxLimit: 100, searchable: ['role_name'] },
     );
-    const runRequest = table.runRequest;
+    const { runRequest } = table;
 
     useEffect(() => {
         if (recordForm.saveCompleted || deleteCompleted) runRequest();
     }, [recordForm.saveCompleted, deleteCompleted, runRequest]);
 
-    function openAdd() {
-        recordForm.openCreate('admin_roles');
-    }
-
-    function openEdit(record) {
-        recordForm.openEdit('admin_roles', record, record.id);
-    }
-
-    function openManage(record) {
-        // Reset all footer state on every open
-        setIsDirty(false);
-        setIsSaving(false);
-        setActiveTab('permissions');
-        setActiveRole(record.role_name);
-
-        accessDrawer.openDrawer({
-            title: `Manage Access — ${record.role_name}`,
-            content: (
-                <Card style={{ flex: 1 }}>
-                    <Tabs
-                        defaultActiveKey="permissions"
-                        onChange={(key) => {
-                            // When tab switches:
-                            // 1. Update activeTab so activeRef points to the right ref
-                            // 2. Reset dirty/saving — each tab manages its own state
-                            setActiveTab(key);
-                            setIsDirty(false);
-                            setIsSaving(false);
-                        }}
-                        items={[
-                            {
-                                key: 'permissions',
-                                label: 'Permissions',
-                                children: (
-                                    <PermissionMatrix
-                                        key={record.role_name}
-                                        ref={matrixRef}
-                                        role_name={record.role_name}
-                                        onDirtyChange={(dirty) => {
-                                            // Only update if this tab is active
-                                            if (activeTab === 'permissions') setIsDirty(dirty);
-                                        }}
-                                        onSavingChange={(saving) => {
-                                            if (activeTab === 'permissions') setIsSaving(saving);
-                                        }}
-                                    />
-                                ),
-                            },
-                            {
-                                key: 'browser_routes',
-                                label: 'Browser Routes',
-                                children: (
-                                    <BrowserRoutes
-                                        key={record.role_name}
-                                        ref={routesRef}
-                                        role={record}
-                                        onDirtyChange={(dirty) => {
-                                            if (activeTab === 'browser_routes') setIsDirty(dirty);
-                                        }}
-                                        onSavingChange={(saving) => {
-                                            if (activeTab === 'browser_routes') setIsSaving(saving);
-                                        }}
-                                    />
-                                ),
-                            },
-                        ]}
-                    />
-                </Card>
-            ),
-        });
-    }
-
-    // ── Live footer — always reads current activeRef, isDirty, isSaving ──
-    const liveFooter = (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#6b7280' }}>
-                Role: <strong>{activeRole}</strong>
-                {' · '}
-                <span style={{ color: '#9ca3af', textTransform: 'capitalize' }}>{activeTab.replace('_', ' ')}</span>
-            </span>
-            <Space>
-                <Button
-                    icon={<ReloadOutlined />}
-                    disabled={!isDirty}
-                    onClick={() => activeRef.current?.reset()}
-                >
-                    Reset
-                </Button>
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    loading={isSaving}
-                    onClick={() => activeRef.current?.save()}
-                >
-                    Save Configuration
-                </Button>
-            </Space>
-        </div>
-    );
+    const openManage = (record) => accessDrawer.openDrawer({
+        title: (
+            <div className="admin-drawer-title">
+                <span className="admin-entity__leading"><SettingOutlined /></span>
+                <span className="admin-drawer-title__copy">
+                    <strong>Configure role access</strong>
+                    <small>{record.role_name}</small>
+                </span>
+            </div>
+        ),
+        content: <RoleAccessWorkspace role={record} />,
+    });
 
     const columns = [
         {
-            title: 'Role Name',
+            title: 'Role',
             dataIndex: 'role_name',
             key: 'role_name',
             sorter: true,
-            render: (value, record) => (
-                <Space size={8}>
-                    <Text strong>{value}</Text>
-                    {Number(record.is_system_role) === 1 && <Tag color="gold">System</Tag>}
-                </Space>
-            ),
             ...table.getColumnSearchProps('role_name'),
-            // render: (val) => <strong>{val}</strong>,
+            render: (value, record) => (
+                <AdminEntity
+                    title={value}
+                    description={Number(record.is_system_role) === 1 ? 'Protected framework role' : 'Custom organization role'}
+                    leading={<SafetyCertificateOutlined />}
+                    trailing={Number(record.is_system_role) === 1 ? <Tag color="gold">System</Tag> : null}
+                />
+            ),
         },
         {
-            title: 'Description',
+            title: 'Purpose',
             dataIndex: 'description',
             key: 'description',
-            render: (val) => <Text type="secondary">{val ?? '—'}</Text>,
+            render: (value) => <Text type="secondary">{value || 'No role description provided'}</Text>,
         },
         {
-            title: 'Actions',
+            title: 'Management',
             key: 'actions',
-            width: 220,
+            width: 250,
             render: (_, record) => (
-                <Space>
-                    <Tooltip title="Edit role">
-                        <Button aria-label={`Edit ${record.role_name}`} icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                <div className="admin-row-actions">
+                    <Tooltip title="Edit role details">
+                        <Button aria-label={`Edit ${record.role_name}`} icon={<EditOutlined />} onClick={() => recordForm.openEdit('admin_roles', record, record.id)} />
                     </Tooltip>
                     {confirm(
                         record.id,
                         'Delete this role?',
-                        <Button danger icon={<DeleteOutlined />} />,
+                        <Button
+                            aria-label={`Delete ${record.role_name}`}
+                            danger
+                            disabled={Number(record.is_system_role) === 1}
+                            icon={<DeleteOutlined />}
+                        />,
                     )}
-                    <Divider type="vertical" />
-                    <Button variant="outlined" onClick={() => openManage(record)}>
-                        Manage Access
-                    </Button>
-                </Space>
+                    <Button icon={<SettingOutlined />} onClick={() => openManage(record)}>Configure access</Button>
+                </div>
             ),
         },
     ];
 
     return (
         <PageHeader
+            className="admin-page"
             title="Roles"
-            description="Define responsibility boundaries and manage the permissions and browser routes inherited by each role."
-            icon={<SafetyCertificateOutlined />}
-            items={[
-                { title: 'Administration' },
-                { title: 'Access control' },
-                { title: 'Roles' },
-            ]}
-            actions={
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openAdd}
-                >
-                    Add role
-                </Button>
-            }
+            description="Define responsibility boundaries and manage the capabilities and browser routes inherited by each role."
+            icon={<TeamOutlined />}
+            items={[{ title: 'Administration' }, { title: 'Access control' }, { title: 'Roles' }]}
+            actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => recordForm.openCreate('admin_roles')}>Add role</Button>}
         >
             <CustomTable tableConfig={table} columns={columns} />
-
-            {recordForm.recordModal({ createTitle: 'Add Role', editTitle: 'Edit Role' })}
-
-            {accessDrawer.drawerJSX({ footer: liveFooter })}
+            {recordForm.recordModal({ createTitle: 'Add role', editTitle: 'Edit role' })}
+            {accessDrawer.drawerJSX()}
         </PageHeader>
     );
 }

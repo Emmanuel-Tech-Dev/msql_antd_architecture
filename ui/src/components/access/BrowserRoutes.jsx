@@ -1,13 +1,12 @@
-import { useImperativeHandle, forwardRef, useEffect } from 'react';
-import { Switch, Typography, Skeleton, Badge } from 'antd';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { Badge, Empty, Skeleton, Switch, Typography } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
 import useAccessControl from '../../hooks/useAccessControl';
+import './AccessEditor.css';
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
-const BrowserRoutes = forwardRef(function BrowserRoutes(
-    { role, onDirtyChange, onSavingChange },
-    ref
-) {
+const BrowserRoutes = forwardRef(function BrowserRoutes({ role, onDirtyChange, onSavingChange }, ref) {
     const {
         loading,
         saving,
@@ -26,98 +25,50 @@ const BrowserRoutes = forwardRef(function BrowserRoutes(
         entityName: 'Browser routes',
     });
 
-    // Notify parent of dirty/saving state
-    useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
-    useEffect(() => { onSavingChange?.(saving); }, [saving, onSavingChange]);
+    useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
+    useEffect(() => onSavingChange?.(saving), [saving, onSavingChange]);
+    useImperativeHandle(ref, () => ({ reset, save, isDirty }), [isDirty, reset, save]);
 
-    // ── Expose to parent via ref ──────────────────────────────────────────
-    useImperativeHandle(ref, () => ({
-        reset,
-        save,
-        isDirty,
-    }), [isDirty, reset, save]);
-
-    if (loading || allRoutes.length === 0) {
-        return <Skeleton active paragraph={{ rows: 8 }} />;
-    }
+    if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
 
     return (
-        <div>
-            {/* Header */}
-            <div style={{ marginBottom: 4 }}>
-                <Text strong style={{ fontSize: 16 }}>Browser Routes</Text>
-            </div>
-            <Text type="secondary">
-                Control which pages <strong>{role?.role_name}</strong> can access.
-                Disabled routes are hidden from the sidebar and blocked by the route guard.
-            </Text>
-
-            {/* Assigned count + dirty indicator */}
-            <div style={{ marginTop: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                    <strong>{assignedSet.size}</strong> route{assignedSet.size !== 1 ? 's' : ''} enabled
-                </Text>
-                {isDirty && (
-                    <Badge
-                        dot
-                        color="orange"
-                        text={<Text style={{ fontSize: 11, color: '#f59e0b' }}>unsaved changes</Text>}
-                    />
-                )}
+        <section className="access-editor" aria-labelledby="browser-routes-title">
+            <div className="access-editor__heading">
+                <div>
+                    <Title level={4} id="browser-routes-title">Navigation access</Title>
+                    <Text type="secondary">Enabled pages are available to <strong>{role?.role_name}</strong> and can appear in navigation when the resource is visible.</Text>
+                </div>
+                <div className="access-editor__status">
+                    <strong>{assignedSet.size}</strong>
+                    <span>enabled</span>
+                    {isDirty && <Badge status="warning" text="Unsaved" />}
+                </div>
             </div>
 
-            {/* Routes list - no grouping */}
-            <div style={{
-                border: '1px solid #f0f0f0',
-                borderRadius: 8,
-                overflow: 'hidden',
-            }}>
-                {allRoutes.map((route, i) => {
-                    const isEnabled = assignedSet.has(route.resource);
-                    return (
-                        <div
-                            key={route.resource}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 14px',
-                                borderBottom: i < allRoutes.length - 1 ? '1px solid #f9fafb' : 'none',
-                                background: isEnabled ? '#fff' : '#fafafa',
-                                transition: 'background 0.15s',
-                            }}
-                        >
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <Text
-                                    strong
-                                    style={{
-                                        fontSize: 13,
-                                        color: isEnabled ? '#111827' : '#9ca3af',
-                                    }}
-                                >
-                                    {route.resource}
-                                </Text>
-                                <Text
-                                    style={{
-                                        fontSize: 11,
-                                        fontFamily: 'ui-monospace, monospace',
-                                        color: '#9ca3af',
-                                        marginTop: 1,
-                                    }}
-                                >
-                                    {route.resource_path}
-                                </Text>
+            {allRoutes.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No browser routes have been registered" />
+            ) : (
+                <div className="access-editor__route-list">
+                    {allRoutes.map((route) => {
+                        const isEnabled = assignedSet.has(route.resource);
+                        return (
+                            <div className={`access-editor__route ${isEnabled ? 'is-enabled' : ''}`} key={route.resource}>
+                                <span className="access-editor__route-icon" aria-hidden="true"><GlobalOutlined /></span>
+                                <span className="access-editor__route-copy">
+                                    <strong>{route.resource}</strong>
+                                    <code title={route.resource_path}>{route.resource_path}</code>
+                                </span>
+                                <Switch
+                                    aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${route.resource}`}
+                                    checked={isEnabled}
+                                    onChange={(checked) => handleToggle(route.resource, checked)}
+                                />
                             </div>
-                            <Switch
-                                checked={isEnabled}
-                                onChange={(checked) => handleToggle(route.resource, checked)}
-                                size="small"
-                            />
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
+                        );
+                    })}
+                </div>
+            )}
+        </section>
     );
 });
 

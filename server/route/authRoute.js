@@ -13,6 +13,7 @@ const conn = require("../core/config/conn");
 const { z } = require("zod");
 const { profileImageUpload } = require("../core/config/multer");
 const uploadServices = require("../core/lib/uploadServices");
+const { loadBrowserRouteAuthority } = require("../core/lib/authorityService");
 
 const profileSchema = z
   .object({
@@ -68,114 +69,10 @@ class AuthRoute {
       authorization,
       async (req, res) => {
         const userId = req.user.sub;
-        let role = Array.isArray(req.roles) ? req.roles : [];
-        let perm = Array.isArray(req.permissions) ? req.permissions : [];
-        let resources = [];
-
-        // Ensure roles always available
-        if (!role.length) {
-          role = await new Model()
-            .select(["user_id", "role_id"], "admin_user_roles")
-            .where("user_id", "=", userId)
-            .execute();
-        }
-
-        const roleNames = role
-          .map((r) => (typeof r === "string" ? r : r?.role_id))
-          .filter(Boolean);
-
-        // Ensure permissions always available
-        if (!perm.length && roleNames.length) {
-          const perms = await new Model()
-            .select(["permission"], "admin_role_permissions")
-            .whereIn("role_id", roleNames)
-            .execute();
-          perm = perms.map((p) => p.permission);
-        }
-
-        // Browser routes for UI context should come from admin_role_browser_routes.
-        // Dev role can access all browser routes once authenticated.
-        const isDev = roleNames.some(
-          (r) => String(r).trim().toLowerCase() === "dev",
-        );
-
-        if (isDev) {
-          resources = await new Model()
-            .select(
-              [
-                "id",
-                "resource_path",
-                "resource",
-                "icon",
-                "is_public",
-                "display_order",
-                "category",
-                "show_in_nav",
-              ],
-              "admin_resources",
-            )
-            .where("resource_type", "=", "BROWSER_ROUTE")
-            .execute();
-        } else if (roleNames.length) {
-          try {
-            const placeholders = roleNames.map(() => "?").join(", ");
-            resources = await new Model().raw(
-              `SELECT DISTINCT ar.resource_path, ar.resource, ar.icon, ar.display_order,
-                       ar.category, ar.show_in_nav
-               FROM admin_resources ar
-               INNER JOIN admin_role_browser_routes arbr
-                 ON arbr.resource = ar.resource
-               WHERE ar.resource_type = 'BROWSER_ROUTE'
-                 AND arbr.role_id IN (${placeholders})
-               ORDER BY ar.display_order ASC`,
-              roleNames,
-            );
-
-            // Safety fallback for naming mismatches or empty assignments.
-            if (!Array.isArray(resources) || resources.length === 0) {
-              resources = perm.length
-                ? await new Model()
-                    .select(
-                      [
-                        "id",
-                        "resource_path",
-                        "resource",
-                        "icon",
-                        "is_public",
-                        "display_order",
-                        "category",
-                        "show_in_nav",
-                      ],
-                      "admin_resources",
-                    )
-                    .where("resource_type", "=", "BROWSER_ROUTE")
-                    .whereIn("resource", perm)
-                    .execute()
-                : [];
-            }
-          } catch (error) {
-            // Compatibility fallback: old permission/resource mapping.
-            resources = perm.length
-              ? await new Model()
-                  .select(
-                    [
-                      "id",
-                      "resource_path",
-                      "resource",
-                      "icon",
-                      "is_public",
-                      "display_order",
-                      "category",
-                      "show_in_nav",
-                    ],
-                    "admin_resources",
-                  )
-                  .where("resource_type", "=", "BROWSER_ROUTE")
-                  .whereIn("resource", perm)
-                  .execute()
-              : [];
-          }
-        }
+        const role = Array.isArray(req.roles) ? req.roles : [];
+        const perm = Array.isArray(req.permissions) ? req.permissions : [];
+        const routeAuthority = await loadBrowserRouteAuthority(userId, role);
+        const resources = routeAuthority.effectiveRoutes;
 
         const [user] = await new Model()
           .select(
@@ -203,6 +100,15 @@ class AuthRoute {
             role,
             assignedPermission: perm,
             resources,
+            authority: {
+              privileged: Boolean(req.isPrivileged),
+              inheritedPermissions: req.authority?.inheritedPermissions ?? [],
+              directPermissionAllows: req.authority?.directPermissionAllows ?? [],
+              directPermissionDenies: req.authority?.directPermissionDenies ?? [],
+              inheritedRoutes: routeAuthority.inheritedRoutes,
+              directRouteAllows: routeAuthority.directRouteAllows,
+              directRouteDenies: routeAuthority.directRouteDenies,
+            },
           },
         });
       },
