@@ -44,6 +44,15 @@ const utils = {
     if (!Number.isInteger(parsed) || parsed < 1) return fallback;
     return Math.min(parsed, max);
   },
+  parseJson(value, fallback) {
+    if (value === null || value === undefined || value === "") return fallback;
+    if (typeof value === "object") return value;
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return fallback;
+    }
+  },
   encrypt: (text) => {
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv("aes-256-cbc", getEncryptionKey(), iv);

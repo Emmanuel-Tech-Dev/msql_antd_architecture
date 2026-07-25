@@ -199,7 +199,7 @@ function ChartDemo() {
           showLegend: true,
           series: [
             { dataKey: 'planned', name: 'Planned', color: '#a89f94', chart: 'bar' },
-            { dataKey: 'actual', name: 'Actual', color: '#d4570a', chart: type === 'composed' ? 'line' : undefined },
+            { dataKey: 'actual', name: 'Actual', color: 'var(--color-accent)', chart: type === 'composed' ? 'line' : undefined },
           ],
         })}
       </div>

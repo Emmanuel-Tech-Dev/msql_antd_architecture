@@ -44,6 +44,7 @@ apiClient.interceptors.response.use(
     // error right away without being queued behind the subscriber timeout.
     if (
       original.url?.includes("/auth/login") ||
+      original.url?.includes("/auth/google_oauth") ||
       original.url?.includes("/auth/otp/") ||
       original.url?.includes("/auth/refresh") ||
       original.url?.includes("/auth/logout")

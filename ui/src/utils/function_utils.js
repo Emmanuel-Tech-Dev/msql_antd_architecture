@@ -10,6 +10,16 @@ import { saveAs } from "file-saver";
 import dayjs from "dayjs";
 
 const utils = {
+  parseJson(value, fallback) {
+    if (value === null || value === undefined || value === "") return fallback;
+    if (typeof value === "object") return value;
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      console.log(_error);
+      return fallback;
+    }
+  },
   getCurrentDate() {
     const date = dayjs().format("MMMM D, YYYY");
     return date;

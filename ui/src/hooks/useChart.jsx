@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Internal Recharts renderers are intentionally composed by this hook. */
 import { useCallback } from "react";
 import {
   Area,
@@ -18,7 +19,13 @@ import {
   YAxis,
 } from "recharts";
 
-const DEFAULT_COLORS = ["#1677ff", "#52c41a", "#faad14", "#ff4d4f", "#722ed1"];
+const DEFAULT_COLORS = [
+  "var(--ads-accent)",
+  "var(--ads-info)",
+  "var(--ads-success)",
+  "var(--ads-warning)",
+  "var(--ads-danger)",
+];
 const DEFAULT_MARGIN = { top: 8, right: 12, left: -12, bottom: 0 };
 
 function normalizeSeries(series = [], fallbackKey = "value") {
@@ -47,13 +54,51 @@ function ChartFrame({ height, children }) {
   );
 }
 
-function CommonParts({ xKey, showGrid, showXAxis, showYAxis, showTooltip, showLegend, tooltipFormatter }) {
+function CommonParts({
+  xKey,
+  layout,
+  showGrid,
+  showXAxis,
+  showYAxis,
+  showTooltip,
+  showLegend,
+  tooltipFormatter,
+}) {
+  const isHorizontalBar = layout === "vertical";
   return (
     <>
-      {showGrid && <CartesianGrid stroke="#f0f0f0" strokeDasharray="3 3" vertical={false} />}
-      {showXAxis && <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={12} />}
-      {showYAxis && <YAxis tickLine={false} axisLine={false} fontSize={12} />}
-      {showTooltip && <Tooltip formatter={tooltipFormatter} />}
+      {showGrid && <CartesianGrid stroke="var(--ads-border-subtle)" strokeDasharray="3 3" vertical={false} />}
+      {showXAxis && (
+        <XAxis
+          dataKey={isHorizontalBar ? undefined : xKey}
+          type={isHorizontalBar ? "number" : "category"}
+          tickLine={false}
+          axisLine={false}
+          tick={{ fill: "var(--ads-text-subtle)", fontSize: 12 }}
+        />
+      )}
+      {showYAxis && (
+        <YAxis
+          dataKey={isHorizontalBar ? xKey : undefined}
+          type={isHorizontalBar ? "category" : "number"}
+          width={isHorizontalBar ? 94 : 36}
+          tickLine={false}
+          axisLine={false}
+          tick={{ fill: "var(--ads-text-subtle)", fontSize: 12 }}
+        />
+      )}
+      {showTooltip && (
+        <Tooltip
+          formatter={tooltipFormatter}
+          contentStyle={{
+            backgroundColor: "var(--ads-surface-raised)",
+            border: "1px solid var(--ads-border-subtle)",
+            borderRadius: "var(--ads-radius-md)",
+            color: "var(--ads-text)",
+          }}
+          labelStyle={{ color: "var(--ads-text-muted)" }}
+        />
+      )}
       {showLegend && <Legend />}
     </>
   );
@@ -70,6 +115,7 @@ function ChartRenderer(options) {
     colors = DEFAULT_COLORS,
     height = 260,
     margin = DEFAULT_MARGIN,
+    layout = "horizontal",
     showGrid = true,
     showXAxis = true,
     showYAxis = true,
@@ -83,6 +129,7 @@ function ChartRenderer(options) {
   const chartSeries = normalizeSeries(series, dataKey);
   const common = {
     xKey,
+    layout,
     showGrid,
     showXAxis,
     showYAxis,
@@ -117,10 +164,16 @@ function ChartRenderer(options) {
   if (type === "bar") {
     return (
       <ChartFrame height={height}>
-        <BarChart data={data} margin={margin}>
+        <BarChart data={data} margin={margin} layout={layout}>
           <CommonParts {...common} />
           {chartSeries.map((item) => (
-            <Bar key={item.dataKey} dataKey={item.dataKey} name={item.name} fill={item.color} radius={[6, 6, 0, 0]}>
+            <Bar
+              key={item.dataKey}
+              dataKey={item.dataKey}
+              name={item.name}
+              fill={item.color}
+              radius={layout === "vertical" ? [0, 6, 6, 0] : [6, 6, 0, 0]}
+            >
               {typeof item.cellColor === "function" &&
                 data.map((entry, index) => (
                   <Cell key={`${item.dataKey}-${index}`} fill={item.cellColor(entry)} />

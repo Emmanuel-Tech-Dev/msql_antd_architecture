@@ -1,4 +1,5 @@
 const subscribers = new Map();
+const { emitToAll, emitToUsers } = require("../realtime/socketServer");
 
 function writeEvent(response, event, payload) {
   response.write(`event: ${event}\n`);
@@ -33,6 +34,7 @@ function subscribe(userId, request, response) {
 function publish(userIds, reason) {
   const uniqueIds = new Set((userIds ?? []).filter(Boolean).map(String));
   const payload = { reason, changedAt: new Date().toISOString() };
+  emitToUsers(uniqueIds, "access:changed", payload);
 
   uniqueIds.forEach((userId) => {
     const current = subscribers.get(userId);
@@ -49,6 +51,7 @@ function publish(userIds, reason) {
 
 function broadcast(event, reason) {
   const payload = { reason, changedAt: new Date().toISOString() };
+  emitToAll(event, payload);
   subscribers.forEach((responses) => {
     responses.forEach((response) => {
       if (!response.destroyed && !response.writableEnded) {

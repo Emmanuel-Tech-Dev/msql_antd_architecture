@@ -28,9 +28,9 @@
 
 .workspace-brand__mark.ant-avatar {
   flex-shrink: 0;
-  color: #fff;
-  background: #d4570a;
-  border-radius: 3px;
+  color: var(--ads-text-inverse);
+  background: var(--ads-accent);
+  border-radius: var(--ads-radius-md);
   font-family: var(--font-display);
   font-weight: 800;
 }

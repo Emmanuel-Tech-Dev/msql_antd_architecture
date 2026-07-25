@@ -3,7 +3,7 @@ import { Badge, Checkbox, Empty, Skeleton, Typography } from 'antd';
 import CustomTable from '../CustomTable';
 import useAccessControl from '../../hooks/useAccessControl';
 import useTableApi from '../../hooks/useTableApi';
-import './AccessEditor.css';
+import { ACCESS_HEADING_CLASS, ACCESS_STATUS_CLASS } from './accessTailwind';
 
 const { Text, Title } = Typography;
 
@@ -51,7 +51,7 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
 
     const renderCheckbox = (record, action) => {
         const permission = record.permissions[action];
-        if (!permission) return <span className="access-editor__unavailable" aria-label={`${action} is unavailable`}>—</span>;
+        if (!permission) return <span className="text-[var(--color-text-disabled)]" aria-label={`${action} is unavailable`}>—</span>;
         return (
             <Checkbox
                 aria-label={`${action} ${record.resourceLabel}`}
@@ -80,13 +80,13 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
     if (loading) return <Skeleton active paragraph={{ rows: 10 }} />;
 
     return (
-        <section className="access-editor" aria-labelledby="permission-matrix-title">
-            <div className="access-editor__heading">
+        <section aria-labelledby="permission-matrix-title">
+            <div className={ACCESS_HEADING_CLASS}>
                 <div>
                     <Title level={4} id="permission-matrix-title">Permission matrix</Title>
                     <Text type="secondary">Choose the operations inherited by every member of <strong>{role_name}</strong>.</Text>
                 </div>
-                <div className="access-editor__status">
+                <div className={ACCESS_STATUS_CLASS}>
                     <strong>{assignedSet.size}</strong>
                     <span>assigned</span>
                     {isDirty && <Badge status="warning" text="Unsaved" />}

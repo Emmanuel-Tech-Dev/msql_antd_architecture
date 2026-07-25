@@ -358,6 +358,8 @@ class AuthRoute {
           status: "ok",
           message: "Operation Successfull!",
           token: response?.accessToken,
+          user: response?.user,
+          forcedPasswordChange: response?.forcedPasswordChange,
         });
     });
   }
@@ -394,12 +396,15 @@ class AuthRoute {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Use secure cookies in production
           sameSite: "strict", // Strict CSRF protection
+          path: "/",
           maxAge: refreshttl, // 7 days
         })
         .json({
           status: "ok",
           message: "Operation Successfull!",
           token: response?.accessToken,
+          user: response?.user,
+          forcedPasswordChange: response?.forcedPasswordChange === true,
         });
     });
   }
@@ -503,12 +508,15 @@ class AuthRoute {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production", // Use secure cookies in production
           sameSite: "strict", // Strict CSRF protection
+          path: "/",
           maxAge: refreshttl, // 7 days
         })
         .json({
           status: "ok",
           message: "Operation Successfull!",
           token: response?.accessToken,
+          user: response?.user,
+          forcedPasswordChange: response?.forcedPasswordChange === true,
         });
     });
   }

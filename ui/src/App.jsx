@@ -1,5 +1,4 @@
 // components/UsersTable.jsx
-import './index.css'
 import "react-skeletonify/dist/index.css";
 
 import AppLayout from "./components/Layout/AppLayout";
@@ -19,6 +18,7 @@ import OtpVerify from "./pages/auth/OtpVerify";
 import ChangePassword from "./pages/auth/ChangePassword";
 import NotFound404 from "./components/feedback/NotFound404";
 import Users from "./pages/admin/Users";
+import UserStatistics from "./pages/admin/UserStatistics";
 import Roles from "./pages/admin/Roles";
 import Permissions from "./pages/admin/Permissions";
 import Resources from "./pages/admin/Resources";
@@ -77,6 +77,7 @@ export default function App() {
             <Route path="test2" element={<AnalyticsSchool />} />
             <Route path="test3" element={<AnalyticsEcommerce />} />
             <Route path="management/users" element={<Users />} />
+            <Route path="management/user-statistics" element={<UserStatistics />} />
             <Route path="management/roles&permissions" element={<Roles />} />
             <Route path="management/permissions" element={<Permissions />} />
             <Route path="management/resources" element={<Resources />} />

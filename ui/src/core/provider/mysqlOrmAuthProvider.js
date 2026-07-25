@@ -15,6 +15,18 @@ const mysqlOrmAuthProvider = () => ({
     return { user, token, forcedPasswordChange };
   },
 
+  googleLogin: async ({ idToken }) => {
+    const { data } = await apiClient.post("/auth/google_oauth", { idToken });
+    const { token, user, forcedPasswordChange = false } = data;
+
+    if (!token || !user) {
+      throw new Error("Google sign-in returned an incomplete session");
+    }
+
+    useAuthStore.getState().setAuth(user, token);
+    return { user, token, forcedPasswordChange };
+  },
+
   requestOtpLogin: async ({ email }) => {
     const { data } = await apiClient.post("/auth/otp/request-login", { email });
 

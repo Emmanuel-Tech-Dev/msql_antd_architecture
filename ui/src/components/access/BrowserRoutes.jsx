@@ -2,7 +2,13 @@ import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { Badge, Empty, Skeleton, Switch, Typography } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import useAccessControl from '../../hooks/useAccessControl';
-import './AccessEditor.css';
+import {
+    ACCESS_HEADING_CLASS,
+    ACCESS_ROUTE_CLASS,
+    ACCESS_ROUTE_COPY_CLASS,
+    ACCESS_ROUTE_LIST_CLASS,
+    ACCESS_STATUS_CLASS,
+} from './accessTailwind';
 
 const { Text, Title } = Typography;
 
@@ -32,13 +38,13 @@ const BrowserRoutes = forwardRef(function BrowserRoutes({ role, onDirtyChange, o
     if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
 
     return (
-        <section className="access-editor" aria-labelledby="browser-routes-title">
-            <div className="access-editor__heading">
+        <section aria-labelledby="browser-routes-title">
+            <div className={ACCESS_HEADING_CLASS}>
                 <div>
                     <Title level={4} id="browser-routes-title">Navigation access</Title>
                     <Text type="secondary">Enabled pages are available to <strong>{role?.role_name}</strong> and can appear in navigation when the resource is visible.</Text>
                 </div>
-                <div className="access-editor__status">
+                <div className={ACCESS_STATUS_CLASS}>
                     <strong>{assignedSet.size}</strong>
                     <span>enabled</span>
                     {isDirty && <Badge status="warning" text="Unsaved" />}
@@ -48,13 +54,13 @@ const BrowserRoutes = forwardRef(function BrowserRoutes({ role, onDirtyChange, o
             {allRoutes.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No browser routes have been registered" />
             ) : (
-                <div className="access-editor__route-list">
+                <div className={ACCESS_ROUTE_LIST_CLASS}>
                     {allRoutes.map((route) => {
                         const isEnabled = assignedSet.has(route.resource);
                         return (
-                            <div className={`access-editor__route ${isEnabled ? 'is-enabled' : ''}`} key={route.resource}>
-                                <span className="access-editor__route-icon" aria-hidden="true"><GlobalOutlined /></span>
-                                <span className="access-editor__route-copy">
+                            <div className={`${ACCESS_ROUTE_CLASS} ${isEnabled ? 'bg-[var(--color-bg-container)] opacity-100' : ''}`} key={route.resource}>
+                                <span className={`grid size-9 place-items-center rounded-[var(--app-radius)] ${isEnabled ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]' : 'bg-[var(--color-bg-sunken)] text-[var(--color-text-tertiary)]'}`} aria-hidden="true"><GlobalOutlined /></span>
+                                <span className={ACCESS_ROUTE_COPY_CLASS}>
                                     <strong>{route.resource}</strong>
                                     <code title={route.resource_path}>{route.resource_path}</code>
                                 </span>

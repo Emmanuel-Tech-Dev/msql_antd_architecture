@@ -1,9 +1,12 @@
-import { Form, Input, Button, Result } from 'antd';
-import { MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Result, Typography } from 'antd';
+import { ArrowLeftOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import useForgotPassword from '../../core/hooks/auth/useForgotPassword';
 import useNotification from '../../hooks/useNotification';
-import { useState } from 'react';
+import AuthShell, { AuthIcon } from './AuthShell';
+
+const { Text, Title } = Typography;
 
 export default function ForgotPassword() {
     const navigate = useNavigate();
@@ -14,117 +17,100 @@ export default function ForgotPassword() {
     const { mutate, isPending } = useForgotPassword({
         mutationOptions: {
             onSuccess: () => setSent(true),
-            onError: (err) => alert.error('Request failed', err?.message || 'Something went wrong. Please try again.'),
+            onError: (err) => alert.error(
+                'Request failed',
+                err?.message || 'Something went wrong. Please try again.',
+            ),
         },
     });
 
-    const cardStyle = {
-        width: 400,
-        background: '#fff',
-        borderRadius: 8,
-        padding: '48px 40px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06)',
-    };
-
     if (sent) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-                <div style={{ ...cardStyle, textAlign: 'center' }}>
-                    <Result
-                        status="success"
-                        title="Check your email"
-                        subTitle={
-                            <span style={{ color: '#595959', fontSize: 14 }}>
-                                We sent a reset link to <strong>{email}</strong>.
-                                The link expires in 20 minutes.
-                            </span>
-                        }
-                        extra={
-                            <Button
-                                type="link"
-                                icon={<ArrowLeftOutlined />}
-                                onClick={() => navigate('/login')}
-                                style={{ color: '#595959' }}
-                            >
-                                Back to sign in
-                            </Button>
-                        }
-                    />
-                </div>
-            </div>
+            <AuthShell>
+                <Result
+                    className="!p-0 [&_.ant-result-subtitle]:!text-[var(--ads-text-muted)]"
+                    status="success"
+                    title="Check your email"
+                    subTitle={
+                        <span>
+                            We sent a reset link to <strong>{email}</strong>.
+                            {' '}The link expires in 20 minutes.
+                        </span>
+                    }
+                    extra={
+                        <Button
+                            type="link"
+                            icon={<ArrowLeftOutlined />}
+                            onClick={() => navigate('/login')}
+                        >
+                            Back to sign in
+                        </Button>
+                    }
+                />
+            </AuthShell>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-            <div style={cardStyle}>
+        <AuthShell>
+            <Button
+                type="link"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/login')}
+                className="!mb-6 !h-auto !px-0 !text-xs"
+            >
+                Back to sign in
+            </Button>
 
-                <Button
-                    type="link"
-                    icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate('/login')}
-                    style={{ padding: 0, color: '#595959', marginBottom: 24, fontSize: 13 }}
+            <header className="mb-6 text-center">
+                <AuthIcon><MailOutlined /></AuthIcon>
+                <Title level={3} className="!mb-1 !text-xl !text-[var(--ads-text-heading)]">
+                    Reset password
+                </Title>
+                <Text className="!text-[var(--ads-text-muted)]">
+                    Enter your email and we will send you a reset link.
+                </Text>
+            </header>
+
+            <div className="mb-4"><AlertJsx /></div>
+
+            <Form
+                className="[&_.ant-form-item-label>label]:!text-[13px] [&_.ant-form-item-label>label]:!font-medium [&_.ant-input-affix-wrapper]:!rounded-[var(--ads-radius-md)]"
+                layout="vertical"
+                onFinish={(values) => {
+                    setEmail(values.email);
+                    mutate({ email: values.email });
+                }}
+                requiredMark={false}
+                size="large"
+            >
+                <Form.Item
+                    name="email"
+                    label="Email"
+                    rules={[
+                        { required: true, message: 'Email is required' },
+                        { type: 'email', message: 'Enter a valid email' },
+                    ]}
                 >
-                    Back to sign in
-                </Button>
+                    <Input
+                        prefix={<MailOutlined className="text-[var(--ads-text-subtle)]" />}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                    />
+                </Form.Item>
 
-                <div style={{ marginBottom: 24 }}>
-                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: '#141414' }}>
-                        Reset password
-                    </h2>
-                    <p style={{ margin: '6px 0 0', color: '#8c8c8c', fontSize: 14 }}>
-                        Enter your email and we'll send you a reset link
-                    </p>
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                    <AlertJsx />
-                </div>
-
-                <Form
-                    layout="vertical"
-                    onFinish={(values) => {
-                        setEmail(values.email);
-                        mutate({ email: values.email });
-                    }}
-                    requiredMark={false}
-                    size="large"
-                >
-                    <Form.Item
-                        name="email"
-                        label={<span style={{ fontSize: 13, fontWeight: 500 }}>Email</span>}
-                        rules={[
-                            { required: true, message: 'Email is required' },
-                            { type: 'email', message: 'Enter a valid email' },
-                        ]}
+                <Form.Item className="!mb-0">
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={isPending}
+                        block
+                        className="!h-11 !rounded-[var(--ads-radius-md)] !font-medium"
                     >
-                        <Input
-                            prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
-                            placeholder="you@example.com"
-                            autoComplete="email"
-                        />
-                    </Form.Item>
-
-                    <Form.Item style={{ marginBottom: 0 }}>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={isPending}
-                            block
-                            style={{
-                                background: '#141414',
-                                borderColor: '#141414',
-                                height: 44,
-                                borderRadius: 6,
-                                fontWeight: 500,
-                            }}
-                        >
-                            Send reset link
-                        </Button>
-                    </Form.Item>
-                </Form>
-
-            </div>
-        </div>
+                        Send reset link
+                    </Button>
+                </Form.Item>
+            </Form>
+        </AuthShell>
     );
 }

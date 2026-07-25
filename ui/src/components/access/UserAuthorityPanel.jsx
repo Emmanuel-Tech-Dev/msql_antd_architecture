@@ -23,10 +23,42 @@ import {
 import dayjs from 'dayjs';
 import useApi from '../../hooks/useApi';
 import useAuthStore from '../../store/authStore';
-import './UserAuthorityPanel.css';
 
 const INHERIT = 'INHERIT';
 const MANAGE_AUTHORITY = 'manage:user_authority';
+
+const AUTHORITY_ROOT_CLASS = [
+  'text-[var(--color-text-primary,#17202a)]',
+  '[&>.ant-alert]:mb-[13px] [&>.ant-alert]:rounded-[3px] [&_.ant-tabs-nav]:mb-2',
+].join(' ');
+
+const AUTHORITY_HEADING_CLASS = [
+  'mb-3.5 flex items-center justify-between gap-[18px]',
+  '[&>div:first-child]:min-w-0',
+  '[&>div:first-child>span]:text-[10px] [&>div:first-child>span]:font-bold',
+  '[&>div:first-child>span]:uppercase [&>div:first-child>span]:tracking-[0.09em]',
+  '[&>div:first-child>span]:text-[var(--color-primary,#b04c10)]',
+  '[&_h3]:mt-[3px] [&_h3]:mb-0 [&_h3]:text-[19px] [&_h3]:tracking-[-0.025em]',
+].join(' ');
+
+const TONE_STYLES = {
+  allow: {
+    state: 'text-[var(--ads-success,#16805c)] bg-[color-mix(in_srgb,var(--ads-success,#16805c)_11%,transparent)]',
+    tag: '!text-[var(--ads-success,#16805c)] !bg-[color-mix(in_srgb,var(--ads-success,#16805c)_10%,transparent)]',
+  },
+  deny: {
+    state: 'text-[var(--ads-error,#c93f3f)] bg-[color-mix(in_srgb,var(--ads-error,#c93f3f)_10%,transparent)]',
+    tag: '!text-[var(--ads-error,#c93f3f)] !bg-[color-mix(in_srgb,var(--ads-error,#c93f3f)_10%,transparent)]',
+  },
+  inherited: {
+    state: 'text-[var(--ads-info,#2c64a4)] bg-[color-mix(in_srgb,var(--ads-info,#2c64a4)_10%,transparent)]',
+    tag: '!text-[var(--ads-info,#2c64a4)] !bg-[color-mix(in_srgb,var(--ads-info,#2c64a4)_9%,transparent)]',
+  },
+  none: {
+    state: 'bg-[#f1f1ee] text-[#8c918d]',
+    tag: '!bg-[#f1f1ee] !text-[#747b76]',
+  },
+};
 
 function hasPrivilegedRole(roles = []) {
   return roles.some((role) => ['superadmin', 'dev'].includes(
@@ -63,23 +95,24 @@ function AuthorityList({ items, itemKey, inherited, draft, onChange, search, dis
   if (!filtered.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No authority targets match this search" />;
 
   return (
-    <div className="user-authority__list">
+    <div className="max-h-[410px] overflow-y-auto border border-[var(--color-border-secondary,#e7e3dc)] [scrollbar-width:thin]">
       {filtered.map((item) => {
         const target = item[itemKey];
         const state = accessState(target, inherited, draft);
         const itemDisabled = disabled || item.is_public === true || Number(item.is_public) === 1;
         return (
-          <div className="user-authority__row" key={target}>
-            <span className={`user-authority__state is-${state.tone}`} aria-hidden>
+          <div className="flex min-h-[82px] items-center gap-2.5 border-b border-[var(--color-border-secondary,#eeeae4)] px-3 py-[11px] last:border-b-0 max-[760px]:flex-wrap max-[760px]:items-start" key={target}>
+            <span className={`grid size-[31px] shrink-0 place-items-center ${TONE_STYLES[state.tone].state}`} aria-hidden>
               {state.effective ? <CheckCircleOutlined /> : <StopOutlined />}
             </span>
-            <div className="user-authority__identity">
+            <div className="flex min-w-0 flex-1 flex-col max-[760px]:min-w-[calc(100%-45px)] [&>strong]:text-[13px] [&>strong]:leading-[1.3] [&>code]:mt-0.5 [&>code]:overflow-hidden [&>code]:text-ellipsis [&>code]:whitespace-nowrap [&>code]:text-[10px] [&>code]:text-[var(--color-text-secondary,#66706a)] [&>small]:mt-1 [&>small]:overflow-hidden [&>small]:text-ellipsis [&>small]:whitespace-nowrap [&>small]:text-[11px] [&>small]:text-[var(--color-text-tertiary,#7f8781)]">
               <strong>{item.alias || item.resource || target}</strong>
               <code>{itemKey === 'permission_name' ? target : item.resource_path}</code>
               <small>{item.description || 'No description provided'}</small>
             </div>
-            <Tag className={`user-authority__source is-${state.tone}`}>{state.label}</Tag>
+            <Tag className={`!m-0 min-w-[76px] !rounded-sm !border-0 text-center !text-[10px] max-[760px]:ml-[41px] ${TONE_STYLES[state.tone].tag}`}>{state.label}</Tag>
             <Segmented
+              className="shrink-0 !rounded-[3px] !text-[11px]"
               aria-label={`Authority override for ${target}`}
               disabled={itemDisabled}
               options={[
@@ -99,13 +132,13 @@ function AuthorityList({ items, itemKey, inherited, draft, onChange, search, dis
 
 function ReadonlyPermissions({ permissions }) {
   return (
-    <section className="user-authority user-authority--readonly">
-      <div className="user-authority__heading">
+    <section className={`${AUTHORITY_ROOT_CLASS} [&>p]:mt-0 [&>p]:mb-3 [&>p]:text-xs [&>p]:text-[var(--color-text-secondary,#69716c)]`}>
+      <div className={AUTHORITY_HEADING_CLASS}>
         <div><span>Effective authority</span><h3>Role-derived access</h3></div>
         <Tag>{permissions.length} permissions</Tag>
       </div>
       <p>You can inspect this user, but your account cannot create direct authority exceptions.</p>
-      <div className="user-authority__readonly-tags">
+      <div className="flex max-h-[210px] flex-wrap gap-1.5 overflow-y-auto border border-[var(--color-border-secondary,#e7e3dc)] bg-[var(--color-bg-layout,#f8f7f4)] p-[11px] [&_.ant-tag]:m-0">
         {permissions.length
           ? permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)
           : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No effective permissions" />}
@@ -195,10 +228,10 @@ export default function UserAuthorityPanel({ userId, fallbackPermissions = [] })
   };
 
   return (
-    <section className="user-authority" aria-labelledby="user-authority-title">
-      <div className="user-authority__heading">
+    <section className={AUTHORITY_ROOT_CLASS} aria-labelledby="user-authority-title">
+      <div className={AUTHORITY_HEADING_CLASS}>
         <div><span>Hybrid RBAC authority</span><h3 id="user-authority-title">Direct user exceptions</h3></div>
-        <div className="user-authority__metrics">
+        <div className="flex gap-1.5 [&>span]:min-w-[72px] [&>span]:bg-[var(--color-bg-layout,#f7f6f3)] [&>span]:px-[9px] [&>span]:py-[7px] [&>span]:text-center [&>span]:text-[10px] [&_strong]:block [&_strong]:text-[17px] [&_strong]:leading-[1.1]">
           <span><strong>{authority.effectivePermissions?.length ?? 0}</strong> effective</span>
           <span><strong>{overrideCount}</strong> direct</span>
         </div>
@@ -220,7 +253,7 @@ export default function UserAuthorityPanel({ userId, fallbackPermissions = [] })
         />
       )}
 
-      <div className="user-authority__toolbar">
+      <div className="mb-1 flex items-center gap-2 [&_.ant-input-affix-wrapper]:min-h-[38px] [&_.ant-input-affix-wrapper]:flex-1 [&_.ant-input-affix-wrapper]:!rounded-[3px] [&_.ant-btn]:size-[38px] [&_.ant-btn]:min-w-[38px] [&_.ant-btn]:!rounded-[3px]">
         <Input
           allowClear
           aria-label="Search authority targets"
@@ -269,8 +302,8 @@ export default function UserAuthorityPanel({ userId, fallbackPermissions = [] })
         ]}
       />
 
-      <div className="user-authority__commit">
-        <div className="user-authority__commit-heading">
+      <div className="mt-[13px] border border-[var(--color-border-secondary,#e7e3dc)] bg-[var(--color-bg-layout,#f8f7f4)] p-[13px] [&_.ant-input]:!rounded-[3px]">
+        <div className="mb-2 flex items-center justify-between [&>span]:inline-flex [&>span]:items-center [&>span]:gap-[7px] [&>span]:text-xs [&>span]:font-bold [&_.ant-btn]:text-[11px]">
           <span><SafetyCertificateOutlined /> Audit context</span>
           <Button disabled={editingDisabled || overrideCount === 0} type="text" onClick={clearOverrides}>Clear direct overrides</Button>
         </div>
@@ -283,7 +316,7 @@ export default function UserAuthorityPanel({ userId, fallbackPermissions = [] })
           value={reason}
           onChange={(event) => setReason(event.target.value)}
         />
-        <div className="user-authority__commit-actions">
+        <div className="mt-2.5 flex items-center gap-2.5 max-[760px]:flex-col max-[760px]:items-stretch [&>.ant-picker]:min-h-[38px] [&>.ant-picker]:!rounded-[3px] [&>.ant-btn]:min-h-[38px] [&>.ant-btn]:!rounded-[3px] [&>span]:flex-1 [&>span]:text-[10px] [&>span]:text-[var(--color-text-secondary,#69716c)] max-[760px]:[&>span]:-order-1">
           <DatePicker
             allowClear
             disabled={editingDisabled}

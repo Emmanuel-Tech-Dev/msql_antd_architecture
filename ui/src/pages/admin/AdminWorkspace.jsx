@@ -5,7 +5,7 @@ const { Paragraph, Title } = Typography;
 
 export function AdminSectionHeader({ eyebrow, title, description, action }) {
     return (
-        <div className="admin-section-header">
+        <div className="p-4 flex items-center justify-between">
             <div className="admin-section-header__copy">
                 {eyebrow && <span className="admin-section-header__eyebrow">{eyebrow}</span>}
                 <Title level={4}>{title}</Title>

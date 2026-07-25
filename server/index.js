@@ -37,6 +37,9 @@ const LogRoute = require("./route/LogRoute");
 const AccessRoute = require("./route/acessRoute");
 const BackupRoute = require("./route/BackupRoute");
 const UiSettingsRoute = require("./route/UiSettingsRoute");
+const AdminStatisticsRoute = require("./route/AdminStatisticsRoute");
+const { validateOrigin } = require("./core/config/origins");
+const { initRealtime } = require("./core/realtime/socketServer");
 
 const PORT = process.env.PORT || 3000;
 
@@ -70,13 +73,6 @@ app.use(limiter);
 app.use(bodyPaser.json());
 
 app.use(bodyPaser.urlencoded({ extended: true }));
-const allowedOrigins = [
-  "http://localhost:3001",
-  "http://localhost:5173",
-  "https://my-production-app.com",
-  "https://staging-app.com",
-];
-
 // app.use((err, req, res, next) => {
 //   logger.error(err.message);
 //   res.status(err.status || 500).json({ error: err.message });
@@ -84,13 +80,7 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: validateOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: [
@@ -154,6 +144,7 @@ app.use(authorization);
 new LogRoute(app);
 new BackupRoute(app);
 new UiSettingsRoute(app);
+new AdminStatisticsRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 
@@ -187,6 +178,7 @@ process.on("SIGINT", async () => {
 async function startServer() {
   try {
     await logger.initialize();
+    initRealtime(server);
     await settings.preloadAll();
     // console.log(settings);
 

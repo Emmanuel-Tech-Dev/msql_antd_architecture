@@ -10,6 +10,30 @@ const color = z
   .regex(/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i);
 const adminPath = z.string().startsWith("/admin/").max(255);
 
+const paletteSchema = z
+  .object({
+    siderBg: color,
+    headerBg: color,
+    contentBg: color,
+    accent: color,
+    accentText: color,
+    textPrimary: color,
+    textMuted: color,
+    border: color,
+    itemHover: color,
+    itemActive: color,
+    surfaceBg: color,
+    elevatedBg: color,
+    bodyText: color,
+    secondaryText: color,
+    strongBorder: color,
+    success: color,
+    warning: color,
+    error: color,
+    info: color,
+  })
+  .strict();
+
 const siderSchema = z
   .object({
     variant: z.enum([
@@ -65,28 +89,8 @@ const siderSchema = z
         showRole: z.boolean(),
       })
       .strict(),
-    colors: z
-      .object({
-        siderBg: color,
-        headerBg: color,
-        contentBg: color,
-        accent: color,
-        accentText: color,
-        textPrimary: color,
-        textMuted: color,
-        border: color,
-        itemHover: color,
-        itemActive: color,
-        surfaceBg: color,
-        elevatedBg: color,
-        bodyText: color,
-        secondaryText: color,
-        strongBorder: color,
-        success: color,
-        warning: color,
-        error: color,
-      })
-      .strict(),
+    colors: paletteSchema,
+    darkColors: paletteSchema,
   })
   .strict();
 

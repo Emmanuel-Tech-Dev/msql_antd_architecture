@@ -32,6 +32,7 @@ import {
     BellOutlined, DownOutlined, LogoutOutlined,
     MenuFoldOutlined, MenuUnfoldOutlined, NotificationOutlined, UserOutlined,
 } from '@ant-design/icons';
+import { SIDER_SCROLLBAR_CLASS, WORKSPACE_CONTENT_CLASS } from './layoutTailwind';
 import { Outlet, useNavigate } from 'react-router-dom';
 
 const { Sider, Header, Content, Footer } = Layout;
@@ -254,7 +255,7 @@ function SiderNode({
                     </div>
                 )}
                 <div
-                    className="app-sider-scrollbar"
+                    className={SIDER_SCROLLBAR_CLASS}
                     style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden' })}
                 >
                     <SiderMenu
@@ -343,11 +344,8 @@ function DefaultHeader({
 
 function SiderProfile({
     collapsed,
-    toggle,
     colors,
-    token,
     user,
-    notificationCount,
     onProfile,
     onLogout,
     navigate,
@@ -530,11 +528,11 @@ function SiderProfile({
 function IconRailLayout({
     colors, token, processedSiderItems, selectedKeys,
     siderHeader, headerHeight, siderStyle, contentStyle, layoutStyle,
-    user, showSiderProfile, showSiderLogout,
+    user, showSiderProfile,
     onProfile, onLogout, navigate,
     header, defaultHeader, footer, defaultFooter,
     footerText, footerStyle, appName, notificationCount,
-    collapsed, toggle, theme,
+    toggle,
 }) {
     const railWidth = 56;
 
@@ -593,7 +591,7 @@ function IconRailLayout({
 
                 {/* Rail items */}
                 <div
-                    className="app-sider-scrollbar"
+                    className={SIDER_SCROLLBAR_CLASS}
                     style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', padding: '6px 0' })}
                 >
                     {processedSiderItems.map((item) => {
@@ -737,7 +735,7 @@ function FloatingLayout({
     onProfile, onLogout, navigate,
     header, defaultHeader, footer, defaultFooter,
     footerText, footerStyle, appName, notificationCount,
-    collapsible, toggle,
+    toggle,
 }) {
     const GAP = 12; // gap between floating card and edges
 
@@ -800,7 +798,7 @@ function FloatingLayout({
                         </div>
                     )}
                     <div
-                        className="app-sider-scrollbar"
+                        className={SIDER_SCROLLBAR_CLASS}
                         style={getSiderScrollbarStyle(colors, { flex: 1, overflowY: 'auto', overflowX: 'hidden' })}
                     >
                         <SiderMenu
@@ -991,7 +989,7 @@ export default function SiderLayout({
     footerText, appName, user, notificationCount,
     onLogout, onProfile, showSiderProfile, showSiderLogout,
     defaultHeader, defaultFooter,
-    processedSiderItems, processedHeaderItems,
+    processedSiderItems,
     selectedKeys, openKeys,
     onCollapse, toggle, onMenuClick, siderHeader, header, footer, trigger,
     // New: color overrides passed from SIDER_INIT via AppLayout
@@ -1247,7 +1245,7 @@ export default function SiderLayout({
 
                             {/* Menu */}
                             <div
-                                className="app-sider-scrollbar"
+                                className={SIDER_SCROLLBAR_CLASS}
                                 style={getSiderScrollbarStyle(colors, {
                                     flex: 1,
                                     overflowY: 'auto',
@@ -1353,7 +1351,7 @@ export default function SiderLayout({
                         )}
 
                         <Content
-                            className="app-workspace-content"
+                            className={WORKSPACE_CONTENT_CLASS}
                             style={{
                                 margin: '10px auto',
                                 // padding: '16px',

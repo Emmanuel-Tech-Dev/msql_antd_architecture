@@ -2,12 +2,14 @@ const Model = require("../core/model/model");
 const { clearPermissionCache } = require("../core/middleware/authorization");
 const AppError = require("../shared/helpers/AppError");
 const authorizationEvents = require("../core/lib/authorizationEvents");
+const { disconnectUsers } = require("../core/realtime/socketServer");
 const logger = require("../shared/helpers/logger");
 const {
   loadBrowserRouteAuthority,
   loadUserAuthority,
   resolveOverrides,
 } = require("../core/lib/authorityService");
+const { isPrivilegedSystemRole } = require("../core/lib/authorizationPolicy");
 
 const MANAGE_AUTHORITY_PERMISSION = "manage:user_authority";
 const EFFECTS = new Set(["ALLOW", "DENY"]);
@@ -610,6 +612,10 @@ class AccessRoute {
         .where("custom_id", "=", custom_id)
         .execute();
 
+      clearPermissionCache(custom_id);
+      authorizationEvents.publish([custom_id], newStatus ? "account-activated" : "account-deactivated");
+      if (!newStatus) disconnectUsers([custom_id], "account-deactivated");
+
       return res
         .status(200)
         .json({ message: "Operation successfull!", status: "ok" });
@@ -618,12 +624,33 @@ class AccessRoute {
 
   assignedRoles(app) {
     app.post("/access/assign/roles", async (req, res) => {
-      const { custom_id, role } = req.body;
+      const custom_id = String(req.body?.custom_id ?? "").trim();
+      const role = String(req.body?.role ?? "").trim();
+      if (!custom_id || !role) {
+        throw new AppError("ERR_VALIDATION_FAILED", "User and role are required");
+      }
 
-      // console.log("Assigning role", role, "to user", custom_id);
-      // return;
+      const [targetUser] = await new Model()
+        .select(["custom_id"], "admin")
+        .where("custom_id", "=", custom_id)
+        .execute();
+      const [assignedRole] = await new Model()
+        .select(["role_name"], "admin_roles")
+        .where("role_name", "=", role)
+        .execute();
+      if (!targetUser || !assignedRole) {
+        throw new AppError("ERR_NOT_FOUND", "User or role was not found");
+      }
 
-      // 1. Check if user exists
+      const targetAuthority = await loadUserAuthority(custom_id);
+      const grantorIsPrivileged = isPrivilegedSystemRole(req.roles);
+      const targetIsPrivileged = isPrivilegedSystemRole(targetAuthority.userRoles);
+      const grantingPrivilegedRole = isPrivilegedSystemRole([{ role_id: role }]);
+
+      if (!grantorIsPrivileged && (targetIsPrivileged || grantingPrivilegedRole)) {
+        throw new AppError("ERR_ACCESS_DENIED", "Only a privileged system role can manage privileged roles");
+      }
+
       const [existingRoles] = await new Model()
         .select(["user_id"], "admin_user_roles")
         .where("user_id", "=", custom_id)

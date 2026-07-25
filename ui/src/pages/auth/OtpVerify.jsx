@@ -5,6 +5,7 @@ import useNotification from '../../hooks/useNotification';
 import { useEffect, useState } from 'react';
 import { useAuthProvider } from '../../core/provider/AuthProvider';
 import { resolvePostLoginPath } from '../../core/navigation/routeResolver';
+import AuthShell, { AuthIcon } from './AuthShell';
 
 const { Text, Title } = Typography;
 
@@ -81,29 +82,26 @@ export default function OtpVerify() {
         }
     }
     return (
-        <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-            <div className="w-full max-w-[400px] rounded-lg bg-white px-10 py-12 shadow-sm ring-1 ring-black/5">
+        <AuthShell>
 
                 <Button
                     type="link"
                     icon={<ArrowLeftOutlined />}
                     onClick={() => navigate('/otp_request', { state: { from } })}
-                    className="!mb-6 !px-0 !text-slate-600"
+                    className="!mb-6 !h-auto !px-0 !text-xs"
                 >
                     Back
                 </Button>
 
-                <div className="mb-8 text-center">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950">
-                        <MailOutlined className="text-xl text-white" />
-                    </div>
-                    <Title level={3} className="!mb-1 !text-xl">
+                <header className="mb-8 text-center">
+                    <AuthIcon><MailOutlined /></AuthIcon>
+                    <Title level={3} className="!mb-1 !text-xl !text-[var(--ads-text-heading)]">
                         Enter login code
                     </Title>
-                    <Text type="secondary">
-                        We sent a 6-digit login code to <strong className="text-slate-950">{email}</strong>
+                    <Text className="!text-[var(--ads-text-muted)]">
+                        We sent a 6-digit login code to <strong className="text-[var(--ads-text-heading)]">{email}</strong>
                     </Text>
-                </div>
+                </header>
 
                 <div className="mb-4">
                     <AlertJsx />
@@ -120,24 +118,23 @@ export default function OtpVerify() {
                 </div>
 
                 {verifying && (
-                    <div className="mb-4 text-center text-[13px] text-slate-500">
+                    <div className="mb-4 text-center text-[13px] text-[var(--ads-text-muted)]">
                         Checking code...
                     </div>
                 )}
 
                 <div className="text-center">
-                    <span className="text-[13px] text-slate-500">Didn't receive a code? </span>
+                    <span className="text-[13px] text-[var(--ads-text-muted)]">Didn't receive a code? </span>
                     <Button
                         type="link"
                         loading={resending}
                         onClick={handleResend}
-                        className="!px-0 !text-[13px] !text-slate-700"
+                        className="!h-auto !px-0 !text-[13px]"
                     >
                         Resend
                     </Button>
                 </div>
 
-            </div>
-        </div>
+        </AuthShell>
     );
 }

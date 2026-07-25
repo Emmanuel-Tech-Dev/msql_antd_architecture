@@ -9,6 +9,83 @@
   --font-mono: "Geist Mono", "JetBrains Mono", monospace;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body.ads-theme.ads-v1 {
+  margin: 0;
+  color: var(--ads-text);
+  background: var(--ads-canvas);
+  font-family: var(--ads-font-sans);
+
+  /* Compatibility contract for existing application CSS and chart helpers. */
+  --font-display: var(--ads-font-sans);
+  --font-body: var(--ads-font-sans);
+  --font-size-base: var(--ads-font-size-body);
+  --font-size-xs: var(--ads-font-size-caption);
+  --font-size-sm: var(--ads-font-size-body-sm);
+  --font-size-md: var(--ads-font-size-body);
+  --font-size-lg: var(--ads-font-size-body-lg);
+  --font-size-xl: var(--ads-font-size-h5);
+  --font-size-h6: var(--ads-font-size-body-lg);
+  --font-size-h5: var(--ads-font-size-h5);
+  --font-size-h4: var(--ads-font-size-h4);
+  --font-size-h3: var(--ads-font-size-h3);
+  --font-size-h2: var(--ads-font-size-h2);
+  --font-size-h1: var(--ads-font-size-h1);
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: var(--ads-font-weight-medium);
+  --font-weight-semibold: var(--ads-font-weight-strong);
+  --font-weight-bold: 700;
+  --font-weight-black: 800;
+  --color-primary: var(--ads-accent);
+  --color-accent: var(--ads-accent);
+  --color-accent-hover: var(--ads-accent-hover);
+  --color-accent-light: var(--ads-accent-soft);
+  --color-accent-muted: color-mix(in srgb, var(--ads-accent) 12%, transparent);
+  --color-bg-base: var(--ads-canvas);
+  --color-bg-layout: var(--ads-canvas);
+  --color-bg-container: var(--ads-surface);
+  --color-bg-elevated: var(--ads-surface-raised);
+  --color-bg-sunken: var(--ads-surface-sunken);
+  --color-bg-overlay: color-mix(in srgb, var(--ads-surface) 88%, transparent);
+  --color-border: var(--ads-border);
+  --color-border-secondary: var(--ads-border-subtle);
+  --color-border-subtle: var(--ads-border-subtle);
+  --color-border-strong: var(--ads-border-strong);
+  --color-text-primary: var(--ads-text);
+  --color-text-secondary: var(--ads-text-muted);
+  --color-text-tertiary: var(--ads-text-subtle);
+  --color-text-disabled: var(--ads-text-disabled);
+  --color-text-inverse: var(--ads-text-inverse);
+  --color-success: var(--ads-success);
+  --color-success-bg: var(--ads-success-soft);
+  --color-warning: var(--ads-warning);
+  --color-warning-bg: var(--ads-warning-soft);
+  --color-error: var(--ads-danger);
+  --color-error-bg: var(--ads-danger-soft);
+  --color-info: var(--ads-info);
+  --color-info-bg: var(--ads-info-soft);
+  --app-radius: var(--ads-radius-md);
+  --app-control-height: var(--ads-control-md);
+  --shadow-sm: var(--ads-shadow-sm);
+  --shadow-md: var(--ads-shadow-md);
+  --shadow-lg: var(--ads-shadow-lg);
+  --shadow-xs: var(--ads-shadow-xs);
+  --shadow-xl: var(--ads-shadow-overlay);
+  --shadow-accent: 0 8px 24px color-mix(in srgb, var(--ads-accent) 18%, transparent);
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  scroll-behavior: auto !important;
+}
+
 .ant-table-pagination-end {
   padding-right: 10px;
 }

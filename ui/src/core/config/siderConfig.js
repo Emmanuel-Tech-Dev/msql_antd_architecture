@@ -7,6 +7,50 @@ const DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i;
 
+const LIGHT_COLORS = Object.freeze({
+    siderBg: '#171c1a',
+    headerBg: '#ffffff',
+    contentBg: '#f7f7f5',
+    accent: '#0f766e',
+    accentText: '#f8faf9',
+    textPrimary: '#e4e9e6',
+    textMuted: '#a7b0ac',
+    border: '#303936',
+    itemHover: '#232a27',
+    itemActive: '#173532',
+    surfaceBg: '#ffffff',
+    elevatedBg: '#ffffff',
+    bodyText: '#202523',
+    secondaryText: '#5e6864',
+    strongBorder: '#dde1de',
+    success: '#39875d',
+    warning: '#b7791f',
+    error: '#c84a54',
+    info: '#4776b8',
+});
+
+const DARK_COLORS = Object.freeze({
+    siderBg: '#0d110f',
+    headerBg: '#171c1a',
+    contentBg: '#111513',
+    accent: '#55b8ae',
+    accentText: '#10201d',
+    textPrimary: '#e4e9e6',
+    textMuted: '#a7b0ac',
+    border: '#303936',
+    itemHover: '#232a27',
+    itemActive: '#173532',
+    surfaceBg: '#171c1a',
+    elevatedBg: '#1c2220',
+    bodyText: '#e4e9e6',
+    secondaryText: '#a7b0ac',
+    strongBorder: '#303936',
+    success: '#6cba88',
+    warning: '#d7a552',
+    error: '#e37a82',
+    info: '#79a4db',
+});
+
 export const DEFAULT_SIDER_CONFIG = Object.freeze({
     variant: 'premium',
     width: 252,
@@ -41,26 +85,8 @@ export const DEFAULT_SIDER_CONFIG = Object.freeze({
         showSystemStatus: true,
         showRole: true,
     },
-    colors: {
-        siderBg: '#171512',
-        headerBg: '#fffdf9',
-        contentBg: '#f5f2ee',
-        accent: '#d4570a',
-        accentText: '#ffffff',
-        textPrimary: 'rgba(255,255,255,0.92)',
-        textMuted: 'rgba(226,218,208,0.62)',
-        border: 'rgba(255,255,255,0.10)',
-        itemHover: 'rgba(255,255,255,0.07)',
-        itemActive: 'rgba(212,87,10,0.18)',
-        surfaceBg: '#ffffff',
-        elevatedBg: '#fdfaf7',
-        bodyText: '#1a1714',
-        secondaryText: '#6e665e',
-        strongBorder: '#d9d3ca',
-        success: '#2d7a4f',
-        warning: '#c47b0a',
-        error: '#c0392b',
-    },
+    colors: LIGHT_COLORS,
+    darkColors: DARK_COLORS,
 });
 
 const boundedNumber = (value, fallback, minimum, maximum) => {
@@ -102,6 +128,14 @@ export function normalizeSiderConfig(value) {
             key,
             typeof input.colors?.[key] === 'string' && SAFE_COLOR.test(input.colors[key].trim())
                 ? input.colors[key].trim()
+                : fallback,
+        ]),
+    );
+    const darkColors = Object.fromEntries(
+        Object.entries(defaults.darkColors).map(([key, fallback]) => [
+            key,
+            typeof input.darkColors?.[key] === 'string' && SAFE_COLOR.test(input.darkColors[key].trim())
+                ? input.darkColors[key].trim()
                 : fallback,
         ]),
     );
@@ -153,6 +187,7 @@ export function normalizeSiderConfig(value) {
             showRole: typeof input.header?.showRole === 'boolean' ? input.header.showRole : defaults.header.showRole,
         },
         colors,
+        darkColors,
     };
 }
 

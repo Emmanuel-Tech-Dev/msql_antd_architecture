@@ -1,8 +1,7 @@
 import { useCallback, useMemo } from "react";
-import { Avatar, Button, Spin, Tag, Tooltip, Typography } from "antd";
-import { BookOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useBrowserRoutes, useNavigationRoutes } from "../../core/provider/ResourceProvider";
+import { Avatar, Spin, Typography } from "antd";
+import { useNavigate } from "react-router-dom";
+import { useNavigationRoutes } from "../../core/provider/ResourceProvider";
 import useRouteGuard from "../../core/hooks/access/useRouteGuard";
 import useLogout from "../../core/hooks/auth/useLogout";
 import useAuthStore from "../../store/authStore";
@@ -10,11 +9,10 @@ import useIcons from "../../hooks/useIcons";
 import useNotification from "../../hooks/useNotification";
 import useSider from "../../hooks/useSider";
 import { useTheme } from "../../hooks/useTheme";
-import "./AppLayout.css";
 
 function SecureSessionFallback() {
   return (
-    <div className="secure-session">
+    <div className="flex min-h-screen items-center justify-center gap-3.5 bg-[var(--color-bg-base)] bg-[linear-gradient(rgba(26,23,20,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(26,23,20,0.035)_1px,transparent_1px)] text-[var(--color-text-primary)] [background-size:32px_32px] [&>div:last-child>span]:block [&>div:last-child>span:last-child]:mt-0.5 [&>div:last-child>span:last-child]:text-xs">
       {/* <div className="secure-session__mark">B</div> */}
       <Spin size="small" />
       <div>
@@ -30,23 +28,20 @@ export default function AppLayout() {
   const { message } = useNotification();
   const { resolveIcon } = useIcons();
   const navigate = useNavigate();
-  const location = useLocation();
-  const browserRoutes = useBrowserRoutes();
   const navigationRoutes = useNavigationRoutes();
   const user = useAuthStore((state) => state.user);
-  const roles = useAuthStore((state) => state.roles);
   const { appearance: siderConfig } = useTheme();
   const shellConfig = useMemo(() => ({
     ...siderConfig,
-    headerStyle: siderConfig.header.sticky
+    headerStyle: siderConfig?.header?.sticky
       ? { position: "sticky", top: 0, zIndex: 20 }
       : undefined,
     contentStyle: {
       margin: "10px auto",
-      maxWidth: siderConfig.content.maxWidth,
-      padding: siderConfig.content.padding,
+      maxWidth: siderConfig?.content.maxWidth,
+      padding: siderConfig?.content.padding,
       width: "calc(100% - 24px)",
-      borderRadius: siderConfig.application.borderRadius,
+      borderRadius: siderConfig?.application.borderRadius,
     },
   }), [siderConfig]);
 
@@ -77,18 +72,12 @@ export default function AppLayout() {
     [navigationRoutes, resolveIcon],
   );
 
-  const currentRoute = useMemo(
-    () => browserRoutes.find((route) => route.resource_path === location.pathname),
-    [browserRoutes, location.pathname],
-  );
-  const activeRole = String(roles[0]?.role_id ?? roles[0] ?? "Member");
-
   const handleLogout = useCallback(() => logout(), [logout]);
   const handleProfile = useCallback(() => navigate("/admin/profile"), [navigate]);
 
   const sider = useSider(shellConfig, {
     items: navItems,
-    appName: siderConfig.brand.name,
+    appName: siderConfig?.brand.name,
     user: {
       name: user?.name ?? "Admin",
       email: user?.email ?? "",
@@ -113,18 +102,18 @@ export default function AppLayout() {
     >
       <Avatar
         shape="square"
-        className="workspace-brand__mark"
-        style={{ background: siderConfig.colors.accent, color: siderConfig.colors.accentText }}
+        className="shrink-0 !rounded-[var(--ads-radius-md)] !font-[var(--font-display)] !font-extrabold !text-[var(--ads-text-inverse)]"
+        style={{ background: siderConfig?.colors.accent, color: siderConfig?.colors.accentText }}
       >
-        {siderConfig.brand.mark}
+        {siderConfig?.brand.mark}
       </Avatar>
-      {!sider.collapsed ? (
+      {!sider?.collapsed ? (
         <div style={{ minWidth: 0 }}>
-          <Typography.Text className="workspace-brand__name" style={{ color: siderConfig.colors.textPrimary }} strong>
-            {siderConfig.brand.name}
+          <Typography.Text className="block !font-[var(--font-display)] !text-[15px] !leading-[1.1]" style={{ color: siderConfig?.colors.textPrimary }} strong>
+            {siderConfig?.brand.name}
           </Typography.Text>
-          <Typography.Text className="workspace-brand__caption" style={{ color: siderConfig.colors.textMuted }}>
-            {siderConfig.brand.caption}
+          <Typography.Text className="mt-[3px] block !font-mono !text-[9px] uppercase tracking-[0.08em]" style={{ color: siderConfig?.colors.textMuted }}>
+            {siderConfig?.brand.caption}
           </Typography.Text>
         </div>
       ) : null}
@@ -133,44 +122,8 @@ export default function AppLayout() {
 
   if (!isAllowed || !isReady) return <SecureSessionFallback />;
 
-  const workspaceHeader = (
-    <div className="workspace-header">
-      <div className="workspace-header__context">
-        <Typography.Text className="workspace-header__eyebrow">
-          {currentRoute?.category ?? "WORKSPACE"}
-        </Typography.Text>
-        <Typography.Text className="workspace-header__title" strong>
-          {currentRoute?.resource ?? "Overview"}
-        </Typography.Text>
-      </div>
-      <div className="workspace-header__status">
-        <Button
-          className="workspace-header__docs"
-          icon={<BookOutlined />}
-          onClick={() => navigate('/docs')}
-        >
-          Documentation
-        </Button>
-        {siderConfig.header.showSystemStatus && <span className="workspace-header__live"><i /> System live</span>}
-        {siderConfig.header.showRole && <Tag bordered={false}>{activeRole}</Tag>}
-        {siderConfig.collapsible && !["top", "none"].includes(siderConfig.variant) && (
-          <Tooltip title={sider.collapsed ? "Expand navigation" : "Collapse navigation"}>
-            <Button
-              className="workspace-header__collapse"
-              type="text"
-              icon={sider.collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              aria-label={sider.collapsed ? "Expand navigation" : "Collapse navigation"}
-              onClick={sider.toggle}
-            />
-          </Tooltip>
-        )}
-      </div>
-    </div>
-  );
-
   return sider.layoutJSX({
     siderHeader,
-    // header: workspaceHeader,
     trigger: null,
   });
 }

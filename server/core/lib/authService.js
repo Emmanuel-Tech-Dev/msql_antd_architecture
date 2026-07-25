@@ -253,22 +253,91 @@ class AuthService {
     return resetToken;
   }
 
+  getGoogleAudiences() {
+    return [...new Set(
+      [process.env.GOOGLE_CLIENT_ID, ...(process.env.GOOGLE_CLIENT_IDS || "").split(",")]
+        .map((clientId) => clientId?.trim())
+        .filter(Boolean),
+    )];
+  }
+
+  getGoogleTokenClaims(token) {
+    try {
+      const payload = String(token).split(".")[1];
+      if (!payload) return null;
+      return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    } catch {
+      return null;
+    }
+  }
+
   async verifyGoogleAuthToken(token) {
+    const audiences = this.getGoogleAudiences();
+    const claims = this.getGoogleTokenClaims(token);
+
+    if (!audiences.length) {
+      throw new AppError(
+        "ERR_INTERNAL_SERVER",
+        "Google sign-in is not configured on this server",
+      );
+    }
+
+    if (claims?.aud && !audiences.includes(claims.aud)) {
+      log.security("Google OAuth audience mismatch", {
+        tokenAudience: claims.aud,
+        configuredAudienceCount: audiences.length,
+        issuer: claims.iss,
+      });
+      throw new AppError(
+        "ERR_TOKEN_INVALID",
+        "Google sign-in is configured for a different OAuth client",
+        { reason: "audience_mismatch" },
+      );
+    }
+
     try {
       const ticket = await this.googleAuthClient.verifyIdToken({
         token,
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience: audiences,
       });
 
       return ticket.getPayload();
     } catch (error) {
-      throw new AppError("ERR_INVALID_TOKEN", "Invalid Google token");
+      const source = String(error?.message || "").toLowerCase();
+      const reason = source.includes("expired")
+        ? "expired_token"
+        : source.includes("issuer")
+          ? "issuer_mismatch"
+          : claims
+            ? "verification_failed"
+            : "malformed_token";
+      log.security("Google OAuth token verification failed", {
+        reason,
+        tokenAudience: claims?.aud,
+        issuer: claims?.iss,
+        errorName: error?.name,
+      });
+      throw new AppError(
+        "ERR_TOKEN_INVALID",
+        "Google could not verify this sign-in. Check the OAuth client configuration and try again.",
+        { reason },
+      );
     }
   }
 
   async googleLogin(idToken, req) {
-    // Verification happens here automatically
+    if (!idToken) {
+      throw new AppError("ERR_TOKEN_INVALID", "Google credential is required");
+    }
+
     const payload = await this.verifyGoogleAuthToken(idToken);
+
+    if (payload?.email_verified !== true || !payload?.email || !payload?.sub) {
+      throw new AppError(
+        "ERR_TOKEN_INVALID",
+        "Google must provide a verified email address",
+      );
+    }
 
     log.security("Google OAuth token verified", {
       provider: "google",
@@ -278,10 +347,9 @@ class AuthService {
 
     const googleUser = {
       google_id: payload.sub,
-      email: payload.email,
-      name: payload.name,
+      email: payload.email.trim().toLowerCase(),
+      name: payload.name || payload.email.split("@")[0],
       profile_picture: payload.picture,
-      //  email_verified: payload.email_verified,
     };
 
     // Find or create user
@@ -295,9 +363,13 @@ class AuthService {
             "name",
             "status",
             "forced_password_change",
+            "oauth_provider",
           ],
         },
-        { table: "admin_credentials", columns: ["token_version"] },
+        {
+          table: "admin_credentials",
+          columns: ["token_version", "password_login_enabled"],
+        },
       ])
       .join(
         "INNER",
@@ -320,9 +392,13 @@ class AuthService {
               "name",
               "status",
               "forced_password_change",
+              "oauth_provider",
             ],
           },
-          { table: "admin_credentials", columns: ["token_version"] },
+          {
+            table: "admin_credentials",
+            columns: ["token_version", "password_login_enabled"],
+          },
         ])
         .join(
           "INNER",
@@ -346,11 +422,24 @@ class AuthService {
           .where("custom_id", "=", user.custom_id)
           .execute();
       } else {
-        // Create new user
-        const regNumber = utils.genRegNumber(this.IDPREFIX);
+        const idPrefix =
+          this.IDPREFIX || (await this.settings.get("regnumber.prefix"));
+        const regNumber = utils.genRegNumber(idPrefix);
         const passwordHash = await this.hashedPassword(
           crypto.randomBytes(32).toString("hex"),
         );
+        const roles = await this.model
+          .select(["role_name"], "admin_roles")
+          .execute();
+        const defaultRole = roles.find(
+          (role) => String(role?.role_name ?? "").trim().toLowerCase() === "user",
+        );
+        if (!defaultRole?.role_name) {
+          throw new AppError(
+            "ERR_INTERNAL_SERVER",
+            "The default User role is not configured",
+          );
+        }
 
         await this.model.transaction(async (transact) => {
           const adminBuilder = transact.builder();
@@ -361,7 +450,8 @@ class AuthService {
             oauth_id: googleUser.google_id,
             oauth_provider: "google",
             profile_picture: googleUser.profile_picture,
-            // email_verified: googleUser.email_verified,
+            status: 1,
+            forced_password_change: 0,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
@@ -371,17 +461,33 @@ class AuthService {
           credentialsBuilder.insert("admin_credentials", {
             admin_custom_id: regNumber,
             password: passwordHash,
+            password_login_enabled: 0,
           });
           await credentialsBuilder.executeInTransaction();
+
+          const roleBuilder = transact.builder();
+          roleBuilder.insert("admin_user_roles", {
+            user_id: regNumber,
+            role_id: defaultRole.role_name,
+          });
+          await roleBuilder.executeInTransaction();
         });
 
         user = {
           custom_id: regNumber,
           email: googleUser.email,
           name: googleUser.name,
+          status: 1,
+          forced_password_change: 0,
+          oauth_provider: "google",
+          password_login_enabled: 0,
           token_version: 1,
         };
       }
+    }
+
+    if (Number(user?.status) !== 1) {
+      throw new AppError("ERR_FORBIDDEN", "Account is inactive");
     }
 
     return this.issueAuthTokensAndRecordLogin(
@@ -455,11 +561,12 @@ class AuthService {
             "name",
             "status",
             "forced_password_change",
+            "oauth_provider",
           ],
         },
         {
           table: "admin_credentials",
-          columns: ["password", "token_version"],
+          columns: ["password", "token_version", "password_login_enabled"],
         },
       ])
       .join(
@@ -480,6 +587,13 @@ class AuthService {
 
     if (Number(user?.status) !== 1) {
       throw new AppError("ERR_FORBIDDEN", "Account is inactive");
+    }
+
+    if (Number(user?.password_login_enabled) === 0) {
+      throw new AppError(
+        "ERR_FORBIDDEN",
+        "This account uses Google sign-in. Set a password first to enable email and password login.",
+      );
     }
 
     const isPasswordValid = await this.comparePassword(
@@ -819,6 +933,7 @@ class AuthService {
       credentialsBuilder
         .update("admin_credentials", {
           password: hashPassword,
+          password_login_enabled: 1,
           token_version: newTokenVersion,
           updated_at: new Date(),
         })
@@ -991,7 +1106,7 @@ class AuthService {
 
     if (!user) {
       throw new AppError(
-        "ERR_INVALID_TOKEN",
+        "ERR_TOKEN_INVALID",
         "Invalid or expired reset token",
         {
           message: "Failed to reset password, Try again",
@@ -1027,6 +1142,7 @@ class AuthService {
       credentialsBuilder
         .update("admin_credentials", {
           password: hashedPassword,
+          password_login_enabled: 1,
           reset_token: null,
           reset_token_expiry: null,
           reset_token_used: true,
