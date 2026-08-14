@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, ComposedChart,
@@ -71,7 +71,6 @@ const STATUS_COLOR = {
 
 const TICK  = { fontSize: 11, fill: 'var(--color-text-tertiary)' }
 const GRID  = { stroke: 'var(--color-border)', strokeDasharray: '3 3' }
-const $fmt  = v => `$${v.toLocaleString()}`
 
 function Tip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -113,7 +112,6 @@ export function AnalyticsEcommerce() {
   const info    = cv('--color-info')
   const success = cv('--color-success')
   const warning = cv('--color-warning')
-  const error   = cv('--color-error')
   const disabled= cv('--color-text-disabled')
   const PIE_COLORS = [accent, info, success, warning, disabled]
 

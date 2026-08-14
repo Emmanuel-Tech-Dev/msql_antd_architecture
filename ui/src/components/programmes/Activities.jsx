@@ -20,7 +20,7 @@ const initials = name => name
 const Activities = ({ customID }) => {
     const { run, data, loading } = useApi('get', `/api/projects/activities/${customID}`)
 
-    useEffect(() => { run() }, [customID])
+    useEffect(() => { run() }, [customID, run])
 
     const activities = data?.data || []
 

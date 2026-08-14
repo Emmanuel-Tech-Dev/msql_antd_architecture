@@ -19,13 +19,6 @@ const GENDER_ICON = {
     female: <WomanOutlined className="text-pink-400" style={{ fontSize: '11px' }} />,
 };
 
-const formatDate = (iso) => {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-GB', {
-        day: 'numeric', month: 'short', year: 'numeric',
-    });
-};
-
 const Enrolment = ({ customID }) => {
 
     const table = useTableApi(
@@ -41,20 +34,14 @@ const Enrolment = ({ customID }) => {
 
     const { run, data, loading } = useApi('get', `/api/projects/enrolment/${customID}`)
 
-    useEffect(() => { run() }, [customID, del.saveCompleted])
-
-    function init(data) {
-        if (data?.status === "ok") {
-            // setInstances(data.data || []);
-            table.setRecord(data?.data || []);
-        }
-    }
-
+    useEffect(() => { run() }, [customID, del.saveCompleted, run])
 
     useEffect(() => {
         table.setLoading(loading)
-        init(data);
-    }, [data]);
+        if (data?.status === "ok") {
+            table.setRecord(data?.data || []);
+        }
+    }, [data, loading, table]);
 
     const columns = [
         {

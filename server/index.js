@@ -6,7 +6,6 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const rateLimiter = require("express-rate-limit");
 const bodyPaser = require("body-parser");
-const csrf = require("csurf");
 const helmet = require("helmet");
 const http = require("http");
 

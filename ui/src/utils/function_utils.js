@@ -433,7 +433,7 @@ const utils = {
     }
     // Only call fetchItems if explicitly provided and auto is not already handling it
     if (fetchItems && !auto) {
-      fetchItems?.forEach(async (params, i) => {
+      fetchItems?.forEach(async (params) => {
         let data = {
           critfdx: params?.critfdx,
           critval: params?.critval,
@@ -571,7 +571,7 @@ const utils = {
     const el = document.querySelector("meta[name=viewport]");
     if (el !== null) {
       let content = el.getAttribute("content");
-      let re = /maximum\-scale=[0-9\.]+/g;
+      let re = /maximum-scale=[0-9.]+/g;
       if (re.test(content)) {
         content = content.replace(re, "maximum-scale=1.0");
       } else {
@@ -607,7 +607,6 @@ const utils = {
       const name = data[i].name;
       const validator = data[i].validator.split("(");
       const args = validator[1]?.replace(")", "").split(",") || [];
-      const extra = { ...data[i] };
       const required = data[i].required;
       if (required) {
         const valid = utils.ValidationFactory[validator](val, ...args);
@@ -914,8 +913,7 @@ const utils = {
 
     //EMAIL VALIDATION
     validateEmailWithUnicode: function (val) {
-      let pattern =
-        /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+      let pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
       if (pattern.test(val?.trim())) {
         return true;
       } else {
@@ -923,8 +921,7 @@ const utils = {
       }
     },
     validateEmailNoUnicode: function (val) {
-      let pattern =
-        /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      let pattern = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
       if (pattern.test(val?.trim())) {
         return true;
       } else {

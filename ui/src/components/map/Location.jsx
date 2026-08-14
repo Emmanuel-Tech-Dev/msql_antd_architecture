@@ -1,125 +1,137 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Spin } from 'antd';
-import { EnvironmentOutlined, AimOutlined } from '@ant-design/icons';
-import mapboxgl, { reverseGeocode, getCurrentPosition } from '../../utils/mapbox';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AimOutlined, EnvironmentOutlined } from "@ant-design/icons";
+import { Button, message } from "antd";
+import { getBrowserPosition } from "../../services/maps";
+import MapView from "./MapView";
 
-// Ghana center as default
-const GHANA_CENTER = { lng: -1.0232, lat: 7.9465 };
-const GHANA_ZOOM = 6;
+const GHANA_CENTER = Object.freeze({ lng: -1.0232, lat: 7.9465 });
+const DEFAULT_PROVIDER = import.meta.env.VITE_MAP_PROVIDER || "mapbox";
+const EMPTY_OPTIONS = Object.freeze({});
 
-export default function LocationPicker({ value, onChange }) {
-    const mapContainer = useRef(null);
-    const map = useRef(null);
-    const marker = useRef(null);
-    const [loading, setLoading] = useState(true);
-    const [locating, setLocating] = useState(false);
-    const [address, setAddress] = useState('');
+const valueToPosition = (value) => {
+  const lat = Number(value?.latitude);
+  const lng = Number(value?.longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+};
 
-    useEffect(() => {
-        if (map.current) return;
+export default function LocationPicker({
+  value,
+  onChange,
+  provider = DEFAULT_PROVIDER,
+  providerOptions = EMPTY_OPTIONS,
+}) {
+  const mapActions = useRef(null);
+  const lookupId = useRef(0);
+  const [position, setPosition] = useState(() => valueToPosition(value));
+  const [address, setAddress] = useState(value?.address || "");
+  const [locating, setLocating] = useState(false);
 
-        map.current = new mapboxgl.Map({
-            container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/dark-v11',
-            center: value
-                ? [value.longitude, value.latitude]
-                : [GHANA_CENTER.lng, GHANA_CENTER.lat],
-            zoom: value ? 14 : GHANA_ZOOM,
+  useEffect(() => {
+    const nextPosition = valueToPosition(value);
+    setPosition(nextPosition);
+    setAddress(value?.address || "");
+  }, [value]);
+
+  const selectPosition = useCallback(
+    async (nextPosition) => {
+      const requestId = ++lookupId.current;
+      setPosition(nextPosition);
+      try {
+        const nextAddress = await mapActions.current?.reverseGeocode(nextPosition);
+        if (requestId !== lookupId.current) return;
+        setAddress(nextAddress || "");
+        onChange?.({
+          address: nextAddress || "",
+          latitude: nextPosition.lat,
+          longitude: nextPosition.lng,
         });
+      } catch (error) {
+        if (requestId !== lookupId.current) return;
+        message.error(error.message || "Unable to resolve this address");
+      }
+    },
+    [onChange],
+  );
 
-        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  const behaviors = useMemo(
+    () => ({
+      onMapClick: ({ position: nextPosition }) => selectPosition(nextPosition),
+      onMarkerDragEnd: ({ position: nextPosition }) =>
+        selectPosition(nextPosition),
+      onError: (error) => message.error(error.message || "Unable to load the map"),
+    }),
+    [selectPosition],
+  );
 
-        map.current.on('load', () => setLoading(false));
+  const markers = useMemo(
+    () =>
+      position
+        ? [
+            {
+              id: "selected-location",
+              position,
+              color: "#5e6ad2",
+              draggable: true,
+              title: "Selected location",
+            },
+          ]
+        : [],
+    [position],
+  );
 
-        // If we have an existing value — place marker
-        if (value?.latitude && value?.longitude) {
-            placeMarker(value.longitude, value.latitude);
-        }
+  const useCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      const nextPosition = await getBrowserPosition();
+      mapActions.current?.setCenter(nextPosition, { zoom: 15 });
+      await selectPosition(nextPosition);
+    } catch (error) {
+      if (error.code === 1) {
+        message.error("Location access denied — please allow location access");
+      } else {
+        message.error(error.message || "Unable to determine your location");
+      }
+      mapActions.current?.setCenter(GHANA_CENTER, { zoom: 6 });
+    } finally {
+      setLocating(false);
+    }
+  };
 
-        // Click to place pin
-        map.current.on('click', async (e) => {
-            const { lng, lat } = e.lngLat;
-            placeMarker(lng, lat);
-            const addr = await reverseGeocode(lng, lat);
-            setAddress(addr);
-            onChange?.({ latitude: lat, longitude: lng, address: addr });
-        });
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <MapView
+          ref={mapActions}
+          provider={provider}
+          providerOptions={providerOptions}
+          center={position || GHANA_CENTER}
+          zoom={position ? 14 : 6}
+          markers={markers}
+          behaviors={behaviors}
+          className="rounded-lg border border-white/10"
+          style={{ height: 280 }}
+        />
+        <Button
+          size="small"
+          icon={<AimOutlined />}
+          loading={locating}
+          onClick={useCurrentLocation}
+          className="absolute top-2 left-2 z-20 border-white/10 bg-[#0f1011] text-xs text-white"
+        >
+          My Location
+        </Button>
+      </div>
 
-        return () => {
-            map.current?.remove();
-            map.current = null;
-        };
-    }, []);
-
-    const placeMarker = (lng, lat) => {
-        if (marker.current) marker.current.remove();
-        marker.current = new mapboxgl.Marker({ color: '#5e6ad2', draggable: true })
-            .setLngLat([lng, lat])
-            .addTo(map.current);
-
-        // Update on drag end
-        marker.current.on('dragend', async () => {
-            const pos = marker.current.getLngLat();
-            const addr = await reverseGeocode(pos.lng, pos.lat);
-            setAddress(addr);
-            onChange?.({ latitude: pos.lat, longitude: pos.lng, address: addr });
-        });
-    };
-
-    const useCurrentLocation = async () => {
-        setLocating(true);
-        try {
-            const pos = await getCurrentPosition();
-            map.current.flyTo({ center: [pos.lng, pos.lat], zoom: 15 });
-            placeMarker(pos.lng, pos.lat);
-            const addr = await reverseGeocode(pos.lng, pos.lat);
-            setAddress(addr);
-            onChange?.({ latitude: pos.lat, longitude: pos.lng, address: addr });
-        } catch {
-            // User denied location — just center on Ghana
-            map.current.flyTo({ center: [GHANA_CENTER.lng, GHANA_CENTER.lat], zoom: GHANA_ZOOM });
-        } finally {
-            setLocating(false);
-        }
-    };
-
-    return (
-        <div className="space-y-2">
-            <div className="relative rounded-lg overflow-hidden border border-white/10"
-                style={{ height: 280 }}>
-                {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center
-                          bg-[#0f1011] z-10">
-                        <Spin />
-                    </div>
-                )}
-                <div ref={mapContainer} className="w-full h-full" />
-
-                {/* Use my location button */}
-                <Button
-                    size="small"
-                    icon={<AimOutlined />}
-                    loading={locating}
-                    onClick={useCurrentLocation}
-                    className="absolute top-2 left-2 z-10 bg-[#0f1011]
-                     border-white/10 text-white text-xs"
-                >
-                    My Location
-                </Button>
-            </div>
-
-            {/* Address preview */}
-            {address && (
-                <div className="flex items-start gap-2 text-xs text-[#8a8f98] px-1">
-                    <EnvironmentOutlined className="mt-0.5 flex-shrink-0 text-[#5e6ad2]" />
-                    <span>{address}</span>
-                </div>
-            )}
-            {!address && (
-                <p className="text-xs text-[#62666d] px-1">
-                    Click on the map or drag the pin to set location
-                </p>
-            )}
+      {address ? (
+        <div className="flex items-start gap-2 px-1 text-xs text-[#8a8f98]">
+          <EnvironmentOutlined className="mt-0.5 flex-shrink-0 text-[#5e6ad2]" />
+          <span>{address}</span>
         </div>
-    );
+      ) : (
+        <p className="px-1 text-xs text-[#62666d]">
+          Click on the map or drag the pin to set location
+        </p>
+      )}
+    </div>
+  );
 }

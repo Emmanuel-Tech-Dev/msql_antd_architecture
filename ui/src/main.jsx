@@ -13,6 +13,7 @@ import { App as AntdApp } from "antd";
 
 import "antd/dist/antd.css";
 import "antd-distinct-system-css/index.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 import './index.css';
 
 const BASE_URL = import.meta.env.VITE_API_URL;

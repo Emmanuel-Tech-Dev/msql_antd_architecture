@@ -2303,7 +2303,7 @@ function App() {
           ],
           [
             "Interaction/support",
-            "react-draggable, react-confirm-alert, mockjs",
+            "react-draggable, react-confirm-alert",
             "Drag behavior, confirmations, and development mocks",
           ],
         ],

@@ -94,10 +94,11 @@ const RoutesTab = ({ assignedIds, onChange }) => {
         { manual: true },
         'id',
     );
+    const setRecord = table.setRecord;
 
     useEffect(() => {
-        table.setRecord(DUMMY_ROUTES);
-    }, [table.setRecord]);
+        setRecord(DUMMY_ROUTES);
+    }, [setRecord]);
 
     const tableConfig = useMemo(
         () => ({

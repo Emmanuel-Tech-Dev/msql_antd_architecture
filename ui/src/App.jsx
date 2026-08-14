@@ -1,36 +1,33 @@
 // components/UsersTable.jsx
 import "react-skeletonify/dist/index.css";
 
-import AppLayout from "./components/Layout/AppLayout";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import Test from "./pages/Test";
-import Test2 from "./pages/Test2";
-import { Analytics } from "./pages/Analytics/Analytics";
-
-import { AnalyticsHospital } from "./pages/Analytics/AnalyticsHospital";
-import { AnalyticsSchool } from "./pages/Analytics/AnalyticsSchool";
-import { AnalyticsEcommerce } from "./pages/Analytics/AnalyticsEcommerce";
-import Login from "./pages/auth/Login";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
-import OtpRequest from "./pages/auth/OtpRequest";
-import OtpVerify from "./pages/auth/OtpVerify";
-import ChangePassword from "./pages/auth/ChangePassword";
-import NotFound404 from "./components/feedback/NotFound404";
-import Users from "./pages/admin/Users";
-import UserStatistics from "./pages/admin/UserStatistics";
-import Roles from "./pages/admin/Roles";
-import Permissions from "./pages/admin/Permissions";
-import Resources from "./pages/admin/Resources";
-import SystemLogs from "./pages/settings/SystemLogs";
-import DatabaseBackup from "./pages/settings/DatabaseBackup";
-import AppearanceSettings from "./pages/settings/AppearanceSettings";
-import ProfileSettings from "./pages/settings/ProfileSettings";
-import Documentation from "./pages/docs/Documentation";
 import { SkeletonProvider } from 'react-skeletonify';
 
-
-
+const AppLayout = lazy(() => import("./components/Layout/AppLayout"));
+const Test = lazy(() => import("./pages/Test"));
+const Analytics = lazy(() => import("./pages/Analytics/Analytics").then((module) => ({ default: module.Analytics })));
+const AnalyticsHospital = lazy(() => import("./pages/Analytics/AnalyticsHospital").then((module) => ({ default: module.AnalyticsHospital })));
+const AnalyticsSchool = lazy(() => import("./pages/Analytics/AnalyticsSchool").then((module) => ({ default: module.AnalyticsSchool })));
+const AnalyticsEcommerce = lazy(() => import("./pages/Analytics/AnalyticsEcommerce").then((module) => ({ default: module.AnalyticsEcommerce })));
+const Login = lazy(() => import("./pages/auth/Login"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
+const OtpRequest = lazy(() => import("./pages/auth/OtpRequest"));
+const OtpVerify = lazy(() => import("./pages/auth/OtpVerify"));
+const ChangePassword = lazy(() => import("./pages/auth/ChangePassword"));
+const NotFound404 = lazy(() => import("./components/feedback/NotFound404"));
+const Users = lazy(() => import("./pages/admin/Users"));
+const UserStatistics = lazy(() => import("./pages/admin/UserStatistics"));
+const Roles = lazy(() => import("./pages/admin/Roles"));
+const Permissions = lazy(() => import("./pages/admin/Permissions"));
+const Resources = lazy(() => import("./pages/admin/Resources"));
+const SystemLogs = lazy(() => import("./pages/settings/SystemLogs"));
+const DatabaseBackup = lazy(() => import("./pages/settings/DatabaseBackup"));
+const AppearanceSettings = lazy(() => import("./pages/settings/AppearanceSettings"));
+const ProfileSettings = lazy(() => import("./pages/settings/ProfileSettings"));
+const Documentation = lazy(() => import("./pages/docs/Documentation"));
 
 
 export default function App() {
@@ -44,6 +41,7 @@ export default function App() {
           animationSpeed: 2,
         }}
       >
+        <Suspense fallback={<div className="flex min-h-40 items-center justify-center">Loading…</div>}>
         <Routes>
           {/* Auth Routes */}
 
@@ -92,6 +90,7 @@ export default function App() {
           <Route path="/404" element={<NotFound404 />} />
           <Route path="*" element={<NotFound404 />} />
         </Routes>
+        </Suspense>
 
       </SkeletonProvider>
     </>

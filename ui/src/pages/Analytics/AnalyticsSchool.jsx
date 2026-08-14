@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -105,7 +105,6 @@ export function AnalyticsSchool() {
   const success = cv('--color-success')
   const error   = cv('--color-error')
   const warning = cv('--color-warning')
-  const disabled= cv('--color-text-disabled')
   const GRADE_COLORS = [success, info, accent, warning, error]
 
   return (

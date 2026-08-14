@@ -14,7 +14,6 @@ import ValuesStore from "../store/values-store";
  * @param {string} config.storeKey - ValuesStore key (e.g., 'permissions', 'routes')
  * @param {string} config.assignedKey - Key in assigned rows (e.g., 'permission', 'resource')
  * @param {string} config.entityName - Display name (e.g., 'Permissions', 'Routes')
- * @param {string} config.matchKey - Key in store items to match against (default: assignedKey)
  *
  * @returns {Object} Control object with state and handlers
  */
@@ -25,7 +24,6 @@ export function useAccessControl({
   storeKey,
   assignedKey,
   entityName,
-  matchKey = assignedKey, // fallback to assignedKey
 }) {
   const { message } = useNotification();
   const valuesStore = ValuesStore();
@@ -37,7 +35,7 @@ export function useAccessControl({
     if (role) {
       run();
     }
-  }, [role]);
+  }, [role, run]);
 
   // ── Original assigned set (from API) ──────────────────────────────────
   const originalAssigned = useMemo(() => {

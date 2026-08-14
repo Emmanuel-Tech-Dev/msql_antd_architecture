@@ -69,7 +69,6 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
     if (!headerItems.length) return;
     setHeaderItemsState(headerItems);
   }, [headerItems]);
-
   // Bootstrap updates happen without remounting the layout. Keep the state in
   // step with the saved preference and expand when collapsing is disabled.
   useEffect(() => {

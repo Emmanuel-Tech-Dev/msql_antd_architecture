@@ -1,6 +1,6 @@
 import { MinusCircleOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Space, Modal, Select, Image, Radio, Checkbox, Card } from 'antd';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useDraggable from './useDraggable';
 import Settings from "../utils/Settings"
 import utils from '../utils/function_utils';
@@ -38,9 +38,11 @@ const useDynamicForm = (formName, itemToCreate, submitBtnDetails, onFinish, show
     const [sqlSelectResult, setSqlSelectResult] = useState({});
     const [htmlMarkupModel, setHtmlMarkupModel] = useState([]);
     const [childrenHtmlMarkupModel, setChildrenHtmlMarkupModel] = useState([]);
-    useMemo(() => {
+    useEffect(() => {
         load();
-        console.log('looping')
+        // load is intentionally excluded because it is assembled from the
+        // stateful form builder functions below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formChildren, formSubmit, data, form, formFieldsToCreate, childrenTop, childrenBottom, meta, htmlMarkupModel, childrenHtmlMarkupModel]);
 
     async function load() {

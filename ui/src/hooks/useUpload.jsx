@@ -1,14 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import ValuesStore from '../store/values-store';
+import React, { useState } from 'react';
 import { Upload, message, notification, Modal } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
 
 //this hook is based on zustand
-const useUpload = (tablesMetaData, whereKeyName) => {
-    const valuesStore = ValuesStore();
-    const [tblMetaDataName, setTblMetaDataName] = useState(tablesMetaData);
-    const [whrKeyName, setWhrKeyName] = useState(whereKeyName);
+const useUpload = () => {
     // const [record, setRecord] = useState({});
     const [fileList, setFileList] = useState([]);
     const [base64FileList, setBase64FileList] = useState([]);
@@ -54,11 +50,6 @@ const useUpload = (tablesMetaData, whereKeyName) => {
         </div>
     );
 
-    useMemo(() => {
-        // console.log('filelist changed');
-    }, [fileList]);
-
-
     const handleChange = ({ fileList: newFileList }) => {
         newFileList?.forEach((file) => {
             if (file.response) {
@@ -84,11 +75,11 @@ const useUpload = (tablesMetaData, whereKeyName) => {
 
     const handlePreview = async (file) => {
         const imageExt = ['apng', 'avif', 'gif', 'jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp', 'png', 'svg', 'webp'];
-        const fileExt = file?.name.split('.')[1];
+        const fileExt = file?.name?.split('.').pop()?.toLowerCase();
         if (!file.url && !file.preview) {
             file.preview = await getBase64(file.originFileObj);
         } else {
-            if (!imageExt.includes(fileExt.toLowerCase())) {
+            if (!fileExt || !imageExt.includes(fileExt)) {
                 window.open(file.url, '_blank').focus();//none image files such as pdf needs to open in another tab for reading
                 return;
             }
@@ -143,7 +134,7 @@ const useUpload = (tablesMetaData, whereKeyName) => {
 
     function setMultipleFiles(files, nameAccessor, pathAccessor, idAccessor, extraData = {}, baseUrl) {
         const f = files.map((file, i) => {
-            const url = !!baseUrl ? baseUrl + '/' + file[pathAccessor] : file[pathAccessor];
+            const url = baseUrl ? baseUrl + '/' + file[pathAccessor] : file[pathAccessor];
             return {
                 uid: `${file[idAccessor]}_${i}`,
                 name: file[nameAccessor],
@@ -169,7 +160,7 @@ const useUpload = (tablesMetaData, whereKeyName) => {
             name={uploaderName || uploadName}
             action={uploadURL || endpoint}
             listType={listType}
-            data={async e => extraUploadParams}
+            data={async () => extraUploadParams}
             fileList={fileList}
             onPreview={handlePreview}
             onRemove={file => removeFile(file, delFile)}

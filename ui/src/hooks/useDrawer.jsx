@@ -110,7 +110,7 @@ const useDrawer = (staticConfig = {}) => {
         >
             {localContent || content}
         </Drawer>
-    ), [open, title, content, extra, footer, loading, width, height, closeDrawer, staticConfig, resizableConfig]);
+    ), [open, title, content, extra, footer, loading, width, closeDrawer, staticConfig, resizableConfig]);
 
     return {
         open,

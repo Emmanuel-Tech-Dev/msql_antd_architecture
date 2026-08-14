@@ -132,3 +132,66 @@ describe("Google authentication account policy", () => {
     ).rejects.toThrow("This account uses Google sign-in");
   });
 });
+
+describe("Google ID token verification", () => {
+  const originalClientId = process.env.GOOGLE_CLIENT_ID;
+  const originalClientIds = process.env.GOOGLE_CLIENT_IDS;
+
+  afterEach(() => {
+    if (originalClientId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+    else process.env.GOOGLE_CLIENT_ID = originalClientId;
+
+    if (originalClientIds === undefined) delete process.env.GOOGLE_CLIENT_IDS;
+    else process.env.GOOGLE_CLIENT_IDS = originalClientIds;
+    jest.clearAllMocks();
+  });
+
+  test("passes the credential as idToken to Google's verifier", async () => {
+    const audience = "web-client.apps.googleusercontent.com";
+    const claims = {
+      aud: audience,
+      iss: "https://accounts.google.com",
+      sub: "google-subject",
+      email: "verified@example.com",
+      email_verified: true,
+    };
+    const token = [
+      "header",
+      Buffer.from(JSON.stringify(claims)).toString("base64url"),
+      "signature",
+    ].join(".");
+    const payload = { ...claims };
+    const service = Object.create(AuthService.prototype);
+    service.googleAuthClient = {
+      verifyIdToken: jest.fn(async () => ({ getPayload: () => payload })),
+    };
+    process.env.GOOGLE_CLIENT_ID = audience;
+    delete process.env.GOOGLE_CLIENT_IDS;
+
+    await expect(service.verifyGoogleAuthToken(token)).resolves.toEqual(payload);
+    expect(service.googleAuthClient.verifyIdToken).toHaveBeenCalledWith({
+      idToken: token,
+      audience: [audience],
+    });
+  });
+
+  test("rejects an ID token issued to a different OAuth client", async () => {
+    const token = [
+      "header",
+      Buffer.from(JSON.stringify({
+        aud: "unexpected-client.apps.googleusercontent.com",
+        iss: "https://accounts.google.com",
+      })).toString("base64url"),
+      "signature",
+    ].join(".");
+    const service = Object.create(AuthService.prototype);
+    service.googleAuthClient = { verifyIdToken: jest.fn() };
+    process.env.GOOGLE_CLIENT_ID = "expected-client.apps.googleusercontent.com";
+    delete process.env.GOOGLE_CLIENT_IDS;
+
+    await expect(service.verifyGoogleAuthToken(token)).rejects.toThrow(
+      "different OAuth client",
+    );
+    expect(service.googleAuthClient.verifyIdToken).not.toHaveBeenCalled();
+  });
+});

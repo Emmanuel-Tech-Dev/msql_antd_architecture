@@ -297,7 +297,7 @@ class AuthService {
 
     try {
       const ticket = await this.googleAuthClient.verifyIdToken({
-        token,
+        idToken: token,
         audience: audiences,
       });
 

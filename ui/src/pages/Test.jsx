@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/static-components -- Legacy playground tab renderers are intentionally colocated. */
 import React, { useState } from "react";
 import {
     Card,
@@ -86,7 +87,6 @@ export default function Test() {
     const [checkedPermissions, setCheckedPermissions] = useState([]);
     const [activeTab, setActiveTab] = useState("matrix");
     const [activeView, setActiveView] = useState("roles");
-    const [searchTerm, setSearchTerm] = useState("");
 
     const handleManageAccess = (role) => {
         setSelectedRole(role);

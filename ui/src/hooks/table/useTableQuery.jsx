@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import useList from "../../core/hooks/data/useList";
 import useNotification from "../useNotification";
-import qs from "qs";
 
 const EMPTY_RECORD = [];
 

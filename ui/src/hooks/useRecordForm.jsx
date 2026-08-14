@@ -87,6 +87,8 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         if (!autoFetch || !tblName) return;
         if (formBuildingRef.current) return;
         buildForm();
+        // buildForm is intentionally driven by the structural dependencies below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         tblName,
         mode,

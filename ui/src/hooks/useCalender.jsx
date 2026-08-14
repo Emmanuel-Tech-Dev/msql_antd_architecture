@@ -35,7 +35,6 @@ const useCalendar = (variant = 'basic', options = {}) => {
         onModeChange,
         onNoteAdd,
         onNoteDelete,
-        onEventClick,
     } = options;
 
     // ─── Core state ──────────────────────────────────────────────────────────
@@ -47,12 +46,16 @@ const useCalendar = (variant = 'basic', options = {}) => {
 
     // ─── Server sync ─────────────────────────────────────────────────────────
     useEffect(() => {
+        // External data intentionally replaces local state when the caller refreshes it.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Object.keys(externalNotes).length > 0) setCalendarNotes(externalNotes);
-    }, [JSON.stringify(externalNotes)]);
+    }, [externalNotes]);
 
     useEffect(() => {
+        // External data intentionally replaces local state when the caller refreshes it.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Object.keys(externalEvents).length > 0) setCalendarEvents(externalEvents);
-    }, [JSON.stringify(externalEvents)]);
+    }, [externalEvents]);
 
     // ─── Key helpers ─────────────────────────────────────────────────────────
     const formatKey = useCallback((date) => dayjs(date).format('YYYY-MM-DD'), []);

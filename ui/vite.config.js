@@ -5,6 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Route-level lazy loading keeps application chunks below this budget while
+  // allowing the shared React/Ant Design runtime to remain cacheable.
+  build: {
+    chunkSizeWarningLimit: 800,
+  },
   optimizeDeps: {
     include: [
       "@tiptap/react",

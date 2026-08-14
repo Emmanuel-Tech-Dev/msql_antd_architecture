@@ -1,6 +1,3 @@
-import React from 'react'
-import useDynamicFilter, { FILTER_TYPES } from '../hooks/useDynamicFilter';
-
 const Test2 = () => {
     // ─── horizontal bar (mercor style) ───────────────────────────────────────────
     // const filters = useDynamicFilter({

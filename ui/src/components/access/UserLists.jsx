@@ -6,14 +6,14 @@ import { UserOutlined } from '@ant-design/icons'
 
 const UserLists = ({ role_name }) => {
 
-    const { data, loading, run } = useApi('get', `/access/users/${role_name}`, {})
+    const { data, run } = useApi('get', `/access/users/${role_name}`, {})
 
 
     // console.log(loading, data.data)
 
     useEffect(() => {
         run();
-    }, [role_name])
+    }, [role_name, run])
     return (
         <div>
             <List

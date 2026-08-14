@@ -162,7 +162,7 @@ const useDynamicFilter = (staticConfig = {}) => {
                 : '';
         }
         return initial;
-    }, [filters, persistence, searchKey, showSearch]);
+    }, [filters, persistence, searchKey, searchParams, showSearch]);
 
     const [values, setValues] = useState(() => buildInitial());
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -176,13 +176,9 @@ const useDynamicFilter = (staticConfig = {}) => {
             if (serialized) params.set(key, serialized);
         });
         setSearchParams(params, { replace: true });
-    }, [values, persistence]);
+    }, [values, persistence, setSearchParams]);
 
     // ─── Notify parent when values change ────────────────────────────────
-    useEffect(() => {
-        if (onChange) onChange(activeValues);
-    }, [values]);
-
     // ─── Active values — only non-default entries ─────────────────────────
     const activeValues = useMemo(() => {
         const result = {};
@@ -195,6 +191,10 @@ const useDynamicFilter = (staticConfig = {}) => {
     }, [values, filters, searchKey]);
 
     const activeCount = useMemo(() => Object.keys(activeValues).length, [activeValues]);
+
+    useEffect(() => {
+        onChange?.(activeValues);
+    }, [activeValues, onChange]);
 
     // ─── Filtered data (client mode) ─────────────────────────────────────
     const filteredData = useMemo(() => {

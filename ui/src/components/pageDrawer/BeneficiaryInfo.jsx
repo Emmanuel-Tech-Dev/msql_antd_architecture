@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import {
     Tag, Button, Spin, message,
     Tabs, Card, Popconfirm, Select, Modal, Form, Input,
@@ -24,8 +23,6 @@ const STATUS_COLOR = {
 const { Title, Text, Paragraph } = Typography;
 
 export default function BeneficiaryInfo({ customId }) {
-    const { id } = useParams();
-    const navigate = useNavigate();
     const [exitModal, setExitModal] = useState(false);
     const [form] = Form.useForm();
 
@@ -40,9 +37,9 @@ export default function BeneficiaryInfo({ customId }) {
 
     const { run, data, loading } = useApi("get", `/api/ngo/beneficiary/${customId}`);
 
-    useEffect(() => { run(); }, [customId]);
+    useEffect(() => { run(); }, [customId, run]);
 
-    const handleExit = async (values) => {
+    const handleExit = async () => {
         try {
             message.success('Beneficiary exited');
             setExitModal(false);
@@ -51,16 +48,12 @@ export default function BeneficiaryInfo({ customId }) {
         }
     };
 
-    function init(data) {
+    useEffect(() => {
+        table.setLoading(loading);
         if (data?.status === "ok") {
             table.setRecord(data?.data?.enrolment || []);
         }
-    }
-
-    useEffect(() => {
-        table.setLoading(loading);
-        init(data);
-    }, [data]);
+    }, [data, loading, table]);
 
     const enrolmentColumns = [
         { title: 'Programme', dataIndex: 'programme_name', render: v => <span className=" font-medium">{v}</span> },

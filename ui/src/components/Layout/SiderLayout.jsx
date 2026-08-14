@@ -115,11 +115,12 @@ function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys, onMenuC
             onClick={onMenuClick}
             items={processedSiderItems}
             style={{
-                marginTop: 8,
+                marginTop: 2,
                 overflowX: 'hidden',
                 width: '100%',
                 border: 'none',
                 backgroundColor: 'transparent',
+                fontSize: 12,
             }}
         />
     );
@@ -160,7 +161,7 @@ function SiderBottomSection({
                 >
                     <UserAvatar
                         user={user}
-                        size={32}
+                        size={30}
                         style={{ backgroundColor: colors.accent, color: colors.accentText, flexShrink: 0 }}
                     />
                     {!collapsed && (
