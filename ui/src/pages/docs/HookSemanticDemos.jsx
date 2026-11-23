@@ -65,13 +65,19 @@ const ROLE_OPTIONS = [
   { id: 4, role_name: 'dev', resource_type: 'System' },
 ];
 
-const DOCS_RECORD_METADATA = [
-  { table_name: 'docs_projects', column_name: 'name', col_real_name: 'Project name', type: 'text', backend_visible: 1, frontend_visible: 1, editable: 1, validator: 'validateEmptyString', rank: 1 },
-  { table_name: 'docs_projects', column_name: 'owner_email', col_real_name: 'Owner email', type: 'email', backend_visible: 1, frontend_visible: 1, editable: 1, validator: 'validateEmptyString', rank: 2 },
-  { table_name: 'docs_projects', column_name: 'priority', col_real_name: 'Priority', type: 'csvSelect', options: 'Low,Medium,High,Critical', backend_visible: 1, frontend_visible: 1, editable: 1, rank: 3 },
-  { table_name: 'docs_projects', column_name: 'status', col_real_name: 'Status', type: 'jsonSelect', options: '{"planning":"Planning","active":"Active","archived":"Archived"}', backend_visible: 1, frontend_visible: 1, editable: 1, rank: 4 },
-  { table_name: 'docs_projects', column_name: 'notes', col_real_name: 'Notes', type: 'textArea', backend_visible: 1, frontend_visible: 1, editable: 1, rank: 5 },
-];
+// What GET /api/v1/metadata/docs_projects returns for the sandbox table.
+const DOCS_PROJECT_METADATA = {
+  table: { table_name: 'docs_projects', label: 'Projects', singular_label: 'Project', form_layout: 'modal', form_columns: 1, sections: [] },
+  fields: [
+    { column_name: 'id', col_real_name: 'ID', type: 'primaryKey', form_visible: 0, list_visible: 0, editable: 0, disabled: 0, required: 0, col_span: 24, config: null },
+    { column_name: 'name', col_real_name: 'Project name', type: 'text', form_visible: 1, list_visible: 1, editable: 1, disabled: 0, required: 1, col_span: 24, config: null },
+    { column_name: 'owner_email', col_real_name: 'Owner email', type: 'email', form_visible: 1, list_visible: 1, editable: 1, disabled: 0, required: 1, col_span: 24, config: null },
+    { column_name: 'priority', col_real_name: 'Priority', type: 'select', form_visible: 1, list_visible: 1, editable: 1, disabled: 0, required: 0, col_span: 24, config: { options: ['Low', 'Medium', 'High', 'Critical'].map((value) => ({ value, label: value })) } },
+    { column_name: 'status', col_real_name: 'Status', type: 'select', form_visible: 1, list_visible: 1, editable: 1, disabled: 0, required: 0, col_span: 24, config: { options: [{ value: 'planning', label: 'Planning' }, { value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }] } },
+    { column_name: 'notes', col_real_name: 'Notes', type: 'textarea', form_visible: 1, list_visible: 1, editable: 1, disabled: 0, required: 0, col_span: 24, config: null },
+  ],
+  lookups: [],
+};
 
 const DYNAMIC_FIELDS = [
   { name: 'label', inputType: 'text', placeholder: 'Field label', width: 170, isRequired: true, errorMsg: 'Enter a label' },
@@ -87,7 +93,6 @@ const ACCESS_ITEMS = [
 ];
 
 useStore.setState({
-  docs_record_metadata: DOCS_RECORD_METADATA,
   docs_permissions: ACCESS_ITEMS,
 });
 
@@ -132,6 +137,7 @@ function createSandboxDataProvider() {
     async custom({ url, method = 'get', payload }) {
       await pause();
       if (url.includes('extra_meta_options')) return { data: { details: ROLE_OPTIONS } };
+      if (url.endsWith('api/v1/metadata/docs_projects')) return { data: DOCS_PROJECT_METADATA };
       if (url === '/sandbox/activity') return { data: { items: projects.slice(0, 3), generatedAt: new Date().toISOString() } };
       if (url === '/sandbox/report') return { data: { total: projects.length, active: projects.filter((item) => item.status === 'active').length, archived: projects.filter((item) => item.status === 'archived').length } };
       if (url === '/sandbox/archive') {
@@ -218,7 +224,7 @@ export function DynamicFormDemo() { return <SandboxProviders><DynamicFormContent
 
 function RecordFormContent() {
   const [saved, setSaved] = useState(null);
-  const recordForm = useRecordForm('docs_record_metadata', 'table_name');
+  const recordForm = useRecordForm();
   const openCreate = () => recordForm.openCreate('docs_projects', { status: 'planning', priority: 'Medium' });
   const openEdit = () => recordForm.openEdit('docs_projects', {
     id: 4,
@@ -229,7 +235,7 @@ function RecordFormContent() {
     notes: 'Prepare the production readiness review.',
   }, 4);
   return (
-    <DemoPanel note="The modal below is built by the real useRecordForm from isolated table metadata. Create and edit use the same hook and mock DataProvider.">
+    <DemoPanel note="The modal below is built by the real useRecordForm (over MetadataForm) from the sandbox table's metadata. Create and edit use the same hook and mock DataProvider.">
       <Space wrap><Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Open create form</Button><Button icon={<EditOutlined />} onClick={openEdit}>Open edit form</Button></Space>
       <JsonResult value={saved} empty="Save a metadata-generated record to inspect the normalized provider result." />
       {recordForm.recordModal({

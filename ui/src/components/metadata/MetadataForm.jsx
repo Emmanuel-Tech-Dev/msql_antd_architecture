@@ -36,6 +36,8 @@ function sectionsOf(metadata, shownFields) {
 
 // A create / edit form built from a table's metadata. With `record` it edits
 // that record, otherwise it adds one. `fields` limits it to some columns.
+// A caller that submits from its own button (a modal's OK) passes `form`
+// and `showActions={false}`.
 export default function MetadataForm({
     table,
     record,
@@ -44,11 +46,16 @@ export default function MetadataForm({
     readOnly = false,
     slots = {},
     submitText,
+    form: externalForm,
+    showActions = true,
+    notify = true,
     onSaved,
+    onSaveError,
     onCancel,
 }) {
     const { message } = useNotification();
-    const [form] = Form.useForm();
+    const [ownForm] = Form.useForm();
+    const form = externalForm ?? ownForm;
     const { data: metadata, isLoading, error } = useTableMetadata(table);
     const mode = record ? 'edit' : 'create';
     const create = useCreate({ resource: table });
@@ -75,7 +82,7 @@ export default function MetadataForm({
             const saved = mode === 'edit'
                 ? await update.mutateAsync({ id: record[primaryKeyOf(metadata)], variables: payload })
                 : await create.mutateAsync(payload);
-            message.success(`${singular} ${mode === 'edit' ? 'updated' : 'added'}`);
+            if (notify) message.success(`${singular} ${mode === 'edit' ? 'updated' : 'added'}`);
             onSaved?.(saved, { mode, values: payload });
         } catch (saveError) {
             const fieldErrors = saveError?.details?.errors ?? {};
@@ -83,6 +90,7 @@ export default function MetadataForm({
                 .filter(([column]) => shownFields.some((field) => field.column_name === column))
                 .map(([column, fieldMessage]) => ({ name: column, errors: [fieldMessage] })));
             message.error(saveError?.technicalMessage ?? saveError?.message ?? `The ${singular.toLowerCase()} could not be saved`);
+            onSaveError?.(saveError);
         }
     };
 
@@ -109,7 +117,7 @@ export default function MetadataForm({
                     {slots[`after:section:${section.key}`]}
                 </div>
             ))}
-            {!readOnly && (
+            {showActions && !readOnly && (
                 <Space className="flex justify-end">
                     {onCancel && <Button onClick={onCancel}>Cancel</Button>}
                     <Button type="primary" htmlType="submit" loading={create.isPending || update.isPending}>

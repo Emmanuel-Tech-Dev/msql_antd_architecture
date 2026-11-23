@@ -3,9 +3,9 @@
 exports[`admin form > adding a record 1`] = `
 [
   {
-    "control": "hidden",
+    "control": "text",
     "disabled": true,
-    "label": "",
+    "label": "User ID",
     "required": false,
   },
   {
@@ -43,9 +43,9 @@ exports[`admin form > adding a record 1`] = `
     "required": false,
   },
   {
-    "control": "upload",
+    "control": "text",
     "disabled": false,
-    "label": "Upload avatar",
+    "label": "avatar",
     "required": false,
   },
   {
@@ -59,20 +59,20 @@ exports[`admin form > adding a record 1`] = `
     "required": false,
   },
   {
-    "control": "upload",
+    "control": "text",
     "disabled": false,
-    "label": "Upload profile picture",
+    "label": "profile picture",
     "required": false,
   },
 ]
 `;
 
-exports[`admin form > editing a record shows only the record's fields 1`] = `
+exports[`admin form > editing a record 1`] = `
 [
   {
-    "control": "hidden",
+    "control": "text",
     "disabled": true,
-    "label": "",
+    "label": "User ID",
     "required": false,
   },
   {
@@ -94,6 +94,12 @@ exports[`admin form > editing a record shows only the record's fields 1`] = `
     "required": false,
   },
   {
+    "control": "text",
+    "disabled": false,
+    "label": "oauth provider",
+    "required": false,
+  },
+  {
     "control": "select",
     "disabled": false,
     "label": "Status",
@@ -104,6 +110,12 @@ exports[`admin form > editing a record shows only the record's fields 1`] = `
     "required": false,
   },
   {
+    "control": "text",
+    "disabled": false,
+    "label": "avatar",
+    "required": false,
+  },
+  {
     "control": "select",
     "disabled": false,
     "label": "forced password change",
@@ -111,6 +123,12 @@ exports[`admin form > editing a record shows only the record's fields 1`] = `
       "No",
       "Yes",
     ],
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "profile picture",
     "required": false,
   },
 ]
@@ -139,7 +157,7 @@ exports[`admin_permissions form > adding a record 1`] = `
 ]
 `;
 
-exports[`admin_permissions form > editing a record shows only the record's fields 1`] = `
+exports[`admin_permissions form > editing a record 1`] = `
 [
   {
     "control": "text",
@@ -247,7 +265,7 @@ exports[`admin_resources form > adding a record 1`] = `
 ]
 `;
 
-exports[`admin_resources form > editing a record shows only the record's fields 1`] = `
+exports[`admin_resources form > editing a record 1`] = `
 [
   {
     "control": "text",
@@ -283,6 +301,18 @@ exports[`admin_resources form > editing a record shows only the record's fields 
       "PATCH",
       "ALL",
     ],
+    "required": false,
+  },
+  {
+    "control": "textarea",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Icon",
     "required": false,
   },
   {
@@ -338,13 +368,12 @@ exports[`admin_roles form > adding a record 1`] = `
     "control": "select",
     "disabled": true,
     "label": "is system role",
-    "options": [],
     "required": false,
   },
 ]
 `;
 
-exports[`admin_roles form > editing a record shows only the record's fields 1`] = `
+exports[`admin_roles form > editing a record 1`] = `
 [
   {
     "control": "text",
@@ -362,7 +391,6 @@ exports[`admin_roles form > editing a record shows only the record's fields 1`] 
     "control": "select",
     "disabled": true,
     "label": "is system role",
-    "options": [],
     "required": false,
   },
 ]

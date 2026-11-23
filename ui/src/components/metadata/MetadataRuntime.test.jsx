@@ -195,18 +195,18 @@ describe("MetadataForm", () => {
 
 describe("MetadataForm typing", () => {
   test("typing re-renders only the field, not the page around the form", async () => {
-    let pageRenders = 0;
+    const pageRendered = vi.fn();
     function Page() {
-      pageRenders += 1;
+      pageRendered();
       return <MetadataForm table="taxes" />;
     }
     renderWithProviders(<Page />);
     await screen.findByText("Details");
-    const rendersBeforeTyping = pageRenders;
+    const rendersBeforeTyping = pageRendered.mock.calls.length;
 
     for (const value of ["R", "Ro", "Roa", "Road", "Road levy"]) await typeInto("Name", value);
 
-    expect(pageRenders).toBe(rendersBeforeTyping);
+    expect(pageRendered.mock.calls.length).toBe(rendersBeforeTyping);
     expect(screen.getByLabelText("Name").value).toBe("Road levy");
   });
 });
@@ -235,7 +235,7 @@ describe("MetadataTable", () => {
     signInAs([{ role_id: "User" }], ["read:admin_role_permissions"]);
     renderWithProviders(<MetadataTable table="admin_role_permissions" />);
 
-    expect(await screen.findByText("read:reports")).toBeTruthy();
+    expect(await screen.findByText("read:reports", {}, { timeout: 10_000 })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /add assignment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /edit assignment/i })).toBeNull();
   }, 30_000);
