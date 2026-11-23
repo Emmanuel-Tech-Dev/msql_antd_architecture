@@ -143,7 +143,7 @@ const mysqlOrmProvider = (baseUrl) => ({
     }
   },
 
-  custom: async ({ url, method = "get", payload, headers, unwrap = false }) => {
+  custom: async ({ url, method = "get", payload, headers, unwrap = false, timeout }) => {
     try {
       // if url is already absolute use it directly
       // otherwise join cleanly with baseUrl
@@ -156,6 +156,8 @@ const mysqlOrmProvider = (baseUrl) => ({
           ? { params: payload }
           : { data: payload }),
         headers: headers ?? {},
+        // Slow requests (such as reading a document) may allow longer than the default.
+        ...(timeout !== undefined && { timeout }),
       });
 
       return {

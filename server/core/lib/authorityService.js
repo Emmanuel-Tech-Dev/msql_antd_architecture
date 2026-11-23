@@ -51,10 +51,15 @@ function resolveOverrides(baseNames, overrides, key, { privileged = false, now =
 }
 
 async function loadUserAuthority(userId) {
-  const userRoles = await new Model()
+  const [account] = await new Model()
+    .select(["custom_id", "status"], "admin")
+    .where("custom_id", "=", userId)
+    .execute();
+  const globalUserRoles = await new Model()
     .select(["user_id", "role_id"], "admin_user_roles")
     .where("user_id", "=", userId)
     .execute();
+  const userRoles = globalUserRoles;
   const roleNames = uniqueNames(userRoles, "role_id");
   const rolePermissionRows = roleNames.length
     ? await new Model()
@@ -69,7 +74,8 @@ async function loadUserAuthority(userId) {
     )
     .where("user_id", "=", userId)
     .execute();
-  const privileged = isPrivilegedSystemRole(userRoles);
+  // Privileged bypass can only originate from a global role assignment.
+  const privileged = isPrivilegedSystemRole(globalUserRoles);
   const permissionAuthority = resolveOverrides(
     rolePermissionRows,
     overrideRows,
@@ -92,7 +98,9 @@ async function loadUserAuthority(userId) {
     : [];
 
   return {
+    account,
     userRoles,
+    globalUserRoles,
     roleNames,
     privileged,
     resources,

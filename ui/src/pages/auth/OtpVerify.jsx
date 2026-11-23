@@ -48,7 +48,7 @@ export default function OtpVerify() {
             if (response?.forcedPasswordChange) {
                 navigate('/change_password', {
                     replace: true,
-                    state: { from },
+                    state: { from, required: true },
                 });
                 return;
             }

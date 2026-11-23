@@ -37,6 +37,8 @@ const AccessRoute = require("./route/acessRoute");
 const BackupRoute = require("./route/BackupRoute");
 const UiSettingsRoute = require("./route/UiSettingsRoute");
 const AdminStatisticsRoute = require("./route/AdminStatisticsRoute");
+const UserDirectoryRoute = require("./route/UserDirectoryRoute");
+const backupHistoryService = require("./core/lib/backupHistoryService");
 const { validateOrigin } = require("./core/config/origins");
 const { initRealtime } = require("./core/realtime/socketServer");
 
@@ -144,6 +146,7 @@ new LogRoute(app);
 new BackupRoute(app);
 new UiSettingsRoute(app);
 new AdminStatisticsRoute(app);
+new UserDirectoryRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 
@@ -174,6 +177,16 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
+// Automatic database backups: checked often so the chosen hour is kept, and
+// a backup missed while the server was off is made soon after it starts.
+const BACKUP_SCHEDULE_CHECK_MS = 5 * 60 * 1000;
+function scheduleAutomaticBackups() {
+  const run = () => backupHistoryService.runDueAutomaticBackup()
+    .catch((error) => logger.error(error, { context: "Automatic database backup" }));
+  run();
+  setInterval(run, BACKUP_SCHEDULE_CHECK_MS).unref();
+}
+
 async function startServer() {
   try {
     await logger.initialize();
@@ -182,6 +195,8 @@ async function startServer() {
     // console.log(settings);
 
     app.locals.settings = settings;
+
+    scheduleAutomaticBackups();
 
     server.listen(PORT, () => {
       logger.app("Server started", { port: Number(PORT) });

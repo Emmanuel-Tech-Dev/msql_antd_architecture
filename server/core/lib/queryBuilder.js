@@ -104,106 +104,60 @@ class QueryBuilder {
     return this;
   }
 
-  // WHERE condition
-  where(
-    columnOrConditions,
-    operator = "=",
-    valueOrLogic = null,
-    // fullTextSearch = false
-  ) {
-    // Handle array of conditions
+  // " WHERE " before the first condition, then the joining word. Only the
+  // outer query counts, so a subquery's own WHERE in the select list does
+  // not make the first condition start with AND.
+  conditionJoiner(logic = "AND") {
+    return utils.topLevelIndex(this.query, /WHERE(?![A-Za-z0-9_])/) === -1 ? " WHERE " : ` ${logic} `;
+  }
+
+  // A bracketed group of conditions, e.g. a search across several columns:
+  // where([{ column: "name", value: "%ama%" }, …], "LIKE", "OR").
+  conditionGroup(conditions, operator, logic) {
+    const parts = conditions.map((condition) => {
+      this.params.push(condition.value);
+      return `${this.quoteIdentifier(condition.column)} ${this.normalizeOperator(condition.operator || operator)} ?`;
+    });
+    return `(${parts.join(` ${logic} `)})`;
+  }
+
+  // WHERE condition. With an array, the group's conditions are joined by
+  // `valueOrLogic` (AND by default) and the group is added with AND.
+  where(columnOrConditions, operator = "=", valueOrLogic = null) {
     if (Array.isArray(columnOrConditions)) {
-      const conditions = columnOrConditions;
-      const logic = valueOrLogic || "AND"; // Default to AND
-
-      if (conditions.length === 0) return this;
-
-      const whereClause = this.query.includes("WHERE") ? "" : " WHERE ";
-      const conditionStrings = [];
-
-      for (let condition of conditions) {
-        const col = this.quoteIdentifier(condition.column);
-        const op = this.normalizeOperator(condition.operator || operator);
-        const val = condition.value;
-
-        conditionStrings.push(`${col} ${op} ?`);
-        this.params.push(val);
-      }
-
-      //   conditions.forEach((condition) => {
-      //     const col = condition.column;
-      //     const op = condition.operator || operator;
-      //     const val = condition.value;
-
-      //     conditionStrings.push(`${col} ${op} ?`);
-      //     this.params.push(val);
-      //   });
-
-      if (this.query.includes("WHERE")) {
-        this.query += ` ${logic} (${conditionStrings.join(` ${logic} `)})`;
-      } else {
-        this.query += `${whereClause}(${conditionStrings.join(` ${logic} `)})`;
-      }
-
+      if (columnOrConditions.length === 0) return this;
+      const joiner = this.conditionJoiner("AND");
+      this.query += joiner + this.conditionGroup(columnOrConditions, operator, valueOrLogic || "AND");
       return this;
     }
 
-    // Handle single condition
     const column = this.quoteIdentifier(columnOrConditions);
     const op = this.normalizeOperator(operator);
-    const value = valueOrLogic;
-
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${column} ${op} ?`;
-    } else {
-      this.query += ` WHERE ${column} ${op} ?`;
-    }
-
-    this.params.push(value);
+    this.query += `${this.conditionJoiner("AND")}${column} ${op} ?`;
+    this.params.push(valueOrLogic);
     return this;
   }
 
-  // OR WHERE condition
+  // OR WHERE condition. With an array, the group's conditions are joined by
+  // `valueOrLogic` (OR by default) and the group is added with OR.
   orWhere(columnOrConditions, operator = "=", valueOrLogic = null) {
-    // Handle array of conditions
     if (Array.isArray(columnOrConditions)) {
-      const conditions = columnOrConditions;
-      const logic = valueOrLogic || "OR"; // Default to OR
-
-      if (conditions.length === 0) return this;
-
-      const whereClause = this.query.includes("WHERE") ? "" : " WHERE ";
-      const conditionStrings = [];
-
-      conditions.forEach((condition) => {
-        const col = this.quoteIdentifier(condition.column);
-        const op = this.normalizeOperator(condition.operator || operator);
-        const val = condition.value;
-
-        conditionStrings.push(`${col} ${op} ?`);
-        this.params.push(val);
-      });
-
-      if (this.query.includes("WHERE")) {
-        this.query += ` OR (${conditionStrings.join(` ${logic} `)})`;
-      } else {
-        this.query += `${whereClause}(${conditionStrings.join(` ${logic} `)})`;
-      }
-
+      if (columnOrConditions.length === 0) return this;
+      const joiner = this.conditionJoiner("OR");
+      this.query += joiner + this.conditionGroup(columnOrConditions, operator, valueOrLogic || "OR");
       return this;
     }
 
-    // Handle single condition
     const column = this.quoteIdentifier(columnOrConditions);
     const op = this.normalizeOperator(operator);
-    const value = valueOrLogic;
+    this.query += `${this.conditionJoiner("OR")}${column} ${op} ?`;
+    this.params.push(valueOrLogic);
+    return this;
+  }
 
-    if (this.query.includes("WHERE")) {
-      this.query += ` OR ${column} ${op} ?`;
-    } else {
-      this.query += ` WHERE ${column} ${op} ?`;
-    }
-    this.params.push(value);
+  // Compares two columns, e.g. whereColumns("bill.amount_paid", "<", "bill.total").
+  whereColumns(leftColumn, operator, rightColumn) {
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(leftColumn)} ${this.normalizeOperator(operator)} ${this.quoteIdentifier(rightColumn)}`;
     return this;
   }
 
@@ -213,16 +167,8 @@ class QueryBuilder {
     if (!Array.isArray(values) || values.length === 0) {
       throw new Error("Values for whereIn must be a non-empty array");
     }
-
     const placeholders = values.map(() => "?").join(", ");
-    const col = this.quoteIdentifier(column);
-
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} IN (${placeholders})`;
-    } else {
-      this.query += ` WHERE ${col} IN (${placeholders})`;
-    }
-
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} IN (${placeholders})`;
     this.params.push(...values);
     return this;
   }
@@ -233,16 +179,8 @@ class QueryBuilder {
     if (!Array.isArray(values) || values.length === 0) {
       throw new Error("Values for whereNotIn must be a non-empty array");
     }
-
     const placeholders = values.map(() => "?").join(", ");
-    const col = this.quoteIdentifier(column);
-
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} NOT IN (${placeholders})`;
-    } else {
-      this.query += ` WHERE ${col} NOT IN (${placeholders})`;
-    }
-
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} NOT IN (${placeholders})`;
     this.params.push(...values);
     return this;
   }
@@ -253,29 +191,18 @@ class QueryBuilder {
     if (min === undefined || max === undefined) {
       throw new Error("Both min and max values are required for whereBetween");
     }
-    const col = this.quoteIdentifier(column);
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} BETWEEN ? AND ?`;
-    } else {
-      this.query += ` WHERE ${col} BETWEEN ? AND ?`;
-    }
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} BETWEEN ? AND ?`;
     this.params.push(min, max);
     return this;
   }
 
   // WHERE LIKE
-  // Usage: whereLike("name", "%John%")
   //useCase: whereLike("column", "%pattern%")
   whereLike(column, pattern) {
     if (!pattern) {
       throw new Error("Pattern is required for whereLike");
     }
-    const col = this.quoteIdentifier(column);
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} LIKE ?`;
-    } else {
-      this.query += ` WHERE ${col} LIKE ?`;
-    }
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} LIKE ?`;
     this.params.push(pattern);
     return this;
   }
@@ -286,12 +213,7 @@ class QueryBuilder {
     if (!column) {
       throw new Error("Column name is required for whereNull");
     }
-    const col = this.quoteIdentifier(column);
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} IS NULL`;
-    } else {
-      this.query += ` WHERE ${col} IS NULL`;
-    }
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} IS NULL`;
     return this;
   }
 
@@ -299,20 +221,17 @@ class QueryBuilder {
   //useCase: whereNotNull("deleted_at")
   whereNotNull(column) {
     if (!column) {
-      throw new Error("Column name is required for whereNull");
+      throw new Error("Column name is required for whereNotNull");
     }
-    const col = this.quoteIdentifier(column);
-    if (this.query.includes("WHERE")) {
-      this.query += ` AND ${col} IS NOT NULL`;
-    } else {
-      this.query += ` WHERE ${col} IS NOT NULL`;
-    }
+    this.query += `${this.conditionJoiner("AND")}${this.quoteIdentifier(column)} IS NOT NULL`;
     return this;
   }
 
-  // ORDER BY
+  // ORDER BY. Calling it again adds a further sort column, e.g. a tie-breaker
+  // that keeps pages stable: .orderBy("name").orderBy("id", "DESC").
   orderBy(column, direction = "ASC") {
-    this.query += ` ORDER BY ${this.quoteIdentifier(column)} ${this.normalizeDirection(direction)}`;
+    const hasOrder = utils.topLevelIndex(this.query, /ORDER\s+BY(?![A-Za-z0-9_])/) !== -1;
+    this.query += `${hasOrder ? "," : " ORDER BY"} ${this.quoteIdentifier(column)} ${this.normalizeDirection(direction)}`;
     return this;
   }
 
@@ -331,6 +250,14 @@ class QueryBuilder {
   // LIMIT
   limit(count) {
     this.query += ` LIMIT ${this.normalizeLimit(count)}`;
+    return this;
+  }
+
+  forUpdate() {
+    if (!/^SELECT\b/i.test(this.query) || /\bFOR UPDATE\b/i.test(this.query)) {
+      throw new Error("forUpdate requires an unlocked SELECT query");
+    }
+    this.query += " FOR UPDATE";
     return this;
   }
 
@@ -516,6 +443,24 @@ class QueryBuilder {
     return this;
   }
 
+  onDuplicateKeyUpdate(data) {
+    if (!/^INSERT\b/i.test(this.query) || /ON DUPLICATE KEY UPDATE/i.test(this.query)) {
+      throw new Error("onDuplicateKeyUpdate requires an INSERT query");
+    }
+    if (!data || Array.isArray(data) || typeof data !== "object" || !Object.keys(data).length) {
+      throw new Error("Duplicate-key updates require at least one field");
+    }
+    const assignments = Object.keys(data).map((column) => {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(column)) {
+        throw new Error(`Invalid update column: ${column}`);
+      }
+      return `${this.quoteIdentifier(column)} = ?`;
+    });
+    this.query += ` ON DUPLICATE KEY UPDATE ${assignments.join(", ")}`;
+    this.params.push(...Object.values(data));
+    return this;
+  }
+
   // UPDATE
   update(table, data) {
     const columns = Object.keys(data);
@@ -570,17 +515,13 @@ class QueryBuilder {
       );
     }
 
-    // Find the FROM keyword and insert before it
-    const fromIndex = this.query.toUpperCase().indexOf(" FROM ");
+    // Insert before the outer query's FROM, not a subquery's.
+    const fromIndex = utils.topLevelIndex(this.query, /FROM\s/);
     if (fromIndex === -1) {
       throw new Error("Query must have a FROM clause to use selectRaw");
     }
 
-    this.query =
-      this.query.slice(0, fromIndex) +
-      ", " +
-      rawSql +
-      this.query.slice(fromIndex);
+    this.query = `${this.query.slice(0, fromIndex).trimEnd()}, ${rawSql} ${this.query.slice(fromIndex)}`;
 
     return this;
   }
@@ -608,11 +549,8 @@ class QueryBuilder {
   having(column, operator, value) {
     const col = this.quoteIdentifier(column);
     const op = this.normalizeOperator(operator);
-    if (this.query.includes("HAVING")) {
-      this.query += ` AND ${col} ${op} ?`;
-    } else {
-      this.query += ` HAVING ${col} ${op} ?`;
-    }
+    const hasHaving = utils.topLevelIndex(this.query, /HAVING(?![A-Za-z0-9_])/) !== -1;
+    this.query += `${hasHaving ? " AND" : " HAVING"} ${col} ${op} ?`;
     this.params.push(value);
     return this;
   }

@@ -363,7 +363,6 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                                     <Input.Password
                                         disabled={disabled}
                                         key={`${name}_editable`}
-                                        size="small"
                                         placeholder={`Enter ${realName}`}
                                         defaultValue={value}
                                         onChange={(e) => changeValue(e.target.value, key)}
@@ -382,7 +381,6 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                                         disabled={disabled}
                                         key={`${name}_editable`}
                                         type="text"
-                                        size="small"
                                         placeholder={`Enter ${realName}`}
                                         defaultValue={value}
                                         onChange={(e) => changeValue(e.target.value, key)}
@@ -401,7 +399,6 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                                         disabled={disabled}
                                         key={`${name}_editable`}
                                         type="email"
-                                        size="small"
                                         placeholder={`Enter ${realName}`}
                                         defaultValue={value}
                                         onChange={(e) => changeValue(e.target.value, key)}
@@ -1052,8 +1049,14 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         onOk,
         okText = 'Save',
         okButtonProps = { style: { background: Settings.secondaryColorHex, border: 'none' } },
+        cancelButtonProps,
         width,
         shouldDrag = true,
+        centered = false,
+        rootClassName,
+        className,
+        styles,
+        modalProps = {},
     } = {}) {
         const title = mode === 'edit' ? editTitle : createTitle;
         const handleOk = onOk ?? (() => save());
@@ -1061,16 +1064,22 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         return (
             <>
                 <Modal
+                    {...modalProps}
                     modalRender={(modal) => shouldDrag ? draggable.drag(modal) : modal}
                     confirmLoading={loading}
                     zIndex={9999}
                     title={modalTitle}
                     width={width}
+                    centered={centered}
+                    rootClassName={rootClassName}
+                    className={className}
+                    styles={styles}
                     open={showModal}
                     onOk={handleOk}
                     onCancel={resetCompletely}
                     okText={okText}
                     okButtonProps={okButtonProps}
+                    cancelButtonProps={cancelButtonProps}
                 >
                     <div className="grid grid-cols-1 gap-2">
                         <div>{childrenTop}</div>

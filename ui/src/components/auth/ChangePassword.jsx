@@ -41,7 +41,7 @@ export default function ChangePasswordModal({ open, onClose }) {
             destroyOnClose
         >
             <div style={{ padding: '8px 0' }}>
-                <p style={{ color: '#8c8c8c', fontSize: 13, marginBottom: 20 }}>
+                <p style={{ color: 'var(--ads-text-muted)', fontSize: 13, marginBottom: 20 }}>
                     You'll be signed out after changing your password.
                 </p>
 
@@ -62,7 +62,7 @@ export default function ChangePasswordModal({ open, onClose }) {
                         rules={[{ required: true, message: 'Current password is required' }]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+                            prefix={<LockOutlined style={{ color: 'var(--ads-text-subtle)' }} />}
                             placeholder="••••••••"
                         />
                     </Form.Item>
@@ -76,7 +76,7 @@ export default function ChangePasswordModal({ open, onClose }) {
                         ]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+                            prefix={<LockOutlined style={{ color: 'var(--ads-text-subtle)' }} />}
                             placeholder="••••••••"
                         />
                     </Form.Item>
@@ -98,7 +98,7 @@ export default function ChangePasswordModal({ open, onClose }) {
                         ]}
                     >
                         <Input.Password
-                            prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+                            prefix={<LockOutlined style={{ color: 'var(--ads-text-subtle)' }} />}
                             placeholder="••••••••"
                         />
                     </Form.Item>
@@ -110,8 +110,9 @@ export default function ChangePasswordModal({ open, onClose }) {
                             loading={isPending}
                             block
                             style={{
-                                background: '#141414',
-                                borderColor: '#141414',
+                                background: 'var(--ads-accent)',
+                                borderColor: 'var(--ads-accent)',
+                                color: 'var(--ads-text-inverse)',
                                 height: 44,
                                 borderRadius: 6,
                                 fontWeight: 500,

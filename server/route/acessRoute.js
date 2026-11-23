@@ -125,6 +125,12 @@ class AccessRoute {
           "resource",
         );
         const validUntil = normalizeExpiry(req.body?.valid_until);
+        if ((permissionOverrides.length || routeOverrides.length) && !validUntil) {
+          throw new AppError(
+            "ERR_VALIDATION_FAILED",
+            "Temporal authority requires a future expiration",
+          );
+        }
         const grantorId = req.user.sub;
 
         const [targetUser] = await new Model()
@@ -460,6 +466,12 @@ class AccessRoute {
         data: {
           roles, // [{ role_id: "SuperAdmin" }, { role_id: "Admin" }]
           stats, // { logins_30d, pwd_resets, permissions, routes }
+          authority: {
+            inheritedPermissions: authority.inheritedPermissions,
+            directPermissionAllows: authority.directPermissionAllows,
+            directPermissionDenies: authority.directPermissionDenies,
+            effectivePermissions: authority.effectivePermissions,
+          },
           activities, // top 5 rows from user_activity_logs
           permissions, // [{ permission: "read:user" }, ...]
           routes, // [{ id, resource, resource_path, icon, category, display_order }]

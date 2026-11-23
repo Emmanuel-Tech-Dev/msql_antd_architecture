@@ -10,10 +10,12 @@ const authSchema = {
           .min(2, "Name must be at least 2 characters")
           .max(100, "Name must not exceed 100 characters"),
         email: z
-          .string({ required_error: "Email is required" })
+          .string()
           .trim()
           .email("Invalid email address")
-          .toLowerCase(),
+          .toLowerCase()
+          .nullable()
+          .optional(),
         phone_no: z
           .string()
           .trim()
@@ -21,6 +23,11 @@ const authSchema = {
           .nullable()
           .optional(),
         status: z.union([z.literal(0), z.literal(1), z.boolean()]).optional(),
+        role: z.string().trim().min(1).max(100).optional(),
+        additional_permissions: z
+          .array(z.string().trim().min(1).max(100))
+          .max(100)
+          .optional(),
       })
       .strict(),
   },

@@ -27,45 +27,35 @@ import {
     Layout, Menu, Typography, theme as antTheme,
     Avatar, Badge, Button, Dropdown, Space, Tooltip,
 } from 'antd';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import {
     BellOutlined, DownOutlined, LogoutOutlined,
-    MenuFoldOutlined, MenuUnfoldOutlined, NotificationOutlined, UserOutlined,
+    MenuFoldOutlined, MenuUnfoldOutlined, NotificationOutlined, ShopOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { SIDER_SCROLLBAR_CLASS, WORKSPACE_CONTENT_CLASS } from './layoutTailwind';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useTheme } from '../../hooks/useTheme';
+import { PageLoading } from '../feedback/AppLoading';
+import './SiderLayout.css';
 
 const { Sider, Header, Content, Footer } = Layout;
 
 // ─── Default color tokens per theme ──────────────────────────────────────────
 
 function resolveColors(theme, token, overrides = {}) {
-    const isDark = theme === 'dark';
-    const defaults = isDark
-        ? {
-            siderBg: '#001529',
-            headerBg: '#001529',
-            contentBg: token.colorBgLayout,
-            accent: token.colorPrimary,
-            accentText: '#fff',
-            textPrimary: 'rgba(255,255,255,0.85)',
-            textMuted: 'rgba(255,255,255,0.45)',
-            border: 'rgba(255,255,255,0.08)',
-            itemHover: 'rgba(255,255,255,0.08)',
-            itemActive: token.colorPrimaryBg ?? 'rgba(24,144,255,0.15)',
-        }
-        : {
-            siderBg: token.colorBgContainer,
-            headerBg: token.colorBgContainer,
-            contentBg: token.colorBgLayout,
-            accent: token.colorPrimary,
-            accentText: '#fff',
-            textPrimary: token.colorText,
-            textMuted: token.colorTextSecondary,
-            border: token.colorBorderSecondary,
-            itemHover: token.colorBgTextHover,
-            itemActive: token.colorPrimaryBg,
-        };
+    // The antd theme algorithm already resolves light or dark tokens.
+    const defaults = {
+        siderBg: token.colorBgContainer,
+        headerBg: token.colorBgContainer,
+        contentBg: token.colorBgLayout,
+        accent: token.colorPrimary,
+        accentText: token.colorTextLightSolid,
+        textPrimary: token.colorText,
+        textMuted: token.colorTextSecondary,
+        border: token.colorBorderSecondary,
+        itemHover: token.colorBgTextHover,
+        itemActive: token.colorPrimaryBg,
+    };
 
     return { ...defaults, ...overrides };
 }
@@ -96,9 +86,19 @@ function UserAvatar({ user, ...props }) {
     );
 }
 
+// Pages load their code on first visit; only the page area waits for it,
+// so the sidebar and header stay in place.
+function PageOutlet() {
+    return (
+        <Suspense fallback={<PageLoading />}>
+            <Outlet />
+        </Suspense>
+    );
+}
+
 // ─── SiderMenu ────────────────────────────────────────────────────────────────
 
-function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys, onMenuClick }) {
+function SiderMenu({ className, theme, tooltip, processedSiderItems, selectedKeys, openKeys, onMenuClick }) {
     const [menuOpenKeys, setMenuOpenKeys] = useState(openKeys);
 
     useEffect(() => {
@@ -107,7 +107,9 @@ function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys, onMenuC
 
     return (
         <Menu
+            className={className}
             theme={theme}
+            tooltip={tooltip}
             mode="inline"
             selectedKeys={selectedKeys}
             openKeys={menuOpenKeys}
@@ -123,6 +125,64 @@ function SiderMenu({ theme, processedSiderItems, selectedKeys, openKeys, onMenuC
                 fontSize: 12,
             }}
         />
+    );
+}
+
+function BusinessProfile({
+    collapsed, colors, user, businessRole,
+    showSiderProfile, showSiderLogout,
+    onProfile, onLogout, navigate,
+}) {
+    const handleProfile = () => onProfile ? onProfile() : navigate('/profile');
+    const handleLogout = () => onLogout ? onLogout() : navigate('/');
+    const secondaryIdentity = user?.email || user?.customId || user?.registrationNumber || 'Account';
+    const profileItems = [
+        ...(showSiderProfile
+            ? [{ key: 'profile', icon: <UserOutlined />, label: 'Profile', onClick: handleProfile }]
+            : []),
+        ...(showSiderProfile && showSiderLogout ? [{ type: 'divider' }] : []),
+        ...(showSiderLogout
+            ? [{ key: 'logout', icon: <LogoutOutlined />, label: 'Sign out', danger: true, onClick: handleLogout }]
+            : []),
+    ];
+
+    const profile = (
+        <button
+            aria-label="Open account menu"
+            className={`business-sider__profile${collapsed ? ' is-collapsed' : ''}`}
+            type="button"
+        >
+            <Badge dot color={colors.success} offset={[-3, 30]}>
+                <UserAvatar
+                    user={user}
+                    size={36}
+                    style={{ background: colors.accent, color: colors.accentText }}
+                />
+            </Badge>
+            {!collapsed && (
+                <>
+                    <span className="business-sider__profile-copy">
+                        <strong>{user?.name || 'Guest User'}</strong>
+                        <small>{businessRole || secondaryIdentity}</small>
+                    </span>
+                    <DownOutlined className="business-sider__profile-chevron" />
+                </>
+            )}
+        </button>
+    );
+
+    return (
+        <Dropdown menu={{ items: profileItems }} trigger={['click']} placement="topRight">
+            {collapsed ? (
+                <Tooltip
+                    classNames={{ root: 'business-sider__tooltip' }}
+                    title={user?.name || 'Account'}
+                    placement="right"
+                >
+                    {profile}
+                </Tooltip>
+            ) : profile}
+        </Dropdown>
     );
 }
 
@@ -453,13 +513,13 @@ function SiderProfile({
                     borderRadius: 18,
                     transition: 'all 0.25s ease',
                     background:
-                        'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
+                        colors.itemHover,
                     border: `1px solid ${colors.border}`,
                 }}
             >
                 <Badge
                     dot
-                    color="#52c41a"
+                    color={colors.success}
                     offset={[-3, 30]}
                 >
                     <UserAvatar
@@ -681,7 +741,7 @@ function IconRailLayout({
                     backgroundColor: colors.contentBg,
                     ...contentStyle,
                 }}>
-                    <Outlet />
+                    <PageOutlet />
                 </Content>
                 {resolvedFooter}
             </Layout>
@@ -781,7 +841,7 @@ function FloatingLayout({
                     display: 'flex',
                     flexDirection: 'column',
                     transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                    boxShadow: 'var(--ads-shadow-md)',
                     zIndex: 10,
                     ...siderStyle,
                 }}>
@@ -845,7 +905,7 @@ function FloatingLayout({
                         minHeight: 'calc(100vh - 112px)',
                         ...contentStyle,
                     }}>
-                        <Outlet />
+                        <PageOutlet />
                     </Content>
                     {resolvedFooter}
                 </Layout>
@@ -974,7 +1034,7 @@ function TopNavLayout({
                 minHeight: 'calc(100vh - 112px)',
                 ...contentStyle,
             }}>
-                <Outlet />
+                <PageOutlet />
             </Content>
             {resolvedFooter}
         </Layout>
@@ -983,14 +1043,187 @@ function TopNavLayout({
 
 // ─── Main SiderLayout export ──────────────────────────────────────────────────
 
+function BusinessLayout({
+    colors, processedSiderItems, processedBottomItems, selectedKeys, openKeys,
+    collapsed, collapsedWidth, width, breakpoint, reverseArrow,
+    headerHeight, siderHeader, siderStyle, headerStyle, contentStyle, layoutStyle,
+    user, businessName, businessRole, showSiderProfile, showSiderLogout,
+    onProfile, onLogout, navigate, header, defaultHeader,
+    footer, defaultFooter, footerText, footerStyle, appName,
+    notificationCount, toggle, onCollapse,
+}) {
+    // The sidebar's colours come from the theme palette, so the menu follows
+    // the app's light or dark mode rather than a fixed sider theme.
+    const { isDark } = useTheme();
+    const menuTheme = isDark ? 'dark' : 'light';
+    const resolvedHeader = header ?? (defaultHeader
+        ? <DefaultHeader
+            collapsed={collapsed}
+            toggle={toggle}
+            colors={colors}
+            token={{ borderRadius: 8 }}
+            appName={appName}
+            user={user}
+            notificationCount={notificationCount}
+            onProfile={onProfile}
+            onLogout={onLogout}
+            navigate={navigate}
+        />
+        : null
+    );
+    const resolvedFooter = footer ?? (defaultFooter
+        ? <Footer style={{ textAlign: 'center', ...footerStyle }}>{footerText}</Footer>
+        : null
+    );
+    const sidebarVariables = {
+        '--business-sider-bg': colors.siderBg,
+        '--business-sider-border': colors.border,
+        '--business-sider-text': colors.textPrimary,
+        '--business-sider-muted': colors.textMuted,
+        '--business-sider-hover': colors.itemHover,
+        '--business-sider-active': colors.itemActive,
+        '--business-sider-accent': colors.accent,
+        '--business-sider-accent-text': colors.accentText,
+    };
+
+    return (
+        <Layout
+            className="business-shell"
+            style={{ minHeight: '100vh', background: colors.contentBg, ...layoutStyle }}
+        >
+            <Sider
+                className="business-sider"
+                width={width}
+                collapsed={collapsed}
+                collapsedWidth={collapsedWidth}
+                collapsible={false}
+                breakpoint={breakpoint}
+                reverseArrow={reverseArrow}
+                theme={menuTheme}
+                trigger={null}
+                onCollapse={onCollapse}
+                style={{ ...sidebarVariables, ...siderStyle }}
+            >
+                <div className="business-sider__inner">
+                    <div className="business-sider__brand" style={{ minHeight: headerHeight }}>
+                        {siderHeader}
+                    </div>
+
+                    <Tooltip
+                        classNames={{ root: 'business-sider__tooltip' }}
+                        title={collapsed ? businessName : null}
+                        placement="right"
+                    >
+                        <div className={`business-sider__workspace${collapsed ? ' is-collapsed' : ''}`}>
+                            <span className="business-sider__workspace-icon" aria-hidden="true">
+                                <ShopOutlined />
+                            </span>
+                            {!collapsed && (
+                                <span className="business-sider__workspace-copy">
+                                    <small>Business</small>
+                                    <strong>{businessName}</strong>
+                                </span>
+                            )}
+                        </div>
+                    </Tooltip>
+
+                    {!collapsed && <div className="business-sider__section-label">Workspace</div>}
+                    <nav
+                        aria-label="Primary navigation"
+                        className={`${SIDER_SCROLLBAR_CLASS} business-sider__navigation`}
+                        style={getSiderScrollbarStyle(colors)}
+                    >
+                        <SiderMenu
+                            className="business-sider__menu"
+                            theme={menuTheme}
+                            tooltip={{
+                                                                classNames: { root: 'business-sider__tooltip' },
+                            }}
+                            processedSiderItems={processedSiderItems}
+                            selectedKeys={selectedKeys}
+                            openKeys={openKeys}
+                        />
+                    </nav>
+
+                    {processedBottomItems?.length > 0 && (
+                        <div className="business-sider__pinned">
+                            <SiderMenu
+                                className="business-sider__menu business-sider__menu--pinned"
+                                theme={menuTheme}
+                                tooltip={{
+                                                                        classNames: { root: 'business-sider__tooltip' },
+                                }}
+                                processedSiderItems={processedBottomItems}
+                                selectedKeys={selectedKeys}
+                                openKeys={[]}
+                            />
+                        </div>
+                    )}
+
+                    <div className="business-sider__account">
+                        {(showSiderProfile || showSiderLogout) && (
+                            <BusinessProfile
+                                collapsed={collapsed}
+                                colors={colors}
+                                user={user}
+                                businessRole={businessRole}
+                                showSiderProfile={showSiderProfile}
+                                showSiderLogout={showSiderLogout}
+                                onProfile={onProfile}
+                                onLogout={onLogout}
+                                navigate={navigate}
+                            />
+                        )}
+                        <Button
+                            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            block
+                            className="business-sider__collapse"
+                            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                            onClick={toggle}
+                            size="middle"
+                            type="text"
+                        >
+                            {!collapsed && 'Collapse sidebar'}
+                        </Button>
+                    </div>
+                </div>
+            </Sider>
+
+            <Layout className="business-shell__workspace" style={{ minWidth: 0 }}>
+                {resolvedHeader && (
+                    <Header
+                        className="business-shell__header"
+                        style={{
+                            height: headerHeight,
+                            lineHeight: `${headerHeight}px`,
+                            backgroundColor: colors.headerBg,
+                            borderBottomColor: colors.border,
+                            ...headerStyle,
+                        }}
+                    >
+                        {resolvedHeader}
+                    </Header>
+                )}
+                <Content
+                    className={`${WORKSPACE_CONTENT_CLASS} business-shell__content`}
+                    style={{ backgroundColor: colors.contentBg, ...contentStyle }}
+                >
+                    <PageOutlet />
+                </Content>
+                {resolvedFooter}
+            </Layout>
+        </Layout>
+    );
+}
+
 export default function SiderLayout({
     variant, collapsed, collapsedWidth, collapsible, breakpoint,
     reverseArrow, theme, width, headerHeight,
     siderStyle, headerStyle, contentStyle, layoutStyle, footerStyle,
-    footerText, appName, user, notificationCount,
+    footerText, appName, user, businessName, businessRole, notificationCount,
     onLogout, onProfile, showSiderProfile, showSiderLogout,
     defaultHeader, defaultFooter,
-    processedSiderItems,
+    processedSiderItems, processedBottomItems,
     selectedKeys, openKeys,
     onCollapse, toggle, onMenuClick, siderHeader, header, footer, trigger,
     // New: color overrides passed from SIDER_INIT via AppLayout
@@ -1012,17 +1245,21 @@ export default function SiderLayout({
     };
 
     const sharedLayoutProps = {
-        colors, token, processedSiderItems, selectedKeys, openKeys, onMenuClick,
+        colors, token, processedSiderItems, processedBottomItems, selectedKeys, openKeys, onMenuClick,
         theme, collapsed, collapsedWidth, width,
         siderHeader, headerHeight, siderStyle, contentStyle, layoutStyle,
-        user, showSiderProfile, showSiderLogout,
+        user, businessName, businessRole, showSiderProfile, showSiderLogout,
         onProfile, onLogout, navigate,
         header, defaultHeader, footer, defaultFooter,
         footerText, footerStyle, appName, notificationCount,
-        collapsible, toggle,
+        breakpoint, reverseArrow, onCollapse, collapsible, toggle,
     };
 
     //  console.log('SiderLayout props:', { sharedLayoutProps, sharedSiderProps });
+
+    if (variant === 'business') {
+        return <BusinessLayout {...sharedLayoutProps} />;
+    }
 
     const resolvedHeader = header ?? (defaultHeader
         ? <DefaultHeader
@@ -1093,7 +1330,7 @@ export default function SiderLayout({
                         backgroundColor: colors.contentBg,
                         ...contentStyle,
                     }}>
-                        <Outlet />
+                        <PageOutlet />
                     </Content>
                     {resolvedFooter}
                 </Layout>
@@ -1128,7 +1365,7 @@ export default function SiderLayout({
                         backgroundColor: colors.contentBg,
                         ...contentStyle,
                     }}>
-                        <Outlet />
+                        <PageOutlet />
                     </Content>
                     {resolvedFooter}
                 </Layout>
@@ -1165,7 +1402,7 @@ export default function SiderLayout({
                             backgroundColor: colors.contentBg,
                             ...contentStyle,
                         }}>
-                            <Outlet />
+                            <PageOutlet />
                         </Content>
                         {resolvedFooter}
                     </Layout>
@@ -1268,10 +1505,7 @@ export default function SiderLayout({
                                 style={{
                                     padding: 12,
                                     borderTop: `1px solid ${colors.border}`,
-                                    background:
-                                        theme === 'dark'
-                                            ? 'rgba(255,255,255,0.02)'
-                                            : 'rgba(0,0,0,0.015)',
+                                    background: colors.itemHover,
                                     backdropFilter: 'blur(20px)',
                                 }}
                             >
@@ -1362,7 +1596,7 @@ export default function SiderLayout({
                                 ...contentStyle,
                             }}
                         >
-                            <Outlet />
+                            <PageOutlet />
                         </Content>
 
                         {resolvedFooter}

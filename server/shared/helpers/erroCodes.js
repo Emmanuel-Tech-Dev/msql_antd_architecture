@@ -30,6 +30,7 @@ const ERROR_CODES = Object.freeze({
 
   ERR_NOT_FOUND: { status: 404, message: "Resource not found" },
   ERR_USER_NOT_FOUND: { status: 404, message: "User not found" },
+  ERR_PASSWORD_CHANGE_REQUIRED: { status: 403, message: "Choose a new password before continuing" },
 
   ERR_NO_RESOURCES: { status: 403, message: "No resources available" },
 

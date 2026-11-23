@@ -19,6 +19,39 @@ const identityFingerprint = (value) =>
     .digest("hex")
     .slice(0, 16);
 
+// Temporary passwords are read out or written down for the user, so they
+// skip characters people mix up (0/O, 1/I/L). 12 characters from 31 is
+// about 59 bits: not guessable, and only ever valid until first sign-in.
+const TEMPORARY_PASSWORD_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function generateTemporaryPassword() {
+  const characters = Array.from(crypto.randomBytes(12), (byte) => TEMPORARY_PASSWORD_ALPHABET[byte % TEMPORARY_PASSWORD_ALPHABET.length]);
+  return [0, 4, 8].map((start) => characters.slice(start, start + 4).join("")).join("-");
+}
+
+// Which admin columns sign-in accepts is a setting; these apply when it is
+// missing. Only columns that alone identify one account are ever used.
+const DEFAULT_LOGIN_IDENTIFIERS = ["email", "custom_id"];
+const NON_IDENTIFIER_COLUMNS = new Set(["id", "password", "name"]);
+
+// Phone numbers are stored in international form (+233241234567). Local
+// numbers get the configured country code. Anything else is not a phone.
+function normalizePhoneNumber(value, countryCode) {
+  const input = String(value ?? "").trim();
+  if (!/^\+?[\d\s\-()]+$/.test(input)) return null;
+
+  const digits = input.replace(/\D/g, "");
+  let internationalDigits = digits;
+  if (!input.startsWith("+") && digits.startsWith("0") && digits.length === 10) {
+    internationalDigits = `${countryCode}${digits.slice(1)}`;
+  } else if (!input.startsWith("+") && digits.length === 9) {
+    internationalDigits = `${countryCode}${digits}`;
+  }
+
+  if (internationalDigits.length < 10 || internationalDigits.length > 15) return null;
+  return `+${internationalDigits}`;
+}
+
 class AuthService {
   constructor() {
     this.settings = new SettingsManager();
@@ -539,25 +572,70 @@ class AuthService {
 
   //login flow
 
-  async login(record, req) {
-    const { email, password } = record;
+  // Sign-in settings are read from the database every time (not the settings
+  // cache), so a change to them applies without a restart.
+  async loginSetting(key, fallback) {
+    return (await this.settings.fetchFromDB(key)) ?? fallback;
+  }
 
-    if (!email || !password) {
+  // The admin columns a person may sign in with, in the configured order.
+  // A configured column is dropped unless it alone identifies one account.
+  async loginIdentifierColumns() {
+    const configured = await this.loginSetting(
+      "auth.login_identifiers",
+      DEFAULT_LOGIN_IDENTIFIERS,
+    );
+    const uniqueColumns = await this.model.getUniqueColumns("admin");
+    const usable = (Array.isArray(configured) ? configured : []).filter(
+      (column) =>
+        uniqueColumns.includes(column) && !NON_IDENTIFIER_COLUMNS.has(column),
+    );
+
+    if (usable.length !== (configured?.length ?? 0)) {
+      log.security("Unusable sign-in identifiers ignored", {
+        configured,
+        usable,
+      });
+    }
+    return usable.length ? usable : ["custom_id"];
+  }
+
+  async login(record, req) {
+    const identifier = String(record?.identifier ?? record?.email ?? "").trim();
+    const { password } = record ?? {};
+
+    if (!identifier || !password) {
       throw new AppError("ERR_MISSING_REQUIRED_FIELD");
     }
 
-    const rootUser = this.settings.get("auth.dev_accounts");
-    // if(email === rootUser?.email){
+    const countryCode = await this.loginSetting("auth.phone_country_code", "233");
+    const loginConditions = (await this.loginIdentifierColumns())
+      .map((column) => {
+        if (column === "email") return { column, value: identifier.toLowerCase() };
+        if (column === "phone_no") {
+          return { column, value: normalizePhoneNumber(identifier, countryCode) };
+        }
+        return { column, value: identifier };
+      })
+      .filter((condition) => condition.value)
+      .map((condition) => ({ ...condition, column: `admin.${condition.column}` }));
 
-    // }
+    // An empty group would add no WHERE at all and match any account.
+    if (!loginConditions.length) {
+      throw new AppError("ERR_USER_NOT_FOUND", null, {
+        details: "Authentication failed , Try again later",
+        level: "security",
+      });
+    }
 
-    const [user] = await this.model
+    const users = await this.model
       .multiSelect([
         {
           table: "admin",
           columns: [
             "custom_id",
             "email",
+            "phone_no",
             "name",
             "status",
             "forced_password_change",
@@ -575,8 +653,18 @@ class AuthService {
         "admin.custom_id",
         "admin_credentials.admin_custom_id",
       )
-      .where("admin.email", "=", email)
+      .where(loginConditions, "=", "OR")
+      .limit(2)
       .execute();
+
+    // One value matching two accounts (one's email is another's ID) must
+    // never pick either of them.
+    if (users.length > 1) {
+      log.security("Sign-in identifier matched more than one account", {
+        identifierFingerprint: identityFingerprint(identifier),
+      });
+    }
+    const user = users.length === 1 ? users[0] : null;
 
     if (!user) {
       throw new AppError("ERR_USER_NOT_FOUND", null, {
@@ -718,14 +806,13 @@ class AuthService {
     return this.issueEmailOtpChallenge(user, req);
   }
 
-  async createAdminUser(record) {
-    if (!record?.email || !record?.name) {
+  async createAdminUser(record, { actorUserId } = {}) {
+    if (!record?.name) {
       throw new AppError("ERR_MISSING_REQUIRED_FIELD");
     }
 
-    const email = record.email.trim().toLowerCase();
+    const email = record.email?.trim().toLowerCase() || null;
     const name = record.name.trim();
-    const defaultPasswordHash = await this.hashedPassword(email);
     const roles = await this.model
       .select(["role_name"], "admin_roles")
       .execute();
@@ -738,14 +825,50 @@ class AuthService {
         "The default User role is not configured",
       );
     }
+    const requestedRoleName = String(record.role ?? defaultRole.role_name).trim();
+    const assignedRole = roles.find(
+      (role) => String(role?.role_name ?? "").trim() === requestedRoleName,
+    );
+    if (!assignedRole?.role_name) {
+      throw new AppError("ERR_VALIDATION_FAILED", "The selected system role is unavailable");
+    }
+    const additionalPermissions = [
+      ...new Set(
+        (record.additional_permissions ?? [])
+          .map((permission) => String(permission).trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (additionalPermissions.length) {
+      const availablePermissions = await this.model
+        .select(["permission_name"], "admin_permissions")
+        .whereIn("permission_name", additionalPermissions)
+        .execute();
+      if (availablePermissions.length !== additionalPermissions.length) {
+        throw new AppError("ERR_VALIDATION_FAILED", "One or more additional permissions are unavailable");
+      }
+    }
+
+    let phoneNumber = null;
+    if (record.phone_no) {
+      const countryCode = await this.loginSetting("auth.phone_country_code", "233");
+      phoneNumber = normalizePhoneNumber(record.phone_no, countryCode);
+      if (!phoneNumber) {
+        throw new AppError("ERR_VALIDATION_FAILED", "Enter a valid phone number");
+      }
+    }
 
     const idPrefix = this.IDPREFIX || (await this.settings.get("regnumber.prefix"));
     const cid = utils.genRegNumber(idPrefix);
+    // Shown once to the administrator, who hands it to the user; the user
+    // must replace it at first sign-in.
+    const temporaryPassword = generateTemporaryPassword();
+    const defaultPasswordHash = await this.hashedPassword(temporaryPassword);
     const createdUser = {
       custom_id: cid,
       name,
       email,
-      phone_no: record.phone_no || null,
+      phone_no: phoneNumber,
       oauth_provider: "Password",
       status: Number(record.status) === 0 ? 0 : 1,
       forced_password_change: 1,
@@ -766,15 +889,59 @@ class AuthService {
       const roleBuilder = transact.builder();
       roleBuilder.insert("admin_user_roles", {
         user_id: cid,
-        role_id: defaultRole.role_name,
+        role_id: assignedRole.role_name,
       });
       await roleBuilder.executeInTransaction();
+
+      for (const permission of additionalPermissions) {
+        const permissionBuilder = transact.builder();
+        permissionBuilder.insert("admin_user_permission_overrides", {
+          user_id: cid,
+          permission,
+          effect: "ALLOW",
+          reason: "Assigned during account creation",
+          granted_by: actorUserId || null,
+          valid_from: new Date(),
+          valid_until: null,
+        });
+        await permissionBuilder.executeInTransaction();
+      }
     });
 
     return {
       ...createdUser,
-      default_role: String(defaultRole.role_name).trim(),
+      default_role: String(assignedRole.role_name).trim(),
+      additional_permissions: additionalPermissions,
+      temporary_password: temporaryPassword,
     };
+  }
+
+  // For a user who forgot their password and cannot use the reset link (for
+  // example, no email): a new temporary password the administrator hands
+  // over. Every session the user has is signed out, and they must choose a
+  // new password at their next sign-in.
+  async resetTemporaryPassword(userId) {
+    const [user] = await this.model
+      .select(["custom_id", "name"], "admin")
+      .where("custom_id", "=", userId)
+      .execute();
+    if (!user) throw new AppError("ERR_USER_NOT_FOUND", "User not found");
+
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = await this.hashedPassword(temporaryPassword);
+    await this.model.transaction(async (tx) => {
+      // Raw SQL: token_version + 1 signs out every session in the same
+      // statement; the builder only sets literal values.
+      await tx.query(
+        "UPDATE admin_credentials SET password = ?, password_login_enabled = 1, token_version = token_version + 1 WHERE admin_custom_id = ?",
+        [passwordHash, user.custom_id],
+      );
+      await tx.builder()
+        .update("admin", { forced_password_change: 1 })
+        .where("custom_id", "=", user.custom_id)
+        .executeInTransaction();
+    });
+    return { custom_id: user.custom_id, name: user.name, temporary_password: temporaryPassword };
   }
 
   async googleOAuth(record, req) {
@@ -831,10 +998,24 @@ class AuthService {
   }
 
   async refreshToken(token) {
-    const decoded = await this.verifyToken(token, this.refreshTokenSecret);
+    let decoded;
+    try {
+      decoded = await this.verifyToken(token, this.refreshTokenSecret);
+    } catch (error) {
+      if (error?.name === "TokenExpiredError" || error?.message === "jwt expired") {
+        throw new AppError("ERR_TOKEN_EXPIRED", "Refresh token has expired", {
+          reason: "refresh_token_expired",
+        });
+      }
+      throw new AppError("ERR_TOKEN_INVALID", "Refresh token is invalid", {
+        reason: "refresh_token_invalid",
+      });
+    }
 
     if (!decoded || decoded.type !== "refresh") {
-      throw new AppError(" ERR_BAD_REQUEST");
+      throw new AppError("ERR_TOKEN_INVALID", "Refresh token is invalid", {
+        reason: "wrong_token_type",
+      });
     }
 
     // 1. Check blacklist (by jti)
@@ -845,7 +1026,9 @@ class AuthService {
       .execute();
 
     if (blacklisted) {
-      throw new AppError("ERR_BAD_REQUEST");
+      throw new AppError("ERR_TOKEN_REVOKED", "Refresh token has already been used", {
+        reason: "refresh_token_reused",
+      });
     }
 
     // 2. Check token_version matches
@@ -854,8 +1037,16 @@ class AuthService {
       .where("admin_custom_id", "=", decoded.sub)
       .execute();
 
-    if (!user || user.token_version !== decoded.token_version) {
-      throw new AppError("ERR_BAD_REQUEST");
+    if (!user) {
+      throw new AppError("ERR_AUTH_USER_INVALID", "The session user no longer exists", {
+        reason: "session_user_missing",
+      });
+    }
+
+    if (Number(user.token_version) !== Number(decoded.token_version)) {
+      throw new AppError("ERR_TOKEN_REVOKED", "The session has been invalidated", {
+        reason: "token_version_changed",
+      });
     }
 
     await this.model
@@ -868,7 +1059,7 @@ class AuthService {
 
     const newtoken = await this.generateAuthTokens({
       custom_id: decoded.sub,
-      token_version: user.token_version,
+      token_version: Number(user.token_version),
     });
 
     // 4. Blacklist old refresh token now that we know the new one is ready.

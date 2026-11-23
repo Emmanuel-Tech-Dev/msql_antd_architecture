@@ -25,9 +25,10 @@ const uploadFromPath = (filePath, options) => {
   return cloudinary.uploader.upload(filePath, options);
 };
 
-// Helper function to delete file
-const deleteFile = (publicId) => {
-  return cloudinary.uploader.destroy(publicId);
+// Helper function to delete file. Options such as resource_type ("raw" for
+// PDFs; Cloudinary assumes "image") are passed through.
+const deleteFile = (publicId, options = {}) => {
+  return cloudinary.uploader.destroy(publicId, options);
 };
 
 module.exports = {

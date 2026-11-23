@@ -75,6 +75,12 @@ const useAuthStore = create(
         }));
       },
 
+      setAccessToken: (token) => {
+        if (!token) return;
+        sessionStorage.setItem("access_token", token);
+        set({ accessToken: token, isAuthenticated: true });
+      },
+
       clearAuth: () => {
         sessionStorage.removeItem("access_token");
         // Also clear the Zustand-persisted key so no stale auth survives a logout.

@@ -9,6 +9,7 @@ const color = z
   .trim()
   .regex(/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i);
 const adminPath = z.string().startsWith("/admin/").max(255);
+const fontFamily = z.enum(["Inter", "Newsreader", "IBM Plex Mono", "Geist", "Geist Mono"]);
 
 const paletteSchema = z
   .object({
@@ -31,11 +32,16 @@ const paletteSchema = z
     warning: color,
     error: color,
     info: color,
+    // Optional: themes without them chart in their accent, warning and success.
+    chartRevenue: color.optional(),
+    chartCosts: color.optional(),
+    chartNet: color.optional(),
   })
   .strict();
 
 const siderSchema = z
   .object({
+    themeName: z.string().trim().min(1).max(80),
     variant: z.enum([
       "default",
       "sider",
@@ -44,6 +50,7 @@ const siderSchema = z
       "floating",
       "top",
       "premium",
+      "business",
     ]),
     width: z.number().min(180).max(360),
     collapsedWidth: z.number().min(48).max(120),
@@ -73,6 +80,14 @@ const siderSchema = z
         borderRadius: z.number().min(0).max(20),
         controlHeight: z.number().min(28).max(52),
         fontSize: z.number().min(12).max(18),
+        fonts: z
+          .object({
+            heading: fontFamily,
+            body: fontFamily,
+            caption: fontFamily,
+            data: fontFamily,
+          })
+          .strict(),
         motionEnabled: z.boolean(),
       })
       .strict(),

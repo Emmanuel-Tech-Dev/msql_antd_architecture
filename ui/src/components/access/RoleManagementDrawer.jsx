@@ -46,7 +46,7 @@ const PermissionMatrix = ({ assigned, onChange }) => {
         <div style={{ padding: '16px 0' }}>
             {Object.entries(groups).map(([group, perms]) => (
                 <div key={group} style={{ marginBottom: 24 }}>
-                    <Text strong style={{ color: '#8c8c8c', letterSpacing: '1px' }}>{group}</Text>
+                    <Text strong style={{ color: 'var(--ads-text-muted)', letterSpacing: '1px' }}>{group}</Text>
                     <Divider style={{ margin: '8px 0 16px 0' }} />
                     <Row gutter={[16, 16]}>
                         {perms.map(p => {
@@ -57,7 +57,7 @@ const PermissionMatrix = ({ assigned, onChange }) => {
                                         size="small"
                                         hoverable
                                         style={{
-                                            borderLeft: isActive ? '4px solid #1677ff' : '4px solid #f0f0f0',
+                                            borderLeft: isActive ? '4px solid var(--ads-accent)' : '4px solid var(--ads-border-subtle)',
                                             transition: '0.3s'
                                         }}
                                         onClick={() => {
@@ -135,7 +135,7 @@ const RoutesTab = ({ assignedIds, onChange }) => {
         {
             title: 'Browser Path',
             dataIndex: 'resource_path',
-            render: (text) => <code style={{ color: '#eb2f96' }}>{text}</code>
+            render: (text) => <code style={{ color: 'var(--ads-accent-text)' }}>{text}</code>
         },
         {
             title: 'Visible',
@@ -160,7 +160,7 @@ export default function RoleManagementFullUI() {
                 <Space>
                     <SafetyCertificateOutlined />
                     Permissions
-                    <Badge count={activePerms.length} color="#1677ff" size="small" />
+                    <Badge count={activePerms.length} color="var(--ads-accent)" size="small" />
                 </Space>
             ),
             children: <PermissionMatrix assigned={activePerms} onChange={setActivePerms} />
@@ -171,7 +171,7 @@ export default function RoleManagementFullUI() {
                 <Space>
                     <AppstoreOutlined />
                     Navigation
-                    <Badge count={activeRoutes.length} color="#52c41a" size="small" />
+                    <Badge count={activeRoutes.length} color="var(--ads-success)" size="small" />
                 </Space>
             ),
             children: <RoutesTab assignedIds={activeRoutes} onChange={setActiveRoutes} />
@@ -180,7 +180,7 @@ export default function RoleManagementFullUI() {
 
     return (
         <Card
-            style={{ maxWidth: 800, margin: '20px auto', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+            style={{ maxWidth: 800, margin: '20px auto', borderRadius: 12, boxShadow: 'var(--ads-shadow-xs)' }}
             title={
                 <Space direction="vertical" size={0}>
                     <Title level={4} style={{ margin: 0 }}>Super Admin Role</Title>
@@ -202,7 +202,7 @@ export default function RoleManagementFullUI() {
                 <Button
                     type="primary"
                     icon={<SaveOutlined />}
-                    style={{ background: '#141414', borderColor: '#141414' }}
+                    style={{ background: 'var(--ads-accent)', borderColor: 'var(--ads-accent)', color: 'var(--ads-text-inverse)' }}
                     onClick={() => console.log('Saving to DB:', { activePerms, activeRoutes })}
                 >
                     Save Configurations

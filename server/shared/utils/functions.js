@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const AppError = require("../helpers/AppError");
 
 const NodeCache = require("node-cache");
 const { v4: uuidv4 } = require("uuid");
@@ -9,6 +10,7 @@ const otp = require("otp");
 const { customAlphabet } = require("nanoid");
 
 const IV_LENGTH = 16;
+const AUTHENTICATED_IV_LENGTH = 12;
 
 function getEncryptionKey() {
   const configuredKey = process.env.ENCRYPTION_KEY;
@@ -39,6 +41,14 @@ function getEncryptionKey() {
 const cache = new NodeCache({ stdTTL: 3600 });
 
 const utils = {
+  requireIdentifiers(identifiers) {
+    for (const [name, value] of Object.entries(identifiers)) {
+      if (typeof value !== "string" || !value.trim()) {
+        throw new AppError("ERR_INVALID_INPUT", `${name} is required`);
+      }
+    }
+  },
+
   clampInteger(value, fallback, max) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isInteger(parsed) || parsed < 1) return fallback;
@@ -71,6 +81,36 @@ const utils = {
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
     return decrypted;
+  },
+  encryptSensitive: (text) => {
+    const iv = crypto.randomBytes(AUTHENTICATED_IV_LENGTH);
+    const cipher = crypto.createCipheriv("aes-256-gcm", getEncryptionKey(), iv);
+    const encrypted = Buffer.concat([
+      cipher.update(String(text), "utf8"),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+    return `gcm:${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
+  },
+  decryptSensitive: (encryptedValue) => {
+    const encoded = Buffer.isBuffer(encryptedValue)
+      ? encryptedValue.toString("utf8")
+      : String(encryptedValue);
+    const [format, ivHex, authTagHex, ciphertextHex] = encoded.split(":");
+    if (format !== "gcm" || !ivHex || !authTagHex || !ciphertextHex) {
+      throw new Error("Unsupported sensitive value format");
+    }
+
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      getEncryptionKey(),
+      Buffer.from(ivHex, "hex"),
+    );
+    decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
+    return Buffer.concat([
+      decipher.update(Buffer.from(ciphertextHex, "hex")),
+      decipher.final(),
+    ]).toString("utf8");
   },
   convertArrayToObject(arr) {
     if (!arr || !arr.record) {
@@ -147,70 +187,74 @@ const utils = {
     return this.redactSensitiveData(data);
   },
 
-  buildQuery(query, buildJoins) {
-    let finalQuery = query;
-    const joinsClause = buildJoins;
-
-    if (joinsClause) {
-      // Find where to insert the JOIN clause
-      const fromMatch = finalQuery.match(
-        /FROM\s+(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:AS\s+)?(?!INNER\b|LEFT\b|RIGHT\b|FULL\b|CROSS\b|JOIN\b|WHERE\b|GROUP\b|HAVING\b|ORDER\b|LIMIT\b|OFFSET\b)[A-Za-z_][A-Za-z0-9_]*)?/i,
-      );
-
-      if (fromMatch) {
-        const fromEndIndex = fromMatch.index + fromMatch[0].length;
-
-        // Find the next clause after FROM (WHERE, ORDER BY, LIMIT, etc.)
-        const afterFrom = finalQuery.substring(fromEndIndex);
-        const whereMatch = afterFrom.match(/\s+WHERE\s+/i);
-        const orderMatch = afterFrom.match(/\s+ORDER BY\s+/i);
-        const limitMatch = afterFrom.match(/\s+LIMIT\s+/i);
-        const offsetMatch = afterFrom.match(/\s+OFFSET\s+/i);
-        const havingMatch = afterFrom.match(/\s+HAVING\s+/i);
-        const groupMatch = afterFrom.match(/\s+GROUP BY\s+/i);
-
-        // Find the earliest clause
-        let insertPoint = finalQuery.length;
-
-        if (whereMatch && whereMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + whereMatch.index);
-        }
-        if (groupMatch && groupMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + groupMatch.index);
-        }
-        if (havingMatch && havingMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + havingMatch.index);
-        }
-        if (orderMatch && orderMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + orderMatch.index);
-        }
-        if (limitMatch && limitMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + limitMatch.index);
-        }
-        if (offsetMatch && offsetMatch.index !== -1) {
-          insertPoint = Math.min(insertPoint, fromEndIndex + offsetMatch.index);
-        }
-
-        // If no clauses found, insert at the end (right after FROM table)
-        if (insertPoint === finalQuery.length) {
-          insertPoint = fromEndIndex;
-        }
-
-        finalQuery =
-          finalQuery.slice(0, insertPoint) +
-          joinsClause +
-          finalQuery.slice(insertPoint);
+  // Index of the first match of `pattern` that sits in the outer query (not
+  // inside brackets or quotes) at or after `from`, or -1. Clause keywords in
+  // subqueries, such as a counted subquery's own FROM or WHERE, are skipped.
+  topLevelIndex(sql, pattern, from = 0) {
+    const sticky = new RegExp(pattern.source, "iy");
+    let depth = 0;
+    let quote = null;
+    for (let index = from; index < sql.length; index += 1) {
+      const character = sql[index];
+      if (quote) {
+        if (character === "\\" && quote !== "`") index += 1;
+        else if (character === quote) quote = null;
+        continue;
+      }
+      if (character === "'" || character === '"' || character === "`") quote = character;
+      else if (character === "(") depth += 1;
+      else if (character === ")") depth -= 1;
+      else if (depth === 0 && (index === 0 || /[\s)]/.test(sql[index - 1]))) {
+        sticky.lastIndex = index;
+        if (sticky.test(sql)) return index;
       }
     }
-
-    return finalQuery;
+    return -1;
   },
+
+  // Places the JOIN clauses after the outer query's FROM table (and alias),
+  // before its WHERE, GROUP BY, HAVING, ORDER BY, LIMIT or locking clause.
+  buildQuery(query, joinsClause) {
+    if (!joinsClause) return query;
+    const fromIndex = this.topLevelIndex(query, /FROM\s/);
+    if (fromIndex === -1) return query;
+
+    const fromTable = /FROM\s+(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:AS\s+)?(?!INNER(?![A-Za-z0-9_])|LEFT(?![A-Za-z0-9_])|RIGHT(?![A-Za-z0-9_])|FULL(?![A-Za-z0-9_])|CROSS(?![A-Za-z0-9_])|JOIN(?![A-Za-z0-9_])|WHERE(?![A-Za-z0-9_])|GROUP(?![A-Za-z0-9_])|HAVING(?![A-Za-z0-9_])|ORDER(?![A-Za-z0-9_])|LIMIT(?![A-Za-z0-9_])|OFFSET(?![A-Za-z0-9_])|FOR(?![A-Za-z0-9_]))[A-Za-z_][A-Za-z0-9_]*)?/iy;
+    fromTable.lastIndex = fromIndex;
+    const fromEnd = fromTable.test(query) ? fromTable.lastIndex : fromIndex;
+
+    let insertAt = this.topLevelIndex(query, /(?:WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|OFFSET|FOR\s+UPDATE)(?![A-Za-z0-9_])/, fromEnd);
+    if (insertAt === -1) insertAt = fromEnd;
+    while (insertAt > fromEnd && /\s/.test(query[insertAt - 1])) insertAt -= 1;
+
+    return query.slice(0, insertAt) + joinsClause + query.slice(insertAt);
+  },
+
+  // SELECT COUNT(*) for a built query: the outer select list is swapped for
+  // the count, or, when the query groups rows, the query is counted as a
+  // derived table so each group counts once. ORDER BY is dropped.
+  countQuery(query, countExpression = "COUNT(*)", alias = "total") {
+    const fromIndex = this.topLevelIndex(query, /FROM\s/);
+    if (fromIndex === -1) throw new Error("A count needs a query with a FROM clause");
+    const orderIndex = this.topLevelIndex(query, /ORDER\s+BY(?![A-Za-z0-9_])/, fromIndex);
+    const body = (orderIndex === -1 ? query : query.slice(0, orderIndex)).trimEnd();
+    const grouped = /^SELECT\s+DISTINCT(?![A-Za-z0-9_])/i.test(body)
+      || this.topLevelIndex(body, /(?:GROUP\s+BY|HAVING)(?![A-Za-z0-9_])/, fromIndex) !== -1;
+    return grouped
+      ? `SELECT COUNT(*) AS ${alias} FROM (${body}) AS counted_rows`
+      : `SELECT ${countExpression} AS ${alias} ${body.slice(fromIndex)}`;
+  },
+
   generateCustomId(prefix = "USR", length = 6) {
     const uuid = uuidv4().replace(/-/g, "");
     const hexPart = uuid.slice(0, 12); // take first 12 hex characters
     const numeric = parseInt(hexPart, 16).toString().slice(0, length); // convert to number, take first N digits
 
     return `${prefix}-${numeric}`;
+  },
+
+  generateCustomIDWithCrypto(prefix) {
+    return `${prefix}-${crypto.randomUUID()}`;
   },
 
   generateToken: (payload, secret, expiresIn) => {
@@ -465,6 +509,69 @@ const utils = {
       .execute();
 
     return;
+  },
+
+  slugify(value) {
+    return String(value ?? "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 180);
+  },
+
+  inPlaceholders(values = []) {
+    if (!Array.isArray(values) || values.length === 0) {
+      return "";
+    }
+    const flatValues = values.flat(Infinity);
+
+    const validValues = flatValues.filter((value) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === "string" && value.trim() === "") return false;
+      return true;
+    });
+
+    const uniqueValues = [];
+    const seenObjects = new Set();
+
+    for (const item of validValues) {
+      if (typeof item === "object") {
+        const strObj = JSON.stringify(item);
+        if (!seenObjects.has(strObj)) {
+          seenObjects.add(strObj);
+          uniqueValues.push(item);
+        }
+      } else {
+        if (!uniqueValues.includes(item)) {
+          uniqueValues.push(item);
+        }
+      }
+    }
+    return uniqueValues.map(() => "?").join(", ");
+  },
+
+  requireValidRange(minimum, maximum, label) {
+    if (
+      minimum == null ||
+      maximum == null ||
+      Number(maximum) >= Number(minimum)
+    )
+      return;
+    throw new AppError(
+      "ERR_VALIDATION_FAILED",
+      `${label} maximum must be greater than or equal to its minimum`,
+    );
+  },
+
+  uniqueIds(values = []) {
+    return [
+      ...new Set(values.map((value) => String(value).trim()).filter(Boolean)),
+    ];
+  },
+  hasOwn(value, property) {
+    return Object.prototype.hasOwnProperty.call(value, property);
   },
 };
 module.exports = utils;

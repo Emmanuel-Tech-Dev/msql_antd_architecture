@@ -1,49 +1,17 @@
-export const ADS_LIGHT_COLORS = Object.freeze({
-    siderBg: '#171c1a',
-    headerBg: '#ffffff',
-    contentBg: '#f7f7f5',
-    accent: '#0f766e',
-    accentText: '#f8faf9',
-    textPrimary: '#e4e9e6',
-    textMuted: '#a7b0ac',
-    border: '#303936',
-    itemHover: '#232a27',
-    itemActive: '#173532',
-    surfaceBg: '#ffffff',
-    elevatedBg: '#ffffff',
-    bodyText: '#202523',
-    secondaryText: '#5e6864',
-    strongBorder: '#dde1de',
-    success: '#39875d',
-    warning: '#b7791f',
-    error: '#c84a54',
-    info: '#4776b8',
-});
-
-export const ADS_DARK_COLORS = Object.freeze({
-    siderBg: '#0d110f',
-    headerBg: '#171c1a',
-    contentBg: '#111513',
-    accent: '#55b8ae',
-    accentText: '#10201d',
-    textPrimary: '#e4e9e6',
-    textMuted: '#a7b0ac',
-    border: '#303936',
-    itemHover: '#232a27',
-    itemActive: '#173532',
-    surfaceBg: '#171c1a',
-    elevatedBg: '#1c2220',
-    bodyText: '#e4e9e6',
-    secondaryText: '#a7b0ac',
-    strongBorder: '#303936',
-    success: '#6cba88',
-    warning: '#d7a552',
-    error: '#e37a82',
-    info: '#79a4db',
-});
-
 const px = (value) => `${Math.round(Number(value) * 100) / 100}px`;
 const mix = (color, amount, base) => `color-mix(in srgb, ${color} ${amount}%, ${base})`;
+
+const FONT_STACKS = Object.freeze({
+    Inter: '"Inter", system-ui, sans-serif',
+    Newsreader: '"Newsreader", Georgia, serif',
+    'IBM Plex Mono': '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
+    Geist: '"Geist", "Inter", system-ui, sans-serif',
+    'Geist Mono': '"Geist Mono", "SFMono-Regular", Consolas, monospace',
+});
+
+export function resolveFontStack(font) {
+    return FONT_STACKS[font] ?? FONT_STACKS.Inter;
+}
 
 export function getAppearancePalette(appearance, isDark) {
     return isDark ? appearance.darkColors : appearance.colors;
@@ -54,6 +22,7 @@ export function createAdsStyle(appearance, isDark = false) {
     const radius = appearance.application.borderRadius;
     const controlHeight = appearance.application.controlHeight;
     const fontSize = appearance.application.fontSize;
+    const fonts = appearance.application.fonts;
 
     return {
         '--ads-canvas': colors.contentBg,
@@ -69,10 +38,15 @@ export function createAdsStyle(appearance, isDark = false) {
         '--ads-text-subtle': mix(colors.secondaryText, 78, colors.surfaceBg),
         '--ads-text-disabled': mix(colors.secondaryText, 55, colors.surfaceBg),
         '--ads-text-inverse': colors.accentText,
-        '--ads-border': colors.strongBorder,
-        '--ads-border-subtle': mix(colors.strongBorder, 58, colors.surfaceBg),
-        '--ads-border-strong': mix(colors.strongBorder, 82, colors.bodyText),
+        // Cards, tables and dividers use the soft border; the strong border is
+        // kept for edges that must stand out, such as form controls.
+        '--ads-border': colors.border,
+        '--ads-border-subtle': mix(colors.border, 60, colors.surfaceBg),
+        '--ads-border-strong': colors.strongBorder,
         '--ads-accent': colors.accent,
+        '--ads-chart-revenue': colors.chartRevenue ?? colors.accent,
+        '--ads-chart-costs': colors.chartCosts ?? colors.warning,
+        '--ads-chart-net': colors.chartNet ?? colors.success,
         '--ads-accent-hover': mix(colors.accent, 88, isDark ? 'white' : 'black'),
         '--ads-accent-active': mix(colors.accent, 78, isDark ? 'white' : 'black'),
         '--ads-accent-soft': mix(colors.accent, isDark ? 20 : 11, colors.surfaceBg),
@@ -100,9 +74,19 @@ export function createAdsStyle(appearance, isDark = false) {
         '--ads-info-active': mix(colors.info, 78, isDark ? 'white' : 'black'),
         '--ads-info-soft': mix(colors.info, isDark ? 18 : 9, colors.surfaceBg),
         '--ads-info-border': mix(colors.info, isDark ? 45 : 31, colors.surfaceBg),
+        '--ads-font-sans': resolveFontStack(fonts.body),
+        '--ads-font-heading': resolveFontStack(fonts.heading),
+        '--ads-font-caption': resolveFontStack(fonts.caption),
+        '--ads-font-data': resolveFontStack(fonts.data),
         '--ads-font-size-body': px(fontSize),
         '--ads-font-size-body-sm': px(Math.max(11, fontSize - 1)),
         '--ads-font-size-body-lg': px(fontSize + 2),
+        '--ads-font-size-caption': px(Math.max(10, fontSize - 3)),
+        '--ads-font-size-h5': px(fontSize + 4),
+        '--ads-font-size-h4': px(fontSize + 8),
+        '--ads-font-size-h3': px(fontSize + 12),
+        '--ads-font-size-h2': px(fontSize + 18),
+        '--ads-font-size-h1': px(fontSize + 24),
         '--ads-radius-xs': px(Math.max(2, radius * 0.5)),
         '--ads-radius-sm': px(Math.max(3, radius * 0.75)),
         '--ads-radius-md': px(radius),
@@ -128,10 +112,10 @@ export function createLegacyVariables(appearance, isDark = false) {
         '--color-bg-elevated': colors.elevatedBg,
         '--color-bg-sunken': mix(colors.contentBg, 72, colors.surfaceBg),
         '--color-bg-overlay': mix(colors.surfaceBg, 88, 'transparent'),
-        '--color-border': colors.strongBorder,
-        '--color-border-secondary': mix(colors.strongBorder, 70, colors.surfaceBg),
-        '--color-border-subtle': mix(colors.strongBorder, 58, colors.surfaceBg),
-        '--color-border-strong': mix(colors.strongBorder, 82, colors.bodyText),
+        '--color-border': colors.border,
+        '--color-border-secondary': mix(colors.border, 80, colors.surfaceBg),
+        '--color-border-subtle': mix(colors.border, 60, colors.surfaceBg),
+        '--color-border-strong': colors.strongBorder,
         '--color-text-primary': colors.bodyText,
         '--color-text-secondary': colors.secondaryText,
         '--color-text-tertiary': mix(colors.secondaryText, 78, colors.surfaceBg),
@@ -149,6 +133,7 @@ export function createLegacyVariables(appearance, isDark = false) {
         '--app-radius': px(appearance.application.borderRadius),
         '--app-control-height': px(appearance.application.controlHeight),
         '--app-content-padding': px(appearance.content.padding),
+        '--app-header-height': px(appearance.headerHeight),
         '--app-content-max-width': px(appearance.content.maxWidth),
     };
 }

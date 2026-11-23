@@ -11,6 +11,7 @@ class AdminStatisticsRoute {
             SUM(CASE WHEN admin.status <> 1 OR admin.status IS NULL THEN 1 ELSE 0 END) AS inactive_users,
             SUM(CASE WHEN admin.oauth_id IS NOT NULL AND admin.oauth_id <> '' THEN 1 ELSE 0 END) AS google_linked_users,
             SUM(CASE WHEN credentials.password_login_enabled = 1 THEN 1 ELSE 0 END) AS password_enabled_users,
+            SUM(CASE WHEN admin.forced_password_change = 1 THEN 1 ELSE 0 END) AS setup_required_users,
             SUM(CASE WHEN admin.last_login >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS active_last_30_days,
             SUM(CASE WHEN admin.createdAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS created_last_30_days
           FROM admin
@@ -32,7 +33,7 @@ class AdminStatisticsRoute {
           ORDER BY date ASC
         `);
         const [recentUsers] = await conn.query(`
-          SELECT custom_id, name, email, status, oauth_provider, last_login, createdAt
+          SELECT custom_id, name, email, phone_no, status, oauth_provider, forced_password_change, last_login, createdAt
           FROM admin
           ORDER BY COALESCE(last_login, createdAt) DESC
           LIMIT 8

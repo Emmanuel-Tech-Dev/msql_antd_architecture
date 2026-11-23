@@ -2,17 +2,29 @@ import { CalendarOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/ic
 import { Button, Card, Input, Space, Table, Tooltip } from 'antd';
 import utils from '../utils/function_utils';
 
-const CustomTable = ({ tableConfig, columns, showToolbar = true, label = 'Data records' }) => {
+const CustomTable = ({
+    tableConfig,
+    columns,
+    showToolbar = true,
+    label = 'Data records',
+    views = null,
+    toolbar = null,
+    notice = null,
+    scopeBar = null,
+    className = '',
+    tableClassName = '',
+}) => {
     const tableProps = tableConfig?.tableProps ?? {};
     return (
         <Card
-            className="overflow-hidden rounded-[calc(var(--app-radius,8px)+2px)] border-[var(--color-border)] shadow-[var(--shadow-sm)]"
+            className={`overflow-hidden rounded-[calc(var(--app-radius,8px)+2px)] border-[var(--color-border)] shadow-[var(--shadow-sm)] ${className}`.trim()}
             aria-busy={Boolean(tableConfig?.loading)}
             aria-label={label}
             role="region"
             styles={{ body: { padding: 0 } }}
         >
-            {showToolbar && (
+            {views}
+            {showToolbar && (toolbar || (
                 <div>
                     <Space className="flex min-h-[68px] w-full items-center justify-between gap-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-container)] px-[18px] py-3.5 max-sm:flex-col max-sm:items-stretch" size="medium">
                         <Input
@@ -42,9 +54,10 @@ const CustomTable = ({ tableConfig, columns, showToolbar = true, label = 'Data r
                         </div>
                     </Space>
                 </div>
-
-            )}
-            <div className="min-w-0 bg-[var(--color-bg-container)] px-3.5 pb-1 max-sm:p-0 [&_.ant-table-wrapper]:!rounded-none [&_.ant-table-wrapper]:!border-0 [&_.ant-table-thead>tr>th]:whitespace-nowrap [&_.ant-table-tbody>tr>td]:align-middle [&_.ant-pagination]:px-1.5">
+            ))}
+            {notice}
+            {scopeBar}
+            <div className={`min-w-0 bg-[var(--color-bg-container)] px-3.5 pb-1 max-sm:p-0 [&_.ant-table-wrapper]:!rounded-none [&_.ant-table-wrapper]:!border-0 [&_.ant-table-thead>tr>th]:whitespace-nowrap [&_.ant-table-tbody>tr>td]:align-middle [&_.ant-pagination]:px-1.5 ${tableClassName}`}>
                 <Table
                     {...tableProps}
                     columns={columns}

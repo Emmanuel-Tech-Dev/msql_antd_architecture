@@ -4,12 +4,12 @@ import apiClient from "../../services/apiClient";
 import useAuthStore from "../../store/authStore";
 
 const mysqlOrmAuthProvider = () => ({
-  login: async ({ email, password }) => {
-    const { data } = await apiClient.post("/auth/login", { email, password });
+  login: async ({ identifier, password }) => {
+    const { data } = await apiClient.post("/auth/login", { identifier, password });
 
     const { token, forcedPasswordChange = false } = data;
 
-    const user = data.user ?? { email };
+    const user = data.user ?? {};
     useAuthStore.getState().setAuth(user, token);
 
     return { user, token, forcedPasswordChange };
@@ -113,12 +113,16 @@ const mysqlOrmAuthProvider = () => ({
   },
 
   refreshToken: async () => {
-    const { data } = await apiClient.post("/auth/refresh");
-    const { token } = data;
+    try {
+      const { data } = await apiClient.post("/auth/refresh");
+      const { token } = data;
 
-    const user = useAuthStore.getState().getUser();
-    useAuthStore.getState().setAuth(user, token);
-    return { token };
+      useAuthStore.getState().setAccessToken(token);
+      return { token };
+    } catch (error) {
+      useAuthStore.getState().clearAuth();
+      throw error;
+    }
   },
 
   forgotPassword: async ({ email }) => {

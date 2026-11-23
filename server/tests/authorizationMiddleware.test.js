@@ -8,9 +8,13 @@ const utils = require("../shared/utils/functions");
 const {
   authorization,
   clearPermissionCache,
+  createAuthorizationMiddleware,
+  permissionCacheKey,
 } = require("../core/middleware/authorization");
+const { AbacEngine, AbacPolicyRegistry } = require("../core/lib/abacEngine");
+const { createCoreAbacPolicies } = require("../core/lib/coreAbacPolicies");
 
-function mockPermissionData({ userId, roles, permissions = [], overrides = [], permissionResources = [], resources = [] }) {
+function mockPermissionData({ userId, roles, accountStatus = 1, permissions = [], overrides = [], permissionResources = [], resources = [] }) {
   Model.mockImplementation(() => {
     let tableName;
     const builder = {
@@ -21,6 +25,9 @@ function mockPermissionData({ userId, roles, permissions = [], overrides = [], p
       where: jest.fn(() => builder),
       whereIn: jest.fn(() => builder),
       execute: jest.fn(async () => {
+        if (tableName === "admin") {
+          return [{ custom_id: userId, status: accountStatus }];
+        }
         if (tableName === "admin_user_roles") {
           return roles.map((roleId) => ({ user_id: userId, role_id: roleId }));
         }
@@ -91,6 +98,9 @@ describe("authorization middleware baseline access", () => {
 
     expect(next).toHaveBeenCalledWith();
     expect(req.permissions).toContain("export:reports");
+    expect(req.authorizationContext.subject.id).toBe(userId);
+    expect(req.authorizationContext.action.name).toBe("export:reports:api");
+    expect(req.authorizationDecision.allowed).toBe(true);
   });
 
   test("direct user deny removes inherited API access", async () => {
@@ -111,5 +121,49 @@ describe("authorization middleware baseline access", () => {
     const [error] = next.mock.calls[0];
     expect(error?.errorCode).toBe("ERR_ACCESS_DENIED");
     expect(req.permissions).not.toContain("delete:users");
+  });
+
+  test("denies an inactive account even on an authenticated core endpoint", async () => {
+    const userId = "inactive-user";
+    mockPermissionData({ userId, roles: ["User"], accountStatus: 0 });
+    const next = jest.fn();
+    const req = { path: "/api/v1/bootstrap", method: "POST", user: { sub: userId } };
+
+    await authorization(req, {}, next);
+
+    const [error] = next.mock.calls[0];
+    expect(error?.errorCode).toBe("ERR_ACCESS_DENIED");
+    expect(error?.metadata?.reason).toBe("ACCOUNT_INACTIVE");
+    expect(error?.metadata?.deniedBy).toBe("core.active-account");
+  });
+
+  test("mandatory ABAC denial still applies to a privileged role", async () => {
+    const userId = "privileged-user";
+    mockPermissionData({ userId, roles: ["SuperAdmin"] });
+    const registry = new AbacPolicyRegistry([
+      ...createCoreAbacPolicies(),
+      {
+        id: "test.maintenance-window",
+        evaluate: () => ({ effect: "DENY", reason: "MAINTENANCE_WINDOW" }),
+      },
+    ]);
+    const middleware = createAuthorizationMiddleware({
+      abacEngine: new AbacEngine({ registry }),
+    });
+    const next = jest.fn();
+    const req = { path: "/api/anything", method: "DELETE", user: { sub: userId } };
+
+    await middleware(req, {}, next);
+
+    const [error] = next.mock.calls[0];
+    expect(error?.errorCode).toBe("ERR_ACCESS_DENIED");
+    expect(error?.metadata?.reason).toBe("MAINTENANCE_WINDOW");
+    expect(error?.metadata?.deniedBy).toBe("test.maintenance-window");
+    expect(req.authorizationContext.subject.privileged).toBe(true);
+  });
+
+  test("uses one global authority cache entry per user", () => {
+    expect(permissionCacheKey("ADM-1")).toBe("ADM-1");
+    expect(permissionCacheKey("ADM-2")).toBe("ADM-2");
   });
 });

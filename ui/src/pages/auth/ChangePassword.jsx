@@ -1,6 +1,6 @@
 import { Button, Form, Input, Typography } from 'antd';
 import { ArrowRightOutlined, LockOutlined } from '@ant-design/icons';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useNotification from '../../hooks/useNotification';
 import useChangePassword from '../../core/hooks/auth/useChangePassword';
 import { resolvePostLoginPath } from '../../core/navigation/routeResolver';
@@ -13,6 +13,10 @@ export default function ChangePassword() {
     const location = useLocation();
     const { alert, AlertJsx, message } = useNotification();
     const from = resolvePostLoginPath(location.state?.from);
+    // Signing in with a temporary password from an administrator: the server
+    // allows nothing else until it is replaced, so there is no skipping.
+    const [searchParams] = useSearchParams();
+    const required = Boolean(location.state?.required) || searchParams.get('required') === '1';
 
     const { mutate, isPending } = useChangePassword({
         mutationOptions: {
@@ -31,14 +35,16 @@ export default function ChangePassword() {
 
     return (
         <AuthShell>
-            <Button
-                type="link"
-                icon={<ArrowRightOutlined />}
-                onClick={() => navigate(from, { replace: true })}
-                className="!mb-6 !h-auto !px-0 !text-xs"
-            >
-                Skip for now
-            </Button>
+            {!required && (
+                <Button
+                    type="link"
+                    icon={<ArrowRightOutlined />}
+                    onClick={() => navigate(from, { replace: true })}
+                    className="!mb-6 !h-auto !px-0 !text-xs"
+                >
+                    Back
+                </Button>
+            )}
 
             <header className="mb-8 text-center">
                 <AuthIcon><LockOutlined /></AuthIcon>
@@ -46,7 +52,9 @@ export default function ChangePassword() {
                     Change password
                 </Title>
                 <Text className="!text-[var(--ads-text-muted)]">
-                    Your temporary password is your email address. You can update it now or skip for this session.
+                    {required
+                        ? 'Enter the temporary password your administrator gave you as the current password, then choose your own.'
+                        : 'Enter your current password, then choose a new one.'}
                 </Text>
             </header>
 

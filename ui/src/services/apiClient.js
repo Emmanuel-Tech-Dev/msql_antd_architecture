@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toDataProviderError } from "../core/data/contracts";
+import useAuthStore from "../store/authStore";
 
 let isRefreshing = false;
 let refreshSubscribers = [];
@@ -52,6 +53,15 @@ apiClient.interceptors.response.use(
       return Promise.reject(toDataProviderError(error));
     }
 
+    // Still on an administrator's temporary password: the server allows
+    // nothing until it is replaced, so go straight to choosing a new one.
+    if (error.response?.data?.errorCode === "ERR_PASSWORD_CHANGE_REQUIRED") {
+      if (!window.location.pathname.startsWith("/change_password")) {
+        window.location.assign("/change_password?required=1");
+      }
+      return Promise.reject(toDataProviderError(error));
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
 
@@ -66,7 +76,7 @@ apiClient.interceptors.response.use(
         try {
           const { data } = await apiClient.post("/auth/refresh");
           const newToken = data.token;
-          sessionStorage.setItem("access_token", newToken);
+          useAuthStore.getState().setAccessToken(newToken);
 
           // Notify any requests that queued up while we were refreshing.
           onRefreshed();
@@ -78,7 +88,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           const normalizedError = toDataProviderError(refreshError);
           onRefreshFailed(normalizedError);
-          sessionStorage.removeItem("access_token");
+          useAuthStore.getState().clearAuth();
           return Promise.reject(normalizedError);
         } finally {
           isRefreshing = false;

@@ -1,37 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, InputNumber, Input, Segmented, Select, Slider, Switch, Tooltip } from 'antd';
 import {
-    Alert,
-    Button,
-    Card,
-    Checkbox,
-    Col,
-    ColorPicker,
-    Form,
-    Input,
-    InputNumber,
-    Progress,
-    Row,
-    Segmented,
-    Select,
-    Slider,
-    Space,
-    Switch,
-    Tag,
-    Typography,
-} from 'antd';
-import {
-    AppstoreOutlined,
-    BgColorsOutlined,
-    BorderOutlined,
     CheckOutlined,
-    ColumnWidthOutlined,
-    ControlOutlined,
+    DesktopOutlined,
     DownloadOutlined,
+    DownOutlined,
     EyeOutlined,
-    FileTextOutlined,
-    LayoutOutlined,
-    ReloadOutlined,
-    SaveOutlined,
+    MoonOutlined,
+    RightOutlined,
+    RollbackOutlined,
+    SunOutlined,
     UploadOutlined,
 } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -41,139 +19,116 @@ import useCan from '../../core/hooks/access/useCan';
 import useNotification from '../../hooks/useNotification';
 import { useTheme } from '../../hooks/useTheme';
 import { DEFAULT_SIDER_CONFIG, normalizeSiderConfig } from '../../core/config/siderConfig';
-import { createAdsStyle, getAppearancePalette } from '../../utils/appearanceTokens';
 import queryKeys from '../../core/queryKeys';
+import { FONT_OPTIONS, parseThemePack, themePackCsv } from './appearance/themePack';
+import { COLLAPSE_BREAKPOINTS, FONT_ROLES, LAYOUT_STYLES, describeChanges, paletteKey } from './appearance/appearanceFields';
+import ColourSection from './appearance/ColourSection';
+import AppearancePreview from './appearance/AppearancePreview';
 
-const { Paragraph, Text, Title } = Typography;
-
-const COLOR_FIELDS = [
-    ['siderBg', 'Sidebar'],
-    ['headerBg', 'Header'],
-    ['contentBg', 'Content'],
-    ['accent', 'Accent'],
-    ['accentText', 'Accent text'],
-    ['textPrimary', 'Primary text'],
-    ['textMuted', 'Muted text'],
-    ['border', 'Borders'],
-    ['itemHover', 'Item hover'],
-    ['itemActive', 'Active item'],
-    ['surfaceBg', 'Cards and inputs'],
-    ['elevatedBg', 'Elevated surfaces'],
-    ['bodyText', 'Body text'],
-    ['secondaryText', 'Secondary text'],
-    ['strongBorder', 'Component borders'],
-    ['success', 'Success'],
-    ['warning', 'Warning'],
-    ['error', 'Error'],
-    ['info', 'Information'],
+const SECTIONS = [
+    { id: 'theme', label: 'Theme' },
+    { id: 'colours', label: 'Colours' },
+    { id: 'text', label: 'Text' },
+    { id: 'shape', label: 'Shape & spacing' },
+    { id: 'layout', label: 'Sidebar & header', collapsible: true },
+    { id: 'brand', label: 'Brand', collapsible: true },
 ];
 
-const COLOR_VALUE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i;
+const SECTION_CLASS = 'scroll-mt-24 rounded-[var(--ads-radius-lg)] border border-[var(--ads-border)] bg-[var(--ads-surface)] p-5';
+const CAPTION_CLASS = 'font-[family-name:var(--ads-font-caption)] text-[length:var(--ads-font-size-caption)] font-semibold uppercase tracking-[0.12em] text-[var(--ads-text-muted)]';
+const ROW_CLASS = 'grid grid-cols-1 items-center gap-x-4 gap-y-2 border-t border-[var(--ads-border-subtle)] pt-3 sm:grid-cols-[200px_minmax(0,1fr)_auto]';
 
-const parseCsvLine = (line) => {
-    const cells = [];
-    let value = '';
-    let quoted = false;
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || document.documentElement.dataset.motion === 'reduced';
 
-    for (let index = 0; index < line.length; index += 1) {
-        const character = line[index];
-        if (character === '"' && line[index + 1] === '"') {
-            value += '"';
-            index += 1;
-        } else if (character === '"') {
-            quoted = !quoted;
-        } else if (character === ',' && !quoted) {
-            cells.push(value.trim());
-            value = '';
-        } else {
-            value += character;
-        }
-    }
-    cells.push(value.trim());
-    return cells;
-};
-
-const toCsvCell = (value) => `"${String(value).replaceAll('"', '""')}"`;
-
-const parseThemePack = (csv) => {
-    const lines = csv
-        .replace(/^\uFEFF/, '')
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-    if (lines.length < 2) throw new Error('The CSV needs a header and color rows.');
-
-    const header = parseCsvLine(lines[0]).map((cell) => cell.toLowerCase());
-    const modeIndex = header.indexOf('mode');
-    const tokenIndex = header.indexOf('token');
-    const valueIndex = header.indexOf('value');
-    if ([modeIndex, tokenIndex, valueIndex].some((index) => index < 0)) {
-        throw new Error('Use the CSV columns: theme_name, mode, token, value.');
-    }
-
-    const allowedTokens = new Set(COLOR_FIELDS.map(([token]) => token));
-    const palettes = { light: {}, dark: {} };
-    for (const [lineOffset, line] of lines.slice(1).entries()) {
-        const cells = parseCsvLine(line);
-        const mode = cells[modeIndex]?.toLowerCase();
-        const token = cells[tokenIndex];
-        const value = cells[valueIndex];
-        const lineNumber = lineOffset + 2;
-
-        if (!['light', 'dark'].includes(mode)) {
-            throw new Error(`Row ${lineNumber} must use light or dark mode.`);
-        }
-        if (!allowedTokens.has(token)) {
-            throw new Error(`Row ${lineNumber} uses unsupported token “${token}”.`);
-        }
-        if (!COLOR_VALUE.test(value ?? '')) {
-            throw new Error(`Row ${lineNumber} has an invalid color value.`);
-        }
-        if (palettes[mode][token]) {
-            throw new Error(`Row ${lineNumber} duplicates ${mode}.${token}.`);
-        }
-        palettes[mode][token] = value;
-    }
-
-    const missing = ['light', 'dark'].flatMap((mode) =>
-        COLOR_FIELDS
-            .map(([token]) => token)
-            .filter((token) => !palettes[mode][token])
-            .map((token) => `${mode}.${token}`),
+function SectionHeading({ title, description, children }) {
+    return (
+        <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1">
+                <h2 className="m-0 font-[family-name:var(--ads-font-heading)] text-[length:var(--ads-font-size-h5)] font-semibold">{title}</h2>
+                {description && <p className="m-0 mt-0.5 text-[length:var(--ads-font-size-body-sm)] text-[var(--ads-text-muted)]">{description}</p>}
+            </div>
+            {children}
+        </div>
     );
-    if (missing.length) {
-        throw new Error(`The CSV is incomplete. Missing: ${missing.join(', ')}.`);
-    }
+}
 
-    return palettes;
-};
+function RowLabel({ label, hint }) {
+    return (
+        <span className="flex flex-col">
+            <span className="font-medium">{label}</span>
+            {hint && <span className="text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-muted)]">{hint}</span>}
+        </span>
+    );
+}
 
-const CARD_CLASS = [
-    'overflow-hidden border border-[var(--ads-border-subtle)]',
-    'bg-[var(--ads-surface)] shadow-[var(--ads-shadow-xs)]',
-    '[&_.ant-card-head]:min-h-[52px] [&_.ant-card-head]:border-b-[var(--ads-border-subtle)]',
-    '[&_.ant-card-head]:bg-[var(--ads-surface-raised)] [&_.ant-card-head]:px-5',
-    '[&_.ant-card-head-title]:font-semibold [&_.ant-card-head-title_.anticon]:text-[var(--ads-accent)]',
-    '[&_.ant-card-body]:p-5',
-].join(' ');
+function SliderRow({ label, hint, min, max, step = 1, value, disabled, onChange }) {
+    return (
+        <div className={ROW_CLASS}>
+            <RowLabel label={label} hint={hint} />
+            <Slider aria-label={label} min={min} max={max} step={step} value={value} disabled={disabled} onChange={onChange} className="!m-0 !mx-1.5" />
+            <InputNumber aria-label={`${label} in pixels`} min={min} max={max} step={step} value={value} disabled={disabled} onChange={(next) => next !== null && onChange(next)} addonAfter="px" className="!w-[112px]" />
+        </div>
+    );
+}
 
-const SLIDER_ROW_CLASS = [
-    'grid grid-cols-1 items-center gap-2 py-3.5',
-    'sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-5',
-    '[&_.ant-slider]:mx-1.5 [&_.ant-slider]:mt-2',
-    '[&_.ant-input-number]:w-full sm:[&_.ant-input-number]:w-[116px]',
-].join(' ');
+function SwitchRow({ label, hint, checked, disabled, onChange }) {
+    return (
+        <label className="flex cursor-pointer items-center gap-4 border-t border-[var(--ads-border-subtle)] pt-3">
+            <span className="min-w-0 flex-1"><RowLabel label={label} hint={hint} /></span>
+            <Switch checked={checked} disabled={disabled} onChange={onChange} />
+        </label>
+    );
+}
 
-const BORDERED_SLIDER_ROW_CLASS = `${SLIDER_ROW_CLASS} border-t border-[var(--ads-border-subtle)]`;
+// Sidebar & header and Brand stay folded to a summary line until opened.
+function FoldedSection({ id, title, summary, open, onToggle, children }) {
+    return (
+        <section id={id} aria-labelledby={`${id}-title`} className={`${SECTION_CLASS} !p-0`}>
+            <h2 id={`${id}-title`} className="m-0">
+                <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={onToggle}
+                    className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--ads-radius-lg)] border-0 bg-transparent px-5 text-left text-[var(--ads-text)] focus-visible:outline-2 focus-visible:outline-[var(--ads-focus)]"
+                >
+                    {open ? <DownOutlined className="text-xs text-[var(--ads-text-muted)]" /> : <RightOutlined className="text-xs text-[var(--ads-text-muted)]" />}
+                    <span className="font-[family-name:var(--ads-font-heading)] text-[length:var(--ads-font-size-h5)] font-semibold">{title}</span>
+                    {!open && <span className="min-w-0 flex-1 truncate text-[length:var(--ads-font-size-body-sm)] font-normal text-[var(--ads-text-muted)]">{summary}</span>}
+                </button>
+            </h2>
+            {open && <div className="flex flex-col gap-3 px-5 pb-5">{children}</div>}
+        </section>
+    );
+}
 
-const SWITCH_GRID_CLASS = [
-    'mt-4 grid grid-cols-1 gap-2 border-t border-[var(--ads-border-subtle)] pt-4 md:grid-cols-3',
-    '[&>label]:flex [&>label]:min-h-11 [&>label]:items-center [&>label]:gap-2.5',
-    '[&>label]:rounded-[var(--ads-radius-md)] [&>label]:border [&>label]:border-[var(--ads-border-subtle)]',
-    '[&>label]:bg-[var(--ads-surface-raised)] [&>label]:px-3.5 [&>label]:text-sm',
-].join(' ');
-
-const FIELD_LABEL_CLASS = 'mb-1.5 block text-xs font-medium text-[var(--ads-text-muted)]';
+// "On this page": jumps to a section, highlights the one in view and marks
+// sections with unsaved edits. A row of chips on narrow screens.
+function SectionMenu({ active, unsavedSections, onJump }) {
+    return (
+        <nav aria-label="Appearance sections" className="sticky top-[76px] z-[5] -mx-1 flex gap-1 overflow-x-auto bg-[var(--ads-canvas)] px-1 py-1 min-[900px]:mx-0 min-[900px]:flex-col min-[900px]:overflow-visible min-[900px]:p-0">
+            <span className={`${CAPTION_CLASS} hidden pb-2 min-[900px]:block`}>On this page</span>
+            {SECTIONS.map((section) => {
+                const isActive = active === section.id;
+                return (
+                    <button
+                        key={section.id}
+                        type="button"
+                        aria-current={isActive ? 'location' : undefined}
+                        onClick={() => onJump(section)}
+                        className={`flex h-[34px] shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ads-radius-sm)] border-0 px-3 text-left font-medium focus-visible:outline-2 focus-visible:outline-[var(--ads-focus)] ${isActive
+                            ? 'bg-[var(--ads-surface)] font-semibold text-[var(--ads-text)]'
+                            : 'bg-transparent text-[var(--ads-text-muted)] hover:bg-[var(--ads-surface-hover)] hover:text-[var(--ads-text)]'}`}
+                    >
+                        <span className="flex-1">{section.label}</span>
+                        {unsavedSections.has(section.id) && <i className="size-[7px] rounded-full bg-[var(--ads-warning)]" aria-label="unsaved changes" />}
+                    </button>
+                );
+            })}
+            <p className="m-0 hidden pt-3 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-subtle)] min-[900px]:block">A dot marks a section with unsaved changes.</p>
+        </nav>
+    );
+}
 
 export default function AppearanceSettings() {
     const rows = useValuesStore((state) => state.ui_settings) ?? [];
@@ -181,9 +136,8 @@ export default function AppearanceSettings() {
     const storedConfig = useMemo(() => normalizeSiderConfig(row?.setting_value), [row?.setting_value]);
     const [draft, setDraft] = useState(storedConfig);
     const [paletteMode, setPaletteMode] = useState('light');
-    const [systemDark, setSystemDark] = useState(
-        () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-    );
+    const [openFolds, setOpenFolds] = useState(() => new Set());
+    const [activeSection, setActiveSection] = useState('theme');
     const [saving, setSaving] = useState(false);
     const themePackInputRef = useRef(null);
     const dataProvider = useDataProvider();
@@ -194,22 +148,11 @@ export default function AppearanceSettings() {
 
     useEffect(() => setDraft(storedConfig), [storedConfig, row?.version]);
 
-    useEffect(() => {
-        const media = window.matchMedia('(prefers-color-scheme: dark)');
-        const update = (event) => setSystemDark(event.matches);
-        media.addEventListener?.('change', update);
-        return () => media.removeEventListener?.('change', update);
-    }, []);
-
     const normalizedDraft = useMemo(() => normalizeSiderConfig(draft), [draft]);
-    const previewIsDark = normalizedDraft.application.colorMode === 'dark'
-        || (normalizedDraft.application.colorMode === 'system' && systemDark);
-    const previewColors = getAppearancePalette(normalizedDraft, previewIsDark);
-    const previewStyle = useMemo(
-        () => createAdsStyle(normalizedDraft, previewIsDark),
-        [normalizedDraft, previewIsDark],
-    );
+    const changes = useMemo(() => describeChanges(normalizedDraft, storedConfig), [normalizedDraft, storedConfig]);
+    const unsavedSections = useMemo(() => new Set(changes.map((change) => change.section)), [changes]);
     const isDirty = JSON.stringify(normalizedDraft) !== JSON.stringify(storedConfig);
+    const readOnly = !canUpdate;
 
     useEffect(() => {
         if (!isDirty) return undefined;
@@ -221,37 +164,63 @@ export default function AppearanceSettings() {
         return () => window.removeEventListener('beforeunload', warnAboutUnsavedChanges);
     }, [isDirty]);
 
+    // Highlight the section nearest the top of the screen.
+    useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            const visible = entries.filter((entry) => entry.isIntersecting);
+            if (visible.length) setActiveSection(visible[0].target.id);
+        }, { rootMargin: '-20% 0px -65% 0px' });
+        SECTIONS.forEach(({ id }) => {
+            const element = document.getElementById(id);
+            if (element) observer.observe(element);
+        });
+        return () => observer.disconnect();
+    }, []);
+
     const updateRoot = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
-    const updateBrand = (key, value) => setDraft((current) => ({
-        ...current,
-        brand: { ...current.brand, [key]: value },
-    }));
-    const updateColor = (key, value) => {
-        const section = paletteMode === 'dark' ? 'darkColors' : 'colors';
-        setDraft((current) => ({
-            ...current,
-            [section]: { ...current[section], [key]: value },
-        }));
-    };
     const updateSection = (section, key, value) => setDraft((current) => ({
         ...current,
         [section]: { ...current[section], [key]: value },
     }));
+    const updateApplication = (key, value) => updateSection('application', key, value);
+    const updateFont = (key, value) => setDraft((current) => ({
+        ...current,
+        application: { ...current.application, fonts: { ...current.application.fonts, [key]: value } },
+    }));
+    const updateColour = (editedMode, token, value) => updateSection(paletteKey(editedMode), token, value);
+
+    const toggleFold = (id, open) => setOpenFolds((current) => {
+        const next = new Set(current);
+        if (open ?? !next.has(id)) next.add(id);
+        else next.delete(id);
+        return next;
+    });
+
+    const jumpTo = (section) => {
+        if (section.collapsible) toggleFold(section.id, true);
+        setActiveSection(section.id);
+        requestAnimationFrame(() => document.getElementById(section.id)?.scrollIntoView({
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            block: 'start',
+        }));
+    };
+
+    // Reset brings back the default colours, fonts and sizes; the
+    // sidebar and brand settings are kept.
+    const resetTheme = () => setDraft((current) => {
+        const defaults = normalizeSiderConfig(DEFAULT_SIDER_CONFIG);
+        return { ...current, themeName: defaults.themeName, application: defaults.application, colors: defaults.colors, darkColors: defaults.darkColors };
+    });
+
+    // Everything back to the built-in defaults: theme, layout, sidebar and brand.
+    const resetEverything = () => setDraft(normalizeSiderConfig(DEFAULT_SIDER_CONFIG));
 
     const exportThemePack = () => {
-        const rows = [
-            ['theme_name', 'mode', 'token', 'value'],
-            ...['light', 'dark'].flatMap((mode) => {
-                const palette = normalizedDraft[mode === 'dark' ? 'darkColors' : 'colors'];
-                return COLOR_FIELDS.map(([token]) => [draft.brand.name, mode, token, palette[token]]);
-            }),
-        ];
-        const csv = rows.map((cells) => cells.map(toCsvCell).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const blob = new Blob([themePackCsv(normalizedDraft)], { type: 'text/csv;charset=utf-8' });
         const href = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = href;
-        anchor.download = `${draft.brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'appearance'}-theme.csv`;
+        anchor.download = `${normalizedDraft.themeName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'appearance'}-theme.csv`;
         anchor.click();
         URL.revokeObjectURL(href);
     };
@@ -265,416 +234,316 @@ export default function AppearanceSettings() {
             return;
         }
         try {
-            const palettes = parseThemePack(await file.text());
+            const themePack = parseThemePack(await file.text());
             setDraft((current) => ({
                 ...current,
-                colors: palettes.light,
-                darkColors: palettes.dark,
+                themeName: themePack.themeName,
+                application: {
+                    ...current.application,
+                    ...themePack.application,
+                    fonts: { ...current.application.fonts, ...themePack.application.fonts },
+                },
+                colors: themePack.light,
+                darkColors: themePack.dark,
             }));
-            message.success('Light and dark palettes imported into the draft. Review the preview, then save.');
+            message.success(`“${themePack.themeName}” loaded into the preview. Check it, then save for everyone.`);
         } catch (error) {
-            message.error(error.message || 'Unable to import this theme CSV.');
+            message.error(error.message || 'This theme CSV could not be read.');
         }
     };
 
     const save = async () => {
-        if (!row?.id || !canUpdate || !isDirty) return;
+        if (!row?.id || readOnly || !isDirty) return;
         setSaving(true);
         try {
             await dataProvider.custom({
                 url: `api/v1/ui-settings/${row.id}`,
                 method: 'put',
-                payload: {
-                    settingValue: normalizedDraft,
-                    expectedVersion: Number(row.version),
-                },
+                payload: { settingValue: normalizedDraft, expectedVersion: Number(row.version) },
             });
             await queryClient.refetchQueries({ queryKey: queryKeys.bootstrap(), exact: true, type: 'active' });
-            message.success('Appearance settings applied to active sessions.');
+            message.success('Appearance saved. Everyone sees it on their next page load.');
         } catch (error) {
-            message.error(error?.message || 'Unable to update appearance settings.');
+            message.error(error?.message || 'Appearance could not be saved.');
         } finally {
             setSaving(false);
         }
     };
 
     if (!row) {
-        return <Alert type="error" showIcon title="The layout.sider configuration is unavailable." />;
+        return <Alert type="error" showIcon title="The appearance settings could not be loaded. Reload the page, or check that migrations have run." />;
     }
 
+    const { application } = normalizedDraft;
+    const palette = normalizedDraft[paletteKey(paletteMode)];
+    const changedLabels = changes.map((change) => change.label);
+
     return (
-        <main className="min-h-full bg-[var(--ads-canvas)] p-3 text-[var(--ads-text)] md:p-4 xl:p-5">
-            <header className="mx-auto grid max-w-[var(--app-content-max-width)] grid-cols-1 items-center gap-5 border-b border-[var(--ads-border-subtle)] pb-6 min-[1180px]:grid-cols-[minmax(0,1fr)_auto] min-[1180px]:gap-7">
-                <div className="flex min-w-0 items-start gap-3.5">
-                    <span className="grid size-11 shrink-0 place-items-center rounded-[var(--ads-radius-md)] border border-[var(--ads-border)] bg-[var(--ads-surface)] text-lg text-[var(--ads-accent)] shadow-[var(--ads-shadow-xs)]" aria-hidden="true"><BgColorsOutlined /></span>
-                    <div>
-                        <Title level={2} className="!mb-1 !text-[clamp(1.5rem,2vw,2rem)] !leading-tight">Appearance</Title>
-                        <Paragraph className="!mb-0 !max-w-[680px] !text-[var(--ads-text-muted)]">
-                            Configure the workspace shell, component rhythm, and semantic color system.
-                        </Paragraph>
-                    </div>
-                </div>
-                <div className="flex flex-col items-start gap-2.5 min-[1180px]:items-end">
-                    <div className="flex flex-wrap justify-start gap-1 min-[1180px]:justify-end" aria-live="polite">
-                        <Tag bordered={false}>Version {row.version}</Tag>
-                        {isDirty ? <Tag color="warning">Unsaved changes</Tag> : <Tag color="success">Up to date</Tag>}
-                    </div>
-                    <Space wrap>
-                        <Button disabled={saving} onClick={() => setDraft(normalizeSiderConfig(DEFAULT_SIDER_CONFIG))}>
-                            ADS Defaults
-                        </Button>
-                        <Button icon={<ReloadOutlined />} disabled={!isDirty || saving} onClick={() => setDraft(storedConfig)}>
-                            Revert
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<SaveOutlined />}
-                            loading={saving}
-                            disabled={!canUpdate || !isDirty}
-                            onClick={save}
-                        >
-                            Save &amp; Apply
-                        </Button>
-                    </Space>
-                </div>
+        <main className="flex min-h-full flex-col gap-4 bg-[var(--ads-canvas)] text-[var(--ads-text)]">
+            <header>
+                <h1 className="m-0 text-[clamp(1.375rem,2vw,1.75rem)] font-semibold leading-tight text-[var(--ads-text-heading)]">Appearance</h1>
+                <p className="m-0 mt-0.5 text-[var(--ads-text-muted)]">
+                    How the app looks for everyone. Edits show in the preview first and apply to everyone when you save.
+                </p>
             </header>
 
-            <section
-                className="mx-auto mt-4 grid max-w-[var(--app-content-max-width)] grid-cols-1 overflow-hidden rounded-[var(--ads-radius-lg)] border border-[var(--ads-border-subtle)] bg-[var(--ads-surface)] shadow-[var(--ads-shadow-xs)] sm:grid-cols-2 xl:grid-cols-4 [&>div]:grid [&>div]:grid-cols-[auto_1fr] [&>div]:items-center [&>div]:gap-x-3 [&>div]:border-b [&>div]:border-[var(--ads-border-subtle)] [&>div]:p-4 sm:[&>div]:border-r xl:[&>div]:border-b-0 [&>div:nth-child(2n)]:border-r-0 xl:[&>div:nth-child(2)]:border-r xl:[&>div:last-child]:border-r-0 [&>div>svg]:row-span-2 [&>div>svg]:text-lg [&>div>svg]:text-[var(--ads-accent)] [&>div>span]:text-xs [&>div>span]:text-[var(--ads-text-muted)] [&>div>strong]:mt-0.5 [&>div>strong]:capitalize"
-                aria-label="Current appearance configuration"
-            >
-                <div>
-                    <LayoutOutlined aria-hidden="true" />
-                    <span>Color mode</span>
-                    <strong>{draft.application.colorMode === 'system' ? 'Follow device' : draft.application.colorMode}</strong>
-                </div>
-                <div>
-                    <ControlOutlined aria-hidden="true" />
-                    <span>Density</span>
-                    <strong>{draft.application.density}</strong>
-                </div>
-                <div>
-                    <BorderOutlined aria-hidden="true" />
-                    <span>Corner radius</span>
-                    <strong>{draft.application.borderRadius}px</strong>
-                </div>
-                <div>
-                    <ColumnWidthOutlined aria-hidden="true" />
-                    <span>Control height</span>
-                    <strong>{draft.application.controlHeight}px</strong>
-                </div>
-            </section>
-
-            {!canUpdate && (
-                <Alert
-                    className="mx-auto mt-4 max-w-[var(--app-content-max-width)]"
-                    type="warning"
-                    showIcon
-                    title="You can preview these settings, but update:ui_settings is required to save them."
-                />
+            {readOnly && (
+                <Alert type="info" showIcon title="You can try changes in the preview, but only people allowed to change appearance can save them." />
             )}
 
-            {hasPreference && (
-                <Alert
-                    className="mx-auto mt-4 max-w-[var(--app-content-max-width)]"
-                    type="info"
-                    showIcon
-                    title={`A personal ${mode} mode override is active`}
-                    description="Workspace color-mode changes will apply after the personal override is cleared."
-                    action={<Button size="small" onClick={clearPreference}>Use Workspace Setting</Button>}
-                />
-            )}
+            <div className="grid grid-cols-1 items-start gap-5 min-[900px]:grid-cols-[150px_minmax(0,1fr)] min-[1200px]:grid-cols-[150px_minmax(0,1fr)_360px]">
+                <SectionMenu active={activeSection} unsavedSections={unsavedSections} onJump={jumpTo} />
 
-            <div className="mx-auto mt-4 grid max-w-[var(--app-content-max-width)] grid-cols-1 items-start gap-4 min-[1200px]:grid-cols-12">
-                <div className="min-w-0 min-[1200px]:col-span-6">
-                    <Space direction="vertical" size={20} style={{ width: '100%' }}>
-                        <Card className={CARD_CLASS} title={<><ControlOutlined /> Navigation &amp; Shell</>}>
-                            <Form layout="vertical" requiredMark={false}>
-                                <Row gutter={16}>
-                                    <Col xs={24} md={8}>
-                                        <Form.Item label="Layout variant">
-                                            <Select aria-label="Layout variant" value={draft.variant} onChange={(value) => updateRoot('variant', value)} options={[
-                                                'premium', 'sider', 'default', 'floating', 'icon-rail', 'top', 'none',
-                                            ].map((value) => ({ value, label: value }))} />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col xs={24} md={8}>
-                                        <Form.Item label="Responsive breakpoint">
-                                            <Select aria-label="Responsive breakpoint" value={draft.breakpoint} onChange={(value) => updateRoot('breakpoint', value)} options={
-                                                ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'].map((value) => ({ value, label: value.toUpperCase() }))
-                                            } />
-                                        </Form.Item>
-                                    </Col>
-                                    <Col xs={24} md={8}>
-                                        <Form.Item label="Sidebar theme">
-                                            <Select aria-label="Sidebar theme" value={draft.theme} onChange={(value) => updateRoot('theme', value)} options={[
-                                                { value: 'dark', label: 'Dark' },
-                                                { value: 'light', label: 'Light' },
-                                            ]} />
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
-
-                                <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                    <div>
-                                        <Text strong>Expanded width</Text>
-                                        <Slider aria-label="Expanded sidebar width" min={180} max={360} value={draft.width} onChange={(value) => updateRoot('width', value)} />
-                                    </div>
-                                    <InputNumber aria-label="Expanded sidebar width in pixels" min={180} max={360} value={draft.width} onChange={(value) => updateRoot('width', value)} addonAfter="px" />
-                                </div>
-                                <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                    <div>
-                                        <Text strong>Collapsed width</Text>
-                                        <Slider aria-label="Collapsed sidebar width" min={48} max={120} value={draft.collapsedWidth} onChange={(value) => updateRoot('collapsedWidth', value)} />
-                                    </div>
-                                    <InputNumber aria-label="Collapsed sidebar width in pixels" min={48} max={120} value={draft.collapsedWidth} onChange={(value) => updateRoot('collapsedWidth', value)} addonAfter="px" />
-                                </div>
-                                <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                    <div>
-                                        <Text strong>Header height</Text>
-                                        <Slider aria-label="Header height" min={48} max={96} value={draft.headerHeight} onChange={(value) => updateRoot('headerHeight', value)} />
-                                    </div>
-                                    <InputNumber aria-label="Header height in pixels" min={48} max={96} value={draft.headerHeight} onChange={(value) => updateRoot('headerHeight', value)} addonAfter="px" />
-                                </div>
-
-                                <div className={SWITCH_GRID_CLASS}>
-                                    <label><Switch checked={draft.collapsible} onChange={(value) => updateRoot('collapsible', value)} /> Collapsible</label>
-                                    <label><Switch checked={draft.defaultCollapsed} disabled={!draft.collapsible} onChange={(value) => updateRoot('defaultCollapsed', value)} /> Start collapsed</label>
-                                    <label><Switch checked={draft.isGrouped} onChange={(value) => updateRoot('isGrouped', value)} /> Group navigation</label>
-                                </div>
-                            </Form>
-                        </Card>
-
-                        <Card className={CARD_CLASS} title={<><AppstoreOutlined /> Application &amp; Components</>}>
-                            <Row gutter={[16, 16]}>
-                                <Col xs={24} md={8}>
-                                    <Text className={FIELD_LABEL_CLASS}>Color mode</Text>
-                                    <Select
-                                        aria-label="Application color mode"
-                                        style={{ width: '100%' }}
-                                        value={draft.application.colorMode}
-                                        onChange={(value) => updateSection('application', 'colorMode', value)}
-                                        options={[
-                                            { value: 'light', label: 'Light' },
-                                            { value: 'dark', label: 'Dark' },
-                                            { value: 'system', label: 'Follow device' },
-                                        ]}
-                                    />
-                                </Col>
-                                <Col xs={24} md={8}>
-                                    <Text className={FIELD_LABEL_CLASS}>Component density</Text>
-                                    <Select
-                                        aria-label="Component density"
-                                        style={{ width: '100%' }}
-                                        value={draft.application.density}
-                                        onChange={(value) => updateSection('application', 'density', value)}
-                                        options={[
-                                            { value: 'compact', label: 'Compact' },
-                                            { value: 'comfortable', label: 'Comfortable' },
-                                            { value: 'spacious', label: 'Spacious' },
-                                        ]}
-                                    />
-                                </Col>
-                                <Col xs={24} md={8} className="flex min-h-[68px] flex-col justify-between">
-                                    <Text className={FIELD_LABEL_CLASS}>Interface motion</Text>
-                                    <Switch
-                                        checked={draft.application.motionEnabled}
-                                        checkedChildren="On"
-                                        unCheckedChildren="Off"
-                                        onChange={(value) => updateSection('application', 'motionEnabled', value)}
-                                    />
-                                </Col>
-                            </Row>
-                            <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                <div><Text strong>Corner radius</Text><Slider aria-label="Component corner radius" min={0} max={20} value={draft.application.borderRadius} onChange={(value) => updateSection('application', 'borderRadius', value)} /></div>
-                                <InputNumber aria-label="Component corner radius in pixels" min={0} max={20} value={draft.application.borderRadius} onChange={(value) => updateSection('application', 'borderRadius', value)} addonAfter="px" />
-                            </div>
-                            <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                <div><Text strong>Control height</Text><Slider aria-label="Component control height" min={28} max={52} value={draft.application.controlHeight} onChange={(value) => updateSection('application', 'controlHeight', value)} /></div>
-                                <InputNumber aria-label="Component control height in pixels" min={28} max={52} value={draft.application.controlHeight} onChange={(value) => updateSection('application', 'controlHeight', value)} addonAfter="px" />
-                            </div>
-                            <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                <div><Text strong>Base font size</Text><Slider aria-label="Base font size" min={12} max={18} value={draft.application.fontSize} onChange={(value) => updateSection('application', 'fontSize', value)} /></div>
-                                <InputNumber aria-label="Base font size in pixels" min={12} max={18} value={draft.application.fontSize} onChange={(value) => updateSection('application', 'fontSize', value)} addonAfter="px" />
-                            </div>
-                        </Card>
-
-                        <Card className={CARD_CLASS} title="Content & Workspace Header">
-                            <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                <div><Text strong>Content maximum width</Text><Slider aria-label="Content maximum width" min={960} max={2400} step={40} value={draft.content.maxWidth} onChange={(value) => updateSection('content', 'maxWidth', value)} /></div>
-                                <InputNumber aria-label="Content maximum width in pixels" min={960} max={2400} value={draft.content.maxWidth} onChange={(value) => updateSection('content', 'maxWidth', value)} addonAfter="px" />
-                            </div>
-                            <div className={BORDERED_SLIDER_ROW_CLASS}>
-                                <div><Text strong>Content padding</Text><Slider aria-label="Content padding" min={8} max={48} value={draft.content.padding} onChange={(value) => updateSection('content', 'padding', value)} /></div>
-                                <InputNumber aria-label="Content padding in pixels" min={8} max={48} value={draft.content.padding} onChange={(value) => updateSection('content', 'padding', value)} addonAfter="px" />
-                            </div>
-                            <div className={SWITCH_GRID_CLASS}>
-                                <label><Switch checked={draft.header.sticky} onChange={(value) => updateSection('header', 'sticky', value)} /> Sticky header</label>
-                                <label><Switch checked={draft.header.showSystemStatus} onChange={(value) => updateSection('header', 'showSystemStatus', value)} /> System status</label>
-                                <label><Switch checked={draft.header.showRole} onChange={(value) => updateSection('header', 'showRole', value)} /> Active role</label>
-                            </div>
-                        </Card>
-
-                        <Card className={CARD_CLASS} title="Brand & Navigation">
-                            <Row gutter={16}>
-                                <Col xs={24} md={12}>
-                                    <Text className={FIELD_LABEL_CLASS}>Application name</Text>
-                                    <Input aria-label="Application name" name="applicationName" autoComplete="off" value={draft.brand.name} maxLength={80} onChange={(event) => updateBrand('name', event.target.value)} />
-                                </Col>
-                                <Col xs={24} md={8}>
-                                    <Text className={FIELD_LABEL_CLASS}>Caption</Text>
-                                    <Input aria-label="Application caption" name="applicationCaption" autoComplete="off" value={draft.brand.caption} maxLength={80} onChange={(event) => updateBrand('caption', event.target.value)} />
-                                </Col>
-                                <Col xs={24} md={4}>
-                                    <Text className={FIELD_LABEL_CLASS}>Mark</Text>
-                                    <Input aria-label="Application mark" name="applicationMark" autoComplete="off" value={draft.brand.mark} maxLength={2} onChange={(event) => updateBrand('mark', event.target.value)} />
-                                </Col>
-                            </Row>
-                            <Row gutter={16} className="mt-4">
-                                <Col xs={24} md={8}>
-                                    <Text className={FIELD_LABEL_CLASS}>Group style</Text>
-                                    <Select aria-label="Navigation group style" style={{ width: '100%' }} value={draft.groupVariant} onChange={(value) => updateRoot('groupVariant', value)} options={[
-                                        { value: 'group', label: 'Section labels' },
-                                        { value: 'dropdown', label: 'Collapsible groups' },
-                                    ]} />
-                                </Col>
-                                <Col xs={24} md={16}>
-                                    <Text className={FIELD_LABEL_CLASS}>Pinned route</Text>
-                                    <Input aria-label="Pinned route" name="pinnedRoute" autoComplete="off" value={draft.bottomKey} onChange={(event) => updateRoot('bottomKey', event.target.value)} />
-                                </Col>
-                            </Row>
-                        </Card>
-
-                        <Card
-                            className={CARD_CLASS}
-                            title={<><BgColorsOutlined /> ADS Semantic Colors</>}
-                            extra={(
-                                <Segmented
-                                    aria-label="Palette to edit"
-                                    value={paletteMode}
-                                    onChange={setPaletteMode}
-                                    options={[
-                                        { value: 'light', label: 'Light palette' },
-                                        { value: 'dark', label: 'Dark palette' },
-                                    ]}
-                                />
-                            )}
-                        >
-                            <Paragraph className="!mb-4 !max-w-[720px] !text-[var(--ads-text-muted)]">
-                                These values feed the public <Text code>--ads-*</Text> contract. Component hover,
-                                focus, selected, and feedback states are derived automatically.
-                            </Paragraph>
-                            <div className="mb-4 flex flex-col gap-3 rounded-[var(--ads-radius-md)] border border-[var(--ads-border-subtle)] bg-[var(--ads-surface-raised)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex min-w-0 gap-3">
-                                    <FileTextOutlined className="mt-0.5 text-lg text-[var(--ads-accent)]" aria-hidden="true" />
-                                    <div>
-                                        <Text strong className="block">Theme pack CSV</Text>
-                                        <Text className="block text-xs !text-[var(--ads-text-muted)]">
-                                            Import all semantic tokens for both light and dark mode, or export the current pack as a template.
-                                        </Text>
-                                    </div>
-                                </div>
-                                <Space wrap>
-                                    <Button icon={<DownloadOutlined />} onClick={exportThemePack}>Export CSV</Button>
-                                    <Button icon={<UploadOutlined />} onClick={() => themePackInputRef.current?.click()}>Import CSV</Button>
-                                    <input
-                                        ref={themePackInputRef}
-                                        className="hidden"
-                                        type="file"
-                                        accept=".csv,text/csv"
-                                        onChange={importThemePack}
-                                    />
-                                </Space>
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                                {COLOR_FIELDS.map(([key, label]) => (
-                                    <div
-                                        className="flex min-w-0 flex-col gap-2 rounded-[var(--ads-radius-md)] border border-[var(--ads-border-subtle)] bg-[var(--ads-surface-raised)] p-3 [&_.ant-color-picker-trigger]:w-full [&_.ant-color-picker-trigger]:justify-start"
-                                        key={key}
-                                    >
-                                        <Text className="block text-xs font-medium leading-5 text-[var(--ads-text-muted)]">
-                                            {label}
-                                        </Text>
-                                        <ColorPicker
-                                            aria-label={`${label} color for the ${paletteMode} palette`}
-                                            value={draft[paletteMode === 'dark' ? 'darkColors' : 'colors'][key]}
-                                            showText
-                                            onChange={(_, css) => updateColor(key, css)}
-                                        />
-                                    </div>
+                <div className="flex min-w-0 flex-col gap-4">
+                    <section id="theme" aria-label="Theme" className={`${SECTION_CLASS} flex flex-col gap-3.5`}>
+                        <div className="flex flex-wrap items-center gap-4">
+                            <span className="flex overflow-hidden rounded-[var(--ads-radius-md)] border border-[var(--ads-border)]" aria-hidden="true">
+                                {['siderBg', 'contentBg', 'surfaceBg', 'accent', 'bodyText', 'success', 'warning', 'error'].map((token) => (
+                                    <span key={token} className="h-[52px] w-[22px]" style={{ background: palette[token] }} />
                                 ))}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <span className={CAPTION_CLASS}>Current theme</span>
+                                <div className="font-[family-name:var(--ads-font-heading)] text-[length:var(--ads-font-size-h4)] font-semibold leading-tight">{normalizedDraft.themeName}</div>
+                                <div className="text-[length:var(--ads-font-size-body-sm)] text-[var(--ads-text-muted)]">
+                                    {application.fonts.heading} headings · {application.fonts.body} body · {application.borderRadius}px corners
+                                </div>
                             </div>
-                        </Card>
-                    </Space>
-                </div>
-
-                <aside className="min-w-0 min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:col-span-6 min-[1200px]:self-start">
-                    <Card
-                        className={CARD_CLASS}
-                        title={<><EyeOutlined /> Live Preview</>}
-                    >
-                        <div
-                            className={`ads-theme ads-v1 grid min-h-[440px] overflow-hidden rounded-[var(--ads-radius-lg)] border border-[var(--ads-border)] shadow-[var(--ads-shadow-sm)] ${previewIsDark ? 'ads-dark' : ''}`}
-                            style={{
-                                ...previewStyle,
-                                background: previewColors.contentBg,
-                                gridTemplateColumns: draft.defaultCollapsed && draft.collapsible
-                                    ? '64px minmax(0, 1fr)'
-                                    : 'minmax(150px, 38%) minmax(0, 1fr)',
-                            }}
-                        >
-                            <aside
-                                className={`min-w-0 overflow-hidden p-3 ${draft.defaultCollapsed && draft.collapsible ? 'text-center' : ''}`}
-                                style={{ background: previewColors.siderBg, color: previewColors.textPrimary }}
-                            >
-                                <div className="mb-7 flex min-w-0 items-center gap-2">
-                                    <b className="grid size-[30px] shrink-0 place-items-center rounded-[var(--ads-radius-sm)] text-xs font-semibold" style={{ background: previewColors.accent, color: previewColors.accentText }}>{draft.brand.mark}</b>
-                                    {!(draft.defaultCollapsed && draft.collapsible) && <span className="min-w-0 text-left"><strong className="block truncate text-[11px]">{draft.brand.name}</strong><small className="block truncate text-[8px]" style={{ color: previewColors.textMuted }}>{draft.brand.caption}</small></span>}
-                                </div>
-                                {!(draft.defaultCollapsed && draft.collapsible) && <small className="mb-3 block text-left text-[8px] font-semibold tracking-[0.12em]" style={{ color: previewColors.textMuted }}>WORKSPACE</small>}
-                                {['Overview', 'Users', 'Permissions', 'Appearance'].map((label, index) => (
-                                    <div
-                                        className="my-0.5 flex min-h-[34px] items-center gap-2 rounded-[var(--ads-radius-sm)] border-l-2 border-transparent p-2 text-left text-[10px]"
-                                        key={label}
-                                        style={index === 3 ? { background: previewColors.itemActive, borderColor: previewColors.accent } : undefined}
-                                    >
-                                        {index === 3 && <CheckOutlined style={{ color: previewColors.accent }} />}
-                                        {!(draft.defaultCollapsed && draft.collapsible) && <span>{label}</span>}
-                                    </div>
-                                ))}
-                            </aside>
-                            <section className="min-w-0">
-                                <header className="flex h-12 items-center justify-between border-b px-4 text-[11px] font-semibold" style={{ background: previewColors.headerBg, borderColor: previewColors.strongBorder }}>
-                                    <span style={{ color: previewColors.bodyText }}>Appearance</span>
-                                    {draft.header.showSystemStatus && <i className="size-2 rounded-full" style={{ background: previewColors.success }} />}
-                                </header>
-                                <div
-                                    style={{ padding: Math.max(10, draft.content.padding / 2) }}
-                                >
-                                    <Card size="small" title="Monthly Overview" extra={<Tag color="success">Healthy</Tag>}>
-                                        <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                                            <Input name="appearancePreviewSearch" autoComplete="off" placeholder="Search transactions…" aria-label="Preview search input" />
-                                            <Progress percent={68} size="small" />
-                                            <Checkbox defaultChecked>Notify finance team</Checkbox>
-                                            <Space wrap>
-                                                <Button type="primary" size="small">Create Report</Button>
-                                                <Button size="small">Export</Button>
-                                            </Space>
-                                        </Space>
-                                    </Card>
-                                </div>
-                            </section>
                         </div>
-                        <Alert
-                            className="mt-3.5"
-                            type="info"
-                            showIcon
-                            title="Preview is local until you save"
-                            description="Saving validates the complete configuration, increments its version, and updates active sessions."
+
+                        <div className="flex flex-wrap items-center gap-3 border-t border-[var(--ads-border-subtle)] pt-3">
+                            <div className="min-w-[220px] flex-1">
+                                <RowLabel label="Colour mode for everyone" hint="People can still switch for themselves with the sun icon in the header." />
+                            </div>
+                            <Segmented
+                                aria-label="Colour mode for everyone"
+                                value={application.colorMode}
+                                disabled={readOnly}
+                                onChange={(value) => updateApplication('colorMode', value)}
+                                options={[
+                                    { value: 'light', label: 'Light', icon: <SunOutlined /> },
+                                    { value: 'dark', label: 'Dark', icon: <MoonOutlined /> },
+                                    { value: 'system', label: 'Follow device', icon: <DesktopOutlined /> },
+                                ]}
+                            />
+                        </div>
+
+                        {hasPreference && (
+                            <Alert
+                                type="info"
+                                showIcon
+                                title={`You have switched to ${mode} mode for yourself`}
+                                description="The colour mode chosen here applies to you again once you go back to the workspace setting."
+                                action={<Button size="small" onClick={clearPreference}>Use the workspace setting</Button>}
+                            />
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--ads-border-subtle)] pt-3">
+                            <Button icon={<UploadOutlined />} disabled={readOnly} onClick={() => themePackInputRef.current?.click()}>Import CSV</Button>
+                            <Button icon={<DownloadOutlined />} onClick={exportThemePack}>Export CSV</Button>
+                            <input ref={themePackInputRef} className="hidden" type="file" accept=".csv,text/csv" onChange={importThemePack} />
+                            <span className="ml-auto flex flex-wrap gap-1">
+                                <Tooltip title="Colours, fonts and sizes only; layout, sidebar and brand are kept">
+                                    <Button type="text" icon={<RollbackOutlined />} disabled={readOnly} onClick={resetTheme}>Reset to default theme</Button>
+                                </Tooltip>
+                                <Tooltip title="Theme, layout, sidebar and brand all go back to the defaults">
+                                    <Button type="text" danger disabled={readOnly} onClick={resetEverything}>Reset everything</Button>
+                                </Tooltip>
+                            </span>
+                        </div>
+                    </section>
+
+                    <section id="colours" aria-label="Colours" className={SECTION_CLASS}>
+                        <ColourSection
+                            draft={normalizedDraft}
+                            stored={storedConfig}
+                            mode={paletteMode}
+                            onModeChange={setPaletteMode}
+                            onColourChange={updateColour}
+                            disabled={readOnly}
                         />
-                    </Card>
+                    </section>
+
+                    <section id="text" aria-label="Text" className={`${SECTION_CLASS} flex flex-col gap-3.5`}>
+                        <SectionHeading title="Text" description="Fonts for each kind of text, and the base size everything scales from." />
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            {FONT_ROLES.map((role) => (
+                                <div key={role.key} className="flex min-w-0 flex-col gap-2 rounded-[var(--ads-radius-md)] border border-[var(--ads-border)] p-3">
+                                    <span className={CAPTION_CLASS}>{role.label}</span>
+                                    <span
+                                        className={`truncate ${role.key === 'heading' ? 'text-[length:var(--ads-font-size-h5)] font-semibold' : ''}`}
+                                        style={{ fontFamily: `"${application.fonts[role.key]}"` }}
+                                    >
+                                        {role.sample}
+                                    </span>
+                                    <Select aria-label={`${role.label} font`} value={application.fonts[role.key]} disabled={readOnly} onChange={(value) => updateFont(role.key, value)} options={FONT_OPTIONS} />
+                                </div>
+                            ))}
+                        </div>
+                        <SliderRow label="Base text size" hint="12–18 px" min={12} max={18} value={application.fontSize} disabled={readOnly} onChange={(value) => updateApplication('fontSize', value)} />
+                    </section>
+
+                    <section id="shape" aria-label="Shape and spacing" className={`${SECTION_CLASS} flex flex-col gap-3`}>
+                        <SectionHeading title="Shape & spacing" description="How rounded and how roomy buttons, fields and cards are." />
+                        <SliderRow
+                            label="Corner rounding"
+                            hint={application.borderRadius !== storedConfig.application.borderRadius ? `Changed from ${storedConfig.application.borderRadius} px` : '0–20 px'}
+                            min={0}
+                            max={20}
+                            value={application.borderRadius}
+                            disabled={readOnly}
+                            onChange={(value) => updateApplication('borderRadius', value)}
+                        />
+                        <SliderRow label="Field & button height" hint="28–52 px" min={28} max={52} value={application.controlHeight} disabled={readOnly} onChange={(value) => updateApplication('controlHeight', value)} />
+                        <SliderRow label="Page padding" hint="Space around the content of every page" min={8} max={48} value={normalizedDraft.content.padding} disabled={readOnly} onChange={(value) => updateSection('content', 'padding', value)} />
+                        <SliderRow label="Page width" hint="Widest the content gets on big screens" min={960} max={2400} step={40} value={normalizedDraft.content.maxWidth} disabled={readOnly} onChange={(value) => updateSection('content', 'maxWidth', value)} />
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Spacing" hint="Room inside tables and forms" />
+                            <Segmented
+                                aria-label="Spacing"
+                                className="justify-self-start"
+                                value={application.density}
+                                disabled={readOnly}
+                                onChange={(value) => updateApplication('density', value)}
+                                options={[{ value: 'compact', label: 'Compact' }, { value: 'comfortable', label: 'Comfortable' }, { value: 'spacious', label: 'Spacious' }]}
+                            />
+                        </div>
+                        <SwitchRow
+                            label="Animations"
+                            hint="Page fade-ins and drawer slides. Turned off automatically for people who ask their device for less motion."
+                            checked={application.motionEnabled}
+                            disabled={readOnly}
+                            onChange={(value) => updateApplication('motionEnabled', value)}
+                        />
+                    </section>
+
+                    <FoldedSection
+                        id="layout"
+                        title="Sidebar & header"
+                        summary={`${LAYOUT_STYLES.find((style) => style.value === normalizedDraft.variant)?.label ?? normalizedDraft.variant} layout · sidebar ${normalizedDraft.width} px wide · collapses to ${normalizedDraft.collapsedWidth} px · header ${normalizedDraft.headerHeight} px${normalizedDraft.header.sticky ? ' · sticky header' : ''}`}
+                        open={openFolds.has('layout')}
+                        onToggle={() => toggleFold('layout')}
+                    >
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Layout style" hint="How the menu and page are arranged" />
+                            <Select
+                                aria-label="Layout style"
+                                value={normalizedDraft.variant}
+                                disabled={readOnly}
+                                onChange={(value) => updateRoot('variant', value)}
+                                optionLabelProp="title"
+                                options={LAYOUT_STYLES.map((style) => ({
+                                    value: style.value,
+                                    title: style.label,
+                                    label: (
+                                        <span className="flex flex-col py-0.5">
+                                            <span className="font-medium">{style.label}</span>
+                                            <span className="whitespace-normal text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-muted)]">{style.hint}</span>
+                                        </span>
+                                    ),
+                                }))}
+                            />
+                        </div>
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Sidebar colour" hint="For every layout except Business, which follows light or dark mode" />
+                            <Segmented
+                                aria-label="Sidebar colour"
+                                className="justify-self-start"
+                                value={normalizedDraft.theme}
+                                disabled={readOnly || normalizedDraft.variant === 'business'}
+                                onChange={(value) => updateRoot('theme', value)}
+                                options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]}
+                            />
+                        </div>
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Collapse below" hint="The sidebar folds by itself on screens narrower than this" />
+                            <Select aria-label="Collapse below" className="max-w-[260px]" value={normalizedDraft.breakpoint} disabled={readOnly} onChange={(value) => updateRoot('breakpoint', value)} options={COLLAPSE_BREAKPOINTS} />
+                        </div>
+                        <SliderRow label="Sidebar width" min={180} max={360} value={normalizedDraft.width} disabled={readOnly} onChange={(value) => updateRoot('width', value)} />
+                        <SliderRow label="Collapsed sidebar width" min={48} max={120} value={normalizedDraft.collapsedWidth} disabled={readOnly} onChange={(value) => updateRoot('collapsedWidth', value)} />
+                        <SliderRow label="Header height" min={48} max={96} value={normalizedDraft.headerHeight} disabled={readOnly} onChange={(value) => updateRoot('headerHeight', value)} />
+                        <SwitchRow label="Collapsible sidebar" hint="Show the Collapse sidebar button" checked={normalizedDraft.collapsible} disabled={readOnly} onChange={(value) => updateRoot('collapsible', value)} />
+                        <SwitchRow label="Start collapsed" hint="Open the app with the sidebar narrow" checked={normalizedDraft.defaultCollapsed} disabled={readOnly || !normalizedDraft.collapsible} onChange={(value) => updateRoot('defaultCollapsed', value)} />
+                        <SwitchRow label="Group navigation" hint="Show section labels such as Business and Settings" checked={normalizedDraft.isGrouped} disabled={readOnly} onChange={(value) => updateRoot('isGrouped', value)} />
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Menu groups" hint="How the sections are shown when navigation is grouped" />
+                            <Segmented
+                                aria-label="Menu groups"
+                                className="justify-self-start"
+                                value={normalizedDraft.groupVariant}
+                                disabled={readOnly || !normalizedDraft.isGrouped}
+                                onChange={(value) => updateRoot('groupVariant', value)}
+                                options={[{ value: 'group', label: 'Section labels' }, { value: 'dropdown', label: 'Collapsible groups' }]}
+                            />
+                        </div>
+                        <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
+                            <RowLabel label="Pinned page" hint="Kept at the bottom of the sidebar, e.g. /admin/settings/system_logs" />
+                            <Input aria-label="Pinned page" name="pinnedPage" autoComplete="off" className="max-w-[360px]" value={draft.bottomKey} disabled={readOnly} onChange={(event) => updateRoot('bottomKey', event.target.value)} />
+                        </div>
+                        <SwitchRow label="Sticky header" hint="Keep search and reminders in view while scrolling" checked={normalizedDraft.header.sticky} disabled={readOnly} onChange={(value) => updateSection('header', 'sticky', value)} />
+                    </FoldedSection>
+
+                    <FoldedSection
+                        id="brand"
+                        title="Brand"
+                        summary={`“${normalizedDraft.brand.name}” · caption “${normalizedDraft.brand.caption}” · mark “${normalizedDraft.brand.mark}”`}
+                        open={openFolds.has('brand')}
+                        onToggle={() => toggleFold('brand')}
+                    >
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]">
+                            <label className="flex flex-col gap-1.5">
+                                <span className="font-medium">Name</span>
+                                <Input name="brandName" autoComplete="off" maxLength={80} value={draft.brand.name} disabled={readOnly} onChange={(event) => updateSection('brand', 'name', event.target.value)} />
+                            </label>
+                            <label className="flex flex-col gap-1.5">
+                                <span className="font-medium">Caption</span>
+                                <Input name="brandCaption" autoComplete="off" maxLength={80} value={draft.brand.caption} disabled={readOnly} onChange={(event) => updateSection('brand', 'caption', event.target.value)} />
+                            </label>
+                            <label className="flex flex-col gap-1.5">
+                                <span className="font-medium">Mark</span>
+                                <Input name="brandMark" autoComplete="off" maxLength={2} value={draft.brand.mark} disabled={readOnly} onChange={(event) => updateSection('brand', 'mark', event.target.value)} />
+                            </label>
+                        </div>
+                        <p className="m-0 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-muted)]">Shown at the top of the sidebar. The mark is one or two letters in the coloured square.</p>
+                    </FoldedSection>
+                </div>
+
+                <aside aria-label="Live preview" className="flex min-w-0 flex-col gap-2.5 min-[900px]:col-start-2 min-[1200px]:sticky min-[1200px]:top-[76px] min-[1200px]:col-start-3 min-[1200px]:row-start-1">
+                    <div className="flex items-center gap-2">
+                        <span className={`${CAPTION_CLASS} flex-1`}>Live preview · {paletteMode}</span>
+                        <span className="text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-subtle)]">Only you see this</span>
+                    </div>
+                    <AppearancePreview config={normalizedDraft} isDark={paletteMode === 'dark'} />
+                    <div className="flex items-center gap-2 rounded-[var(--ads-radius-md)] border border-[var(--ads-border)] bg-[var(--ads-surface)] px-2.5 py-2">
+                        <EyeOutlined className="text-[var(--ads-text-muted)]" />
+                        <span className="flex-1 text-[length:var(--ads-font-size-body-sm)] text-[var(--ads-text-muted)]">Preview in</span>
+                        <Segmented size="small" aria-label="Preview palette" value={paletteMode} onChange={setPaletteMode} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+                    </div>
                 </aside>
             </div>
+
+            {isDirty && !readOnly && (
+                <div role="status" className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-[var(--ads-radius-lg)] bg-[var(--ads-text-heading)] px-4 py-2.5 text-[var(--ads-canvas)] shadow-[var(--ads-shadow-md)]">
+                    <i className="size-2 shrink-0 rounded-full bg-[var(--ads-warning)]" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                        <div className="font-semibold">{changes.length || 1} unsaved change{changes.length === 1 ? '' : 's'}</div>
+                        {changedLabels.length > 0 && (
+                            <div className="truncate text-[length:var(--ads-font-size-body-sm)] opacity-75">
+                                {changedLabels.slice(0, 4).join(' · ')}{changedLabels.length > 4 ? ` and ${changedLabels.length - 4} more` : ''}
+                            </div>
+                        )}
+                    </div>
+                    <Button ghost disabled={saving} onClick={() => setDraft(storedConfig)} className="!border-[color-mix(in_srgb,var(--ads-canvas)_35%,transparent)] !text-[var(--ads-canvas)]">Discard</Button>
+                    <Button
+                        icon={<CheckOutlined />}
+                        loading={saving}
+                        onClick={save}
+                        className="!border-transparent !bg-[color-mix(in_srgb,var(--ads-accent)_45%,var(--ads-canvas))] !font-semibold !text-[var(--ads-text-heading)]"
+                    >
+                        Save for everyone
+                    </Button>
+                </div>
+            )}
         </main>
     );
 }

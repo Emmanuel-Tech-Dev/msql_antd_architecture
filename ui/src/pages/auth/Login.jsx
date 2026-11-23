@@ -11,9 +11,20 @@ import { useLocation, useNavigate } from "react-router-dom";
 import useLogin from "../../core/hooks/auth/useLogin";
 import useGoogleLogin from "../../core/hooks/auth/useGoogleLogin";
 import useNotification from "../../hooks/useNotification";
+import { useCustom } from "../../core/hooks/data/useCustom";
 import { resolvePostLoginPath } from "../../core/navigation/routeResolver";
 
 const { Text, Title } = Typography;
+
+// How each sign-in column the server accepts is described to the user.
+const IDENTIFIER_FIELDS = {
+  email: { label: "email", example: "you@company.com" },
+  custom_id: { label: "registration number", example: "REG-000123" },
+  phone_no: { label: "phone number", example: "024 123 4567" },
+};
+
+const listPhrase = (words) =>
+  words.length > 1 ? `${words.slice(0, -1).join(", ")} or ${words.at(-1)}` : words[0] ?? "";
 
 const flow = [
   ["01", "Capture", "Every request begins in one accountable queue."],
@@ -26,10 +37,15 @@ export default function Login() {
   const location = useLocation();
   const { AlertJsx, message } = useNotification();
   const from = resolvePostLoginPath(location.state?.from);
+  const { data: loginOptions } = useCustom({ url: "auth/login_options", unwrap: true });
+  const identifierFields = (loginOptions?.data?.identifiers ?? ["email", "custom_id"])
+    .map((column) => IDENTIFIER_FIELDS[column] ?? { label: column.replaceAll("_", " "), example: "" });
+  const identifierPhrase = listPhrase(identifierFields.map((field) => field.label));
+  const identifierLabel = identifierPhrase.charAt(0).toUpperCase() + identifierPhrase.slice(1);
 
   const finishLogin = (response) => {
     if (response?.forcedPasswordChange) {
-      navigate("/change_password", { replace: true, state: { from } });
+      navigate("/change_password", { replace: true, state: { from, required: true } });
       return;
     }
     navigate(from, { replace: true });
@@ -69,16 +85,16 @@ export default function Login() {
         className="relative flex min-h-[360px] flex-col justify-between overflow-hidden bg-[var(--ads-surface-raised)] px-5 py-6 sm:min-h-[420px] sm:px-7 sm:py-8 lg:min-h-dvh lg:p-[clamp(30px,4.7vw,72px)]"
         aria-label="Helpdesk introduction"
       >
-        <div className="relative z-[1] flex items-center gap-3 font-[var(--font-display)] text-[15px] font-semibold tracking-[-0.02em]">
+        <div className="relative z-[1] flex items-center gap-3 font-[var(--font-display)] text-[length:var(--ads-font-size-body)] font-semibold tracking-[-0.02em]">
           <span className="grid size-[38px] place-items-center rounded-[var(--ads-radius-md)] bg-[var(--ads-accent)] text-[var(--ads-text-inverse)]" aria-hidden="true">H</span>
           <span>Helpdesk</span>
-          <span className="hidden border-l border-[var(--ads-border-subtle)] pl-3 font-[var(--font-mono)] text-[9px] font-medium uppercase tracking-[0.11em] text-[var(--ads-text-muted)] sm:inline">
+          <span className="hidden border-l border-[var(--ads-border-subtle)] pl-3 font-[var(--font-mono)] text-[length:var(--ads-font-size-caption)] font-medium uppercase tracking-[0.11em] text-[var(--ads-text-muted)] sm:inline">
             Support operations
           </span>
         </div>
 
         <div className="relative z-[1] my-12 w-full max-w-[650px] lg:my-[clamp(58px,9vh,110px)] lg:mb-12">
-          <Text className="!font-[var(--font-mono)] !text-[10px] !font-semibold !tracking-[0.15em] !text-[var(--ads-accent)]">
+          <Text className="!font-[var(--font-mono)] !text-[length:var(--ads-font-size-caption)] !font-semibold !tracking-[0.15em] !text-[var(--ads-accent)]">
             ONE QUEUE / SHARED CONTEXT
           </Text>
           <Title
@@ -95,17 +111,17 @@ export default function Login() {
           <div className="mt-8 grid max-w-[580px] grid-cols-3 gap-4 border-t border-[var(--ads-border-subtle)] lg:mt-[clamp(42px,6vh,70px)] lg:grid-cols-1 lg:gap-0" aria-label="Support workflow">
             {flow.map(([number, title, description]) => (
               <div className="grid grid-cols-1 gap-2 py-3 lg:grid-cols-[42px_1fr] lg:gap-[10px] lg:border-b lg:border-[var(--ads-border-subtle)] lg:py-[15px]" key={number}>
-                <span className="font-[var(--font-mono)] text-[9px] text-[var(--ads-accent)] lg:pt-0.5">{number}</span>
+                <span className="font-[var(--font-mono)] text-[length:var(--ads-font-size-caption)] text-[var(--ads-accent)] lg:pt-0.5">{number}</span>
                 <div>
-                  <strong className="block text-[13px] font-semibold text-[var(--ads-text-heading)]">{title}</strong>
-                  <p className="mt-1 hidden text-xs leading-[1.45] text-[var(--ads-text-muted)] lg:block">{description}</p>
+                  <strong className="block text-[length:var(--ads-font-size-body-sm)] font-semibold text-[var(--ads-text-heading)]">{title}</strong>
+                  <p className="mt-1 hidden text-[length:var(--ads-font-size-caption)] leading-[1.45] text-[var(--ads-text-muted)] lg:block">{description}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-[1] hidden items-center justify-between border-t border-[var(--ads-border-subtle)] pt-5 font-[var(--font-mono)] text-[9px] tracking-[0.1em] text-[var(--ads-text-subtle)] lg:flex">
+        <div className="relative z-[1] hidden items-center justify-between border-t border-[var(--ads-border-subtle)] pt-5 font-[var(--font-mono)] text-[length:var(--ads-font-size-caption)] tracking-[0.1em] text-[var(--ads-text-subtle)] lg:flex">
           <span>PROTECTED WORKSPACE</span>
           <strong className="font-medium tracking-[0.04em] text-[var(--ads-text-muted)]">
             <i className="mr-[7px] inline-block size-[7px] rounded-full bg-[var(--ads-success)]" aria-hidden="true" />
@@ -127,7 +143,7 @@ export default function Login() {
           <div className="mb-[26px] flex items-start gap-[15px] lg:mb-[30px]">
             <span className="grid size-[42px] shrink-0 place-items-center rounded-[var(--ads-radius-md)] bg-[var(--ads-accent-soft)] text-base text-[var(--ads-accent)]" aria-hidden="true"><LockOutlined /></span>
             <div>
-              <Text className="!font-[var(--font-mono)] !text-[10px] !font-semibold !tracking-[0.15em] !text-[var(--ads-accent)]">SECURE ACCESS</Text>
+              <Text className="!font-[var(--font-mono)] !text-[length:var(--ads-font-size-caption)] !font-semibold !tracking-[0.15em] !text-[var(--ads-accent)]">SECURE ACCESS</Text>
               <Title id="login-title" level={2} className="!mb-0.5 !mt-1 !text-[30px] !tracking-[-0.035em] !text-[var(--ads-text-heading)]">Welcome back</Title>
               <Text type="secondary">Sign in to enter your support workspace.</Text>
             </div>
@@ -153,27 +169,26 @@ export default function Login() {
             />
           </div>
 
-          <Divider plain className="!my-6 !border-[var(--ads-border-subtle)] !text-[10px] !tracking-[0.04em] !text-[var(--ads-text-subtle)]">or continue with email</Divider>
+          <Divider plain className="!my-6 !border-[var(--ads-border-subtle)] !text-[length:var(--ads-font-size-caption)] !tracking-[0.04em] !text-[var(--ads-text-subtle)]">or continue with your account details</Divider>
 
           <Form
-            className="[&_.ant-form-item]:!mb-[18px] [&_.ant-form-item-label>label]:!text-xs [&_.ant-form-item-label>label]:!font-semibold [&_.ant-input-affix-wrapper]:!min-h-12 [&_.ant-input-affix-wrapper]:!rounded-[var(--ads-radius-md)] [&_.ant-input-prefix]:!mr-2.5"
+            className="[&_.ant-form-item]:!mb-[18px] [&_.ant-form-item-label>label]:!text-[length:var(--ads-font-size-body-sm)] [&_.ant-form-item-label>label]:!font-semibold [&_.ant-input-affix-wrapper]:!min-h-12 [&_.ant-input-affix-wrapper]:!rounded-[var(--ads-radius-md)] [&_.ant-input-prefix]:!mr-2.5"
             layout="vertical"
             onFinish={(values) => passwordLogin.mutate(values)}
             requiredMark={false}
             size="large"
           >
             <Form.Item
-              name="email"
-              label="Email address"
+              name="identifier"
+              label={identifierLabel}
               rules={[
-                { required: true, message: "Email is required" },
-                { type: "email", message: "Enter a valid email" },
+                { required: true, message: `Enter your ${identifierPhrase}` },
               ]}
             >
               <Input
                 prefix={<MailOutlined />}
-                placeholder="you@company.com"
-                autoComplete="email"
+                placeholder={listPhrase(identifierFields.map((field) => field.example).filter(Boolean))}
+                autoComplete="username"
               />
             </Form.Item>
 
@@ -192,7 +207,7 @@ export default function Login() {
             <div className="-mt-1">
               <Button
                 type="link"
-                className="!mb-[18px] !ml-auto !block !h-auto !p-0 !text-xs"
+                className="!mb-[18px] !ml-auto !block !h-auto !p-0 !text-[length:var(--ads-font-size-body-sm)]"
                 onClick={() => navigate("/init_psd_recovery")}
               >
                 Forgot password?
@@ -211,7 +226,7 @@ export default function Login() {
           </Form>
 
           <Button
-            className="!mt-[13px] !h-[42px] !rounded-[var(--ads-radius-md)] !text-xs !font-semibold"
+            className="!mt-[13px] !h-[42px] !rounded-[var(--ads-radius-md)] !text-[length:var(--ads-font-size-body-sm)] !font-semibold"
             type="text"
             block
             icon={<SafetyOutlined />}
@@ -220,7 +235,7 @@ export default function Login() {
             Use a one-time email code instead
           </Button>
 
-          <Text className="mx-auto mt-[22px] block max-w-[350px] text-center !text-[10px] !leading-[1.55] !text-[var(--ads-text-subtle)]">
+          <Text className="mx-auto mt-[22px] block max-w-[350px] text-center !text-[length:var(--ads-font-size-caption)] !leading-[1.55] !text-[var(--ads-text-subtle)]">
             Sign-in activity is monitored to keep your account and customer data secure.
           </Text>
         </div>

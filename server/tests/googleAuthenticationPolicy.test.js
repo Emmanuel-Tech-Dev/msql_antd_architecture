@@ -11,6 +11,7 @@ const joinedQuery = (...results) => {
   const query = {
     join: jest.fn(() => query),
     where: jest.fn(() => query),
+    limit: jest.fn(() => query),
     execute,
   };
 
@@ -20,7 +21,7 @@ const joinedQuery = (...results) => {
 const makeService = () => {
   const service = Object.create(AuthService.prototype);
   service.IDPREFIX = "USR";
-  service.settings = { get: jest.fn(async () => "USR") };
+  service.settings = { get: jest.fn(async () => "USR"), fetchFromDB: jest.fn(async () => null) };
   service.verifyGoogleAuthToken = jest.fn(async () => ({
     sub: "google-subject",
     email: "New.User@example.com",
@@ -125,7 +126,10 @@ describe("Google authentication account policy", () => {
       },
     ]);
 
-    service.model = { multiSelect: jest.fn(() => query) };
+    service.model = {
+      multiSelect: jest.fn(() => query),
+      getUniqueColumns: jest.fn(async () => ["id", "custom_id", "email"]),
+    };
 
     await expect(
       service.login({ email: "new.user@example.com", password: "attempt" }, {}),

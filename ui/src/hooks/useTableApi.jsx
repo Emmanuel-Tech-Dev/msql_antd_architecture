@@ -150,6 +150,24 @@ const useTableApi = (
         if (!isOffline) refetch();
     }, [refetch, isOffline]);
 
+    const setFilter = useCallback((field, value) => {
+        const nextFilters = { ...(state.tableParams.filters ?? {}) };
+        if (value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)) {
+            delete nextFilters[field];
+        } else {
+            nextFilters[field] = value;
+        }
+        state.setFilters(nextFilters);
+    }, [state]);
+
+    const clearFilter = useCallback((field) => {
+        const nextFilters = { ...(state.tableParams.filters ?? {}) };
+        delete nextFilters[field];
+        state.setFilters(nextFilters);
+    }, [state]);
+
+    const clearAllFilters = useCallback(() => state.setFilters({}), [state]);
+
     // ── Resolve final dataSource and pagination for tableProps ────────────────
     const dataSource = isOffline
         ? (processedOfflineData?.data ?? [])
@@ -195,6 +213,9 @@ const useTableApi = (
         handleGlobalSearch,
         setPage: state.setPage,
         setFilters: state.setFilters,
+        setFilter,
+        clearFilter,
+        clearAllFilters,
         setSorter: state.setSorter,
         resetParams: state.resetParams,
 

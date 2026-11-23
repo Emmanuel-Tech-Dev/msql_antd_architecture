@@ -9,7 +9,7 @@ const Header = ({ palette = financePalette }) => {
                 <div className="relative w-full">
                     <SearchOutlined className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: palette?.outline }} />
                     <input
-                        className="w-full rounded border bg-white py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-[#1e00a9]"
+                        className="w-full rounded border bg-white py-2 pl-9 pr-3 text-sm outline-none transition-colors focus:border-[var(--ads-accent)]"
                         style={{ borderColor: palette?.outlineVariant }}
                         placeholder="Search portfolios, tickers..."
                     />

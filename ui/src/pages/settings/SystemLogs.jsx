@@ -230,7 +230,7 @@ export default function SystemLogs() {
             }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>System Logs</h2>
-                    <p style={{ margin: 0, color: '#8c8c8c', fontSize: 13 }}>
+                    <p style={{ margin: 0, color: 'var(--ads-text-muted)', fontSize: 13 }}>
                         Browse and search application log files
                     </p>
                 </div>
@@ -366,7 +366,7 @@ export default function SystemLogs() {
                         <div>
                             <Text type="secondary" style={{ fontSize: 12 }}>Message</Text>
                             <div style={{
-                                background: '#f5f5f5',
+                                background: 'var(--ads-surface-sunken)',
                                 padding: '8px 12px',
                                 borderRadius: 4,
                                 marginTop: 4,
@@ -383,7 +383,7 @@ export default function SystemLogs() {
                                 <div>
                                     <Text type="secondary" style={{ fontSize: 12 }}>Metadata</Text>
                                     <pre style={{
-                                        background: '#f5f5f5',
+                                        background: 'var(--ads-surface-sunken)',
                                         padding: '8px 12px',
                                         borderRadius: 4,
                                         marginTop: 4,
@@ -408,12 +408,12 @@ export default function SystemLogs() {
                             <div>
                                 <Text type="secondary" style={{ fontSize: 12 }}>Stack Trace</Text>
                                 <pre style={{
-                                    background: '#fff1f0',
+                                    background: 'var(--ads-danger-soft)',
                                     padding: '8px 12px',
                                     borderRadius: 4,
                                     marginTop: 4,
                                     fontSize: 11,
-                                    color: '#cf1322',
+                                    color: 'var(--ads-danger)',
                                     overflow: 'auto',
                                     maxHeight: 300,
                                     whiteSpace: 'pre-wrap',
@@ -429,8 +429,8 @@ export default function SystemLogs() {
             </Drawer>
 
             <style>{`
-                .log-row-error td { background: #fff1f0 !important; }
-                .log-row-warn  td { background: #fffbe6 !important; }
+                .log-row-error td { background: var(--ads-danger-soft) !important; }
+                .log-row-warn  td { background: var(--ads-warning-soft) !important; }
             `}</style>
         </div>
     );

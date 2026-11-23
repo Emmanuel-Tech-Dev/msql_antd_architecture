@@ -27,6 +27,20 @@ class Model extends QueryBuilder {
     return rows.find((row) => row.Key === "PRI")?.Field ?? null;
   }
 
+  // Columns that alone identify one row: each is the only column of a
+  // primary or unique key.
+  async getUniqueColumns(table) {
+    const [rows] = await this.pool.query(`SHOW INDEX FROM \`${table}\``);
+    const keys = new Map();
+    for (const row of rows) {
+      if (Number(row.Non_unique) !== 0) continue;
+      keys.set(row.Key_name, [...(keys.get(row.Key_name) ?? []), row.Column_name]);
+    }
+    return [...keys.values()]
+      .filter((columns) => columns.length === 1)
+      .map(([column]) => column);
+  }
+
   async execute() {
     try {
       const joins = this.buildJoins();
@@ -47,7 +61,7 @@ class Model extends QueryBuilder {
         operation: "execute",
         parameterCount: this.params.length,
       });
-      throw new Error(`Database query failed: ${error.message}`);
+      throw error;
     }
   }
 
@@ -472,20 +486,10 @@ class Model extends QueryBuilder {
       );
     }
 
-    // Clone current query to count total
-    const countQuery = this.query;
-    const countParams = [...this.params];
-
-    // Get total count (without LIMIT / OFFSET)
-    const totalQuery = utils.buildQuery(
-      countQuery.replace(
-      /SELECT .+ FROM/i,
-      "SELECT COUNT(*) as total FROM",
-      ),
-      this.buildJoins(),
-    );
-
-    const [countResult] = await this.pool.query(totalQuery, countParams);
+    // Total rows before LIMIT/OFFSET, counted from the built query so joins,
+    // subquery columns and GROUP BY are all taken into account.
+    const totalQuery = utils.countQuery(utils.buildQuery(this.query, this.buildJoins()));
+    const [countResult] = await this.pool.query(totalQuery, [...this.params]);
     const total = countResult[0].total;
 
     // Apply pagination
@@ -522,7 +526,7 @@ class Model extends QueryBuilder {
         operation: "raw",
         parameterCount: params.length,
       });
-      throw new Error(`Database query failed: ${error.message}`);
+      throw error;
     }
   }
 
@@ -537,13 +541,14 @@ class Model extends QueryBuilder {
   // Get count of rows
 
   async count(column = "*") {
-    const originalQuery = this.query;
-    this.query = this.query.replace(
-      /SELECT .+ FROM/,
-      `SELECT COUNT(${this.quoteIdentifier(column)}) as count FROM`,
+    const countSql = utils.countQuery(
+      utils.buildQuery(this.query, this.buildJoins()),
+      `COUNT(${this.quoteIdentifier(column)})`,
+      "count",
     );
-    const result = await this.execute();
-    return result[0].count;
+    const [rows] = await this.pool.query(countSql, this.params);
+    this.reset();
+    return rows[0].count;
   }
 
   //Check if record exists
@@ -551,6 +556,42 @@ class Model extends QueryBuilder {
   async exists() {
     const count = await this.count();
     return count > 0;
+  }
+
+  // The helper Model.transaction() passes to its callback, for a connection
+  // that is already inside a transaction. Shared helpers that receive a
+  // caller's connection (audit entries, custom fields, document numbers) use
+  // it to build their queries on that same connection.
+  static transactionHelper(connection) {
+    return {
+      // The transaction's own connection, for helpers that take one and for
+      // statements the builder cannot express. Anything run on it is part
+      // of this transaction.
+      connection,
+
+      query: async (sql, params = []) => {
+        const [rows] = await connection.query(sql, params);
+        return rows;
+      },
+
+      // Allow QueryBuilder usage in transactions
+      builder: () => {
+        const builder = new QueryBuilder();
+        builder.executeInTransaction = async () => {
+          const finalQuery = utils.buildQuery(
+            builder.query,
+            builder.buildJoins(),
+          );
+          const [rows] = await connection.query(
+            finalQuery,
+            builder.params,
+          );
+          builder.reset();
+          return rows;
+        };
+        return builder;
+      },
+    };
   }
 
   /**
@@ -563,43 +604,31 @@ class Model extends QueryBuilder {
     try {
       await connection.beginTransaction();
 
-      // Pass a transaction helper object to the callback
-      const txHelper = {
-        query: async (sql, params = []) => {
-          const [rows] = await connection.query(sql, params);
-          return rows;
-        },
-
-        // Allow QueryBuilder usage in transactions
-        builder: () => {
-          const builder = new QueryBuilder();
-          builder.executeInTransaction = async () => {
-            const finalQuery = utils.buildQuery(
-              builder.query,
-              builder.buildJoins(),
-            );
-            const [rows] = await connection.query(
-              finalQuery,
-              builder.params,
-            );
-            builder.reset();
-            return rows;
-          };
-          return builder;
-        },
-      };
+      const txHelper = Model.transactionHelper(connection);
 
       const result = await callback(txHelper);
       await connection.commit();
 
       return result;
     } catch (error) {
-      await connection.rollback();
-      logger.error(error, {
-        component: "Model",
-        operation: "transaction",
-      });
-      throw new Error(`Transaction failed: ${error.message}`);
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        // A cleanup failure must not replace the error that caused the rollback.
+        logger.error(rollbackError, {
+          component: "Model",
+          operation: "transaction.rollback",
+        });
+      }
+      // Expected refusals (AppError) are reported by the error handler;
+      // only unexpected failures are logged here.
+      if (!error?.isOperational) {
+        logger.error(error, {
+          component: "Model",
+          operation: "transaction",
+        });
+      }
+      throw error;
     } finally {
       connection.release();
     }

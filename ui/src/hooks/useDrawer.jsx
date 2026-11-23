@@ -86,7 +86,9 @@ const useDrawer = (staticConfig = {}) => {
             mask={staticConfig.mask ?? true}
             keyboard={staticConfig.keyboard ?? true}
             zIndex={staticConfig.zIndex ?? 1000}
-            size={width || staticConfig.size}
+            width={width}
+            height={height}
+            size={staticConfig.size}
             push={staticConfig.push}
             destroyOnClose={staticConfig.destroyOnClose ?? false}
             rootClassName={staticConfig.rootClassName}
@@ -110,7 +112,7 @@ const useDrawer = (staticConfig = {}) => {
         >
             {localContent || content}
         </Drawer>
-    ), [open, title, content, extra, footer, loading, width, closeDrawer, staticConfig, resizableConfig]);
+    ), [open, title, content, extra, footer, loading, width, height, closeDrawer, staticConfig, resizableConfig]);
 
     return {
         open,

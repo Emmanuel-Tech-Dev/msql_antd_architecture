@@ -116,6 +116,15 @@ class AuthRoute {
   }
 
   login(app) {
+    // Public: the sign-in page words its field from the accepted identifiers.
+    app.get("/auth/login_options", async (req, res) => {
+      res.status(200).json({
+        status: "ok",
+        message: "Operation Successful!",
+        data: { identifiers: await this.auth.loginIdentifierColumns() },
+      });
+    });
+
     app.post("/auth/login", async (req, res) => {
       const record = req.body;
 
@@ -313,7 +322,26 @@ class AuthRoute {
       authorization,
       validateRequest(authSchema.createAdmin),
       async (req, res) => {
-        const createdUser = await this.auth.createAdminUser(req.body);
+        const requestedRole = String(req.body?.role ?? "User").trim();
+        const additionalPermissions = Array.isArray(req.body?.additional_permissions)
+          ? req.body.additional_permissions
+          : [];
+        const customizesSystemAuthority =
+          requestedRole.toLowerCase() !== "user" || additionalPermissions.length > 0;
+        if (
+          customizesSystemAuthority
+          && !req.isPrivileged
+          && !(req.permissions ?? []).includes("manage:user_authority")
+        ) {
+          throw new AppError(
+            "ERR_ACCESS_DENIED",
+            "You are not allowed to customize system authority during user creation",
+          );
+        }
+        const createdUser = await this.auth.createAdminUser(
+          req.body,
+          { actorUserId: req.user.sub },
+        );
         log.security("Administrator account created", {
           requestId: req.requestId,
           actorUserId: req.user.sub,
@@ -324,8 +352,32 @@ class AuthRoute {
         res.status(201).json({
           status: "ok",
           message: "User created successfully",
-          details: "The temporary password is the user's email address",
+          details: "Give the user their temporary password. It is shown only once, and they must change it when they first sign in.",
           data: createdUser,
+        });
+      },
+    );
+
+    // An administrator gives a user who forgot their password a new
+    // temporary one (no email or SMS needed). Returned once, never stored.
+    app.post(
+      "/auth/users/:userId/temporary_password",
+      authMiddleWare,
+      authorization,
+      async (req, res) => {
+        const userId = String(req.params.userId ?? "").trim();
+        if (!userId) throw new AppError("ERR_MISSING_REQUIRED_FIELD");
+        const result = await this.auth.resetTemporaryPassword(userId);
+        log.security("Temporary password issued by an administrator", {
+          requestId: req.requestId,
+          actorUserId: req.user.sub,
+          targetUserId: result.custom_id,
+        });
+        res.status(200).json({
+          status: "ok",
+          message: `New temporary password for ${result.name}`,
+          details: "Shown only once. They are signed out everywhere and must choose a new password when they sign in.",
+          data: result,
         });
       },
     );

@@ -1,6 +1,18 @@
 const subscribers = new Map();
 const { emitToAll, emitToUsers } = require("../realtime/socketServer");
 
+function normalizeUserIds(userIds) {
+  const values = userIds == null
+    ? []
+    : Array.isArray(userIds)
+      ? userIds
+      : typeof userIds !== "string" && typeof userIds[Symbol.iterator] === "function"
+        ? [...userIds]
+        : [userIds];
+
+  return [...new Set(values.filter(Boolean).map(String))];
+}
+
 function writeEvent(response, event, payload) {
   response.write(`event: ${event}\n`);
   response.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -32,7 +44,7 @@ function subscribe(userId, request, response) {
 }
 
 function publish(userIds, reason) {
-  const uniqueIds = new Set((userIds ?? []).filter(Boolean).map(String));
+  const uniqueIds = normalizeUserIds(userIds);
   const payload = { reason, changedAt: new Date().toISOString() };
   emitToUsers(uniqueIds, "access:changed", payload);
 
@@ -71,4 +83,4 @@ const heartbeat = setInterval(() => {
 }, 25_000);
 heartbeat.unref();
 
-module.exports = { broadcast, publish, subscribe };
+module.exports = { broadcast, normalizeUserIds, publish, subscribe };

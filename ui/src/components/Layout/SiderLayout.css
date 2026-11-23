@@ -1,0 +1,389 @@
+.business-shell {
+  background: var(--color-bg-layout);
+}
+
+.business-sider.ant-layout-sider {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--business-sider-bg) !important;
+  border-right: 1px solid var(--business-sider-border);
+  box-shadow: 8px 0 30px color-mix(in srgb, var(--business-sider-text) 8%, transparent);
+}
+
+.business-sider__inner {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.business-sider__brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--business-sider-border) 78%, transparent);
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__brand {
+  justify-content: center;
+  padding-inline: 12px;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__brand > * {
+  justify-content: center;
+}
+
+.business-sider__workspace {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 11px;
+  margin: 14px 12px 10px;
+  padding: 9px 10px;
+  overflow: hidden;
+  color: var(--business-sider-text);
+  background: color-mix(in srgb, var(--business-sider-text) 4%, var(--business-sider-bg));
+  border: 1px solid color-mix(in srgb, var(--business-sider-border) 88%, transparent);
+  border-radius: 8px;
+  box-shadow: var(--ads-shadow-xs);
+}
+
+.business-sider__workspace.is-collapsed {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  justify-content: center;
+  margin: 12px auto 10px;
+  padding: 0;
+}
+
+.business-sider__workspace-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: var(--business-sider-accent);
+  background: color-mix(in srgb, var(--business-sider-accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--business-sider-accent) 28%, transparent);
+  border-radius: 7px;
+  font-size: 15px;
+}
+
+.business-sider__workspace-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.business-sider__workspace-copy small,
+.business-sider__section-label {
+  color: var(--business-sider-muted);
+  font-family: var(--font-caption, "Geist", sans-serif);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.business-sider__workspace-copy strong {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--business-sider-text);
+  font-family: var(--font-heading, "Funnel Sans", sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-sider__section-label {
+  padding: 4px 20px 6px;
+}
+
+.business-sider__navigation {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 8px 10px;
+}
+
+.business-sider__menu.ant-menu {
+  color: var(--business-sider-muted) !important;
+  background: transparent !important;
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+.business-sider__menu.ant-menu .ant-menu-item,
+.business-sider__menu.ant-menu .ant-menu-submenu-title {
+  width: calc(100% - 4px);
+  height: 40px;
+  margin: 2px;
+  padding-inline: 12px !important;
+  color: var(--business-sider-muted) !important;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 40px;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.business-sider__menu.ant-menu .ant-menu-item .anticon,
+.business-sider__menu.ant-menu .ant-menu-submenu-title .anticon {
+  min-width: 18px;
+  color: currentColor;
+  font-size: 15px;
+}
+
+.business-sider__menu.ant-menu .ant-menu-item:hover,
+.business-sider__menu.ant-menu .ant-menu-submenu-title:hover {
+  color: var(--business-sider-text) !important;
+  background: var(--business-sider-hover) !important;
+}
+
+.business-sider__menu.ant-menu .ant-menu-item-selected {
+  color: var(--business-sider-accent) !important;
+  background: var(--business-sider-active) !important;
+  font-weight: 600;
+}
+
+.business-sider__menu.ant-menu .ant-menu-item-selected::after {
+  inset-inline-end: 0;
+  border-inline-end: 3px solid var(--business-sider-accent);
+  border-radius: 3px 0 0 3px;
+  opacity: 1;
+  transform: scaleY(0.52);
+}
+
+.business-sider__menu.ant-menu .ant-menu-item-group-title {
+  padding: 17px 12px 6px !important;
+  color: var(--business-sider-muted) !important;
+  font-family: var(--font-caption, "Geist", sans-serif);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item,
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-submenu-title {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin: 3px auto;
+  padding-inline: 0 !important;
+  line-height: 40px;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__navigation {
+  padding-inline: 0;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item .anticon,
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-submenu-title .anticon {
+  min-width: 0;
+  margin-inline: 0 !important;
+  line-height: 1;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-title-content {
+  display: none !important;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item-selected::after {
+  display: none;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item:hover,
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item-selected:hover {
+  color: var(--business-sider-text) !important;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__menu .ant-menu-item-group-title {
+  display: none;
+}
+
+.business-sider__pinned {
+  flex: 0 0 auto;
+  padding: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--business-sider-border) 76%, transparent);
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__pinned {
+  padding-inline: 0;
+}
+
+.business-sider__menu--pinned.ant-menu .ant-menu-item {
+  margin-block: 0;
+}
+
+.business-sider__account {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: color-mix(in srgb, var(--business-sider-text) 2%, var(--business-sider-bg));
+  border-top: 1px solid color-mix(in srgb, var(--business-sider-border) 76%, transparent);
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__account {
+  align-items: center;
+  padding-inline: 8px;
+}
+
+.business-sider__profile {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  color: var(--business-sider-text);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.business-sider__profile:hover,
+.business-sider__profile:focus-visible {
+  background: var(--business-sider-hover);
+  border-color: var(--business-sider-border);
+  outline: none;
+}
+
+.business-sider__profile.is-collapsed {
+  width: 40px;
+  min-height: 44px;
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.business-sider__profile-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.business-sider__profile-copy strong {
+  overflow: hidden;
+  color: var(--business-sider-text);
+  font-family: var(--font-heading, "Funnel Sans", sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-sider__profile-copy small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--business-sider-muted);
+  font-family: var(--font-caption, "Geist", sans-serif);
+  font-size: 10px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-sider__profile-chevron {
+  color: var(--business-sider-muted);
+  font-size: 10px;
+}
+
+.business-sider__collapse.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--business-sider-muted);
+  border-radius: 8px;
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 12px;
+}
+
+.business-sider__collapse.ant-btn:hover,
+.business-sider__collapse.ant-btn:focus-visible {
+  color: var(--business-sider-text) !important;
+  background: var(--business-sider-hover) !important;
+}
+
+.business-sider.ant-layout-sider-collapsed .business-sider__collapse.ant-btn {
+  width: 40px;
+  align-self: center;
+}
+
+.ant-menu-inline-collapsed-tooltip .ant-tooltip-inner,
+.business-sider__tooltip .ant-tooltip-inner {
+  color: var(--ads-text-inverse) !important;
+  background: var(--ads-text-heading) !important;
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+.business-sider__tooltip {
+  --ant-tooltip-overlay-color: var(--ads-text-inverse) !important;
+  --ant-tooltip-arrow-background-color: var(--ads-text-heading) !important;
+}
+
+.business-sider__tooltip-label {
+  color: var(--ads-text-inverse) !important;
+  font-family: var(--font-body, "Inter", sans-serif);
+}
+
+.ant-menu-inline-collapsed-tooltip .ant-tooltip-inner *,
+.business-sider__tooltip .ant-tooltip-inner * {
+  color: inherit !important;
+}
+
+.business-shell__header.ant-layout-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 0;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+}
+
+.business-shell__content.ant-layout-content {
+  min-height: calc(100vh - 20px);
+}
+
+@media (max-width: 575px) {
+  .business-sider.ant-layout-sider {
+    box-shadow: 5px 0 22px color-mix(in srgb, var(--business-sider-text) 10%, transparent);
+  }
+
+  .business-shell__content.ant-layout-content {
+    width: calc(100% - 16px) !important;
+    margin: 8px auto !important;
+    padding: 10px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .business-sider__menu.ant-menu .ant-menu-item,
+  .business-sider__menu.ant-menu .ant-menu-submenu-title,
+  .business-sider__profile {
+    transition: none;
+  }
+}
+
+html[data-motion="reduced"] .business-sider__menu.ant-menu .ant-menu-item,
+html[data-motion="reduced"] .business-sider__menu.ant-menu .ant-menu-submenu-title,
+html[data-motion="reduced"] .business-sider__profile {
+  transition: none;
+}

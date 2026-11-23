@@ -64,6 +64,10 @@ async function removeIfPresent(filePath) {
 }
 
 class DatabaseBackupService {
+  get backupPath() {
+    return BACKUP_PATH;
+  }
+
   async createBackup() {
     if (backupInProgress) {
       throw new AppError(

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, theme as antdTheme } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { useStore as useValuesStore } from '../store/values-store';
 import { DEFAULT_SIDER_CONFIG, resolveSiderConfig } from '../core/config/siderConfig';
@@ -8,6 +8,7 @@ import {
     createAdsStyle,
     createLegacyVariables,
     getAppearancePalette,
+    resolveFontStack,
 } from './appearanceTokens';
 
 const ThemeCtx = createContext({
@@ -118,12 +119,39 @@ export function ThemeProvider({ children }) {
         : scopedAppearance.application.density === 'spacious'
             ? 'large'
             : 'middle';
+    const palette = getAppearancePalette(scopedAppearance, isDark);
     const themeConfig = useMemo(() => ({
         zeroRuntime: true,
+        algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
+            borderRadius: scopedAppearance.application.borderRadius,
+            controlHeight: scopedAppearance.application.controlHeight,
+            fontFamily: resolveFontStack(scopedAppearance.application.fonts.body),
+            fontSize: scopedAppearance.application.fontSize,
             motion: scopedAppearance.application.motionEnabled,
+            colorPrimary: palette.accent,
+            colorInfo: palette.info,
+            colorSuccess: palette.success,
+            colorWarning: palette.warning,
+            colorError: palette.error,
+            colorBgLayout: palette.contentBg,
+            colorBgContainer: palette.surfaceBg,
+            colorBgElevated: palette.elevatedBg,
+            colorText: palette.bodyText,
+            colorTextSecondary: palette.secondaryText,
+            colorBorder: palette.strongBorder,
+            colorBorderSecondary: palette.border,
+            colorTextLightSolid: palette.accentText,
         },
-    }), [scopedAppearance.application.motionEnabled]);
+    }), [
+        isDark,
+        palette,
+        scopedAppearance.application.borderRadius,
+        scopedAppearance.application.controlHeight,
+        scopedAppearance.application.fontSize,
+        scopedAppearance.application.fonts.body,
+        scopedAppearance.application.motionEnabled,
+    ]);
 
     const contextValue = useMemo(() => ({
         isDark,

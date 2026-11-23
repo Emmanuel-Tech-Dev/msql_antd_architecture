@@ -110,7 +110,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams }) => {
         </div>
       ),
       filterIcon: (filtered) => (
-        <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
+        <SearchOutlined style={{ color: filtered ? 'var(--ads-accent)' : undefined }} />
       ),
       // onFilter — used by Ant Design for client-side filtering
       // For offline mode this acts as a second safety net alongside processedOfflineData
@@ -130,7 +130,7 @@ const useTableColumns = ({ isClientSide, tableParams, updateParams }) => {
       render: (text) =>
         searchedColumn === dataIndex ? (
           <Highlighter
-            highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+            highlightStyle={{ backgroundColor: 'var(--ads-warning-soft)', padding: 0 }}
             searchWords={[searchText]}
             autoEscape
             textToHighlight={text ? text.toString() : ''}

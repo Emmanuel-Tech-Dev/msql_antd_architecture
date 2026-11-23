@@ -1,57 +1,67 @@
-const VARIANTS = new Set(['default', 'sider', 'none', 'icon-rail', 'floating', 'top', 'premium']);
+const VARIANTS = new Set(['default', 'sider', 'none', 'icon-rail', 'floating', 'top', 'premium', 'business']);
 const BREAKPOINTS = new Set(['xs', 'sm', 'md', 'lg', 'xl', 'xxl']);
 const THEMES = new Set(['light', 'dark']);
 const GROUP_VARIANTS = new Set(['dropdown', 'group']);
 const COLOR_MODES = new Set(['light', 'dark', 'system']);
 const DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
+const FONT_FAMILIES = new Set(['Inter', 'Newsreader', 'IBM Plex Mono', 'Geist', 'Geist Mono']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i;
 
+// The framework's default theme. It is
+// also what shows before sign-in, when the saved appearance is not loaded yet.
 const LIGHT_COLORS = Object.freeze({
-    siderBg: '#171c1a',
-    headerBg: '#ffffff',
-    contentBg: '#f7f7f5',
-    accent: '#0f766e',
-    accentText: '#f8faf9',
-    textPrimary: '#e4e9e6',
-    textMuted: '#a7b0ac',
-    border: '#303936',
-    itemHover: '#232a27',
-    itemActive: '#173532',
-    surfaceBg: '#ffffff',
-    elevatedBg: '#ffffff',
-    bodyText: '#202523',
-    secondaryText: '#5e6864',
-    strongBorder: '#dde1de',
-    success: '#39875d',
-    warning: '#b7791f',
-    error: '#c84a54',
-    info: '#4776b8',
+    siderBg: '#FBF7F2',
+    headerBg: '#FFFDFA',
+    contentBg: '#F6F1EA',
+    accent: '#3E5A4D',
+    accentText: '#FFFFFF',
+    textPrimary: '#1F2723',
+    textMuted: '#5C625D',
+    border: '#ECE5DB',
+    itemHover: '#F3EDE4',
+    itemActive: '#E3ECE6',
+    surfaceBg: '#FFFDFA',
+    elevatedBg: '#FFFFFF',
+    bodyText: '#1F2723',
+    secondaryText: '#5C625D',
+    strongBorder: '#D6CCBF',
+    success: '#2D7652',
+    warning: '#9A5A1C',
+    error: '#B23F3A',
+    info: '#3B6A8A',
+    chartRevenue: '#1E7A50',
+    chartCosts: '#D98A48',
+    chartNet: '#3C6FC4',
 });
 
 const DARK_COLORS = Object.freeze({
-    siderBg: '#0d110f',
-    headerBg: '#171c1a',
-    contentBg: '#111513',
-    accent: '#55b8ae',
-    accentText: '#10201d',
-    textPrimary: '#e4e9e6',
-    textMuted: '#a7b0ac',
-    border: '#303936',
-    itemHover: '#232a27',
-    itemActive: '#173532',
-    surfaceBg: '#171c1a',
-    elevatedBg: '#1c2220',
-    bodyText: '#e4e9e6',
-    secondaryText: '#a7b0ac',
-    strongBorder: '#303936',
-    success: '#6cba88',
-    warning: '#d7a552',
-    error: '#e37a82',
-    info: '#79a4db',
+    siderBg: '#171D1A',
+    headerBg: '#171D1A',
+    contentBg: '#0F1412',
+    accent: '#8FB8A3',
+    accentText: '#0F1412',
+    textPrimary: '#F2EEE8',
+    textMuted: '#BDB6AB',
+    border: '#262E2A',
+    itemHover: '#1E2622',
+    itemActive: '#26332D',
+    surfaceBg: '#171D1A',
+    elevatedBg: '#1E2622',
+    bodyText: '#F2EEE8',
+    secondaryText: '#BDB6AB',
+    strongBorder: '#3B4640',
+    success: '#6CC39A',
+    warning: '#E3A96B',
+    error: '#EE8B84',
+    info: '#85B4D6',
+    chartRevenue: '#36A877',
+    chartCosts: '#B9672A',
+    chartNet: '#5A88E0',
 });
 
 export const DEFAULT_SIDER_CONFIG = Object.freeze({
+    themeName: 'Framework Default',
     variant: 'premium',
     width: 252,
     collapsedWidth: 76,
@@ -67,13 +77,19 @@ export const DEFAULT_SIDER_CONFIG = Object.freeze({
     bottomKey: '/admin/settings/system_logs',
     defaultHeader: false,
     defaultFooter: false,
-    brand: { name: 'Budget Manager', caption: 'Operations Console', mark: 'B' },
+    brand: { name: 'Workspace', caption: 'Administration', mark: 'W' },
     application: {
         colorMode: 'light',
         density: 'comfortable',
-        borderRadius: 8,
-        controlHeight: 38,
+        borderRadius: 6,
+        controlHeight: 32,
         fontSize: 14,
+        fonts: {
+            heading: 'Geist',
+            body: 'Inter',
+            caption: 'Geist Mono',
+            data: 'Geist Mono',
+        },
         motionEnabled: true,
     },
     content: {
@@ -120,6 +136,17 @@ function parseSettingValue(value) {
     }
 }
 
+// Chart colours are optional in a theme. A theme that does not set them gets
+// its own accent, warning and success colours, so charts always match it.
+export const CHART_COLOR_FALLBACKS = Object.freeze({ chartRevenue: 'accent', chartCosts: 'warning', chartNet: 'success' });
+
+function withChartColors(palette, input) {
+    for (const [key, fallbackKey] of Object.entries(CHART_COLOR_FALLBACKS)) {
+        const value = input?.[key];
+        palette[key] = typeof value === 'string' && SAFE_COLOR.test(value.trim()) ? value.trim() : palette[fallbackKey];
+    }
+}
+
 export function normalizeSiderConfig(value) {
     const input = parseSettingValue(value);
     const defaults = DEFAULT_SIDER_CONFIG;
@@ -139,8 +166,11 @@ export function normalizeSiderConfig(value) {
                 : fallback,
         ]),
     );
+    withChartColors(colors, input.colors);
+    withChartColors(darkColors, input.darkColors);
 
     return {
+        themeName: safeString(input.themeName, defaults.themeName),
         variant: VARIANTS.has(input.variant) ? input.variant : defaults.variant,
         width: boundedNumber(input.width, defaults.width, 180, 360),
         collapsedWidth: boundedNumber(input.collapsedWidth, defaults.collapsedWidth, 48, 120),
@@ -171,6 +201,20 @@ export function normalizeSiderConfig(value) {
             borderRadius: boundedNumber(input.application?.borderRadius, defaults.application.borderRadius, 0, 20),
             controlHeight: boundedNumber(input.application?.controlHeight, defaults.application.controlHeight, 28, 52),
             fontSize: boundedNumber(input.application?.fontSize, defaults.application.fontSize, 12, 18),
+            fonts: {
+                heading: FONT_FAMILIES.has(input.application?.fonts?.heading)
+                    ? input.application.fonts.heading
+                    : defaults.application.fonts.heading,
+                body: FONT_FAMILIES.has(input.application?.fonts?.body)
+                    ? input.application.fonts.body
+                    : defaults.application.fonts.body,
+                caption: FONT_FAMILIES.has(input.application?.fonts?.caption)
+                    ? input.application.fonts.caption
+                    : defaults.application.fonts.caption,
+                data: FONT_FAMILIES.has(input.application?.fonts?.data)
+                    ? input.application.fonts.data
+                    : defaults.application.fonts.data,
+            },
             motionEnabled: typeof input.application?.motionEnabled === 'boolean'
                 ? input.application.motionEnabled
                 : defaults.application.motionEnabled,

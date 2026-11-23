@@ -24,7 +24,7 @@ const UserLists = ({ role_name }) => {
                 dataSource={data?.data || []}
                 renderItem={item => <List.Item>
                     <div className='flex gap-2 items-center'>
-                        <Avatar style={{ backgroundColor: '#87d068' }} icon={<UserOutlined />} />
+                        <Avatar style={{ backgroundColor: 'var(--ads-accent)', color: 'var(--ads-text-inverse)' }} icon={<UserOutlined />} />
                         <div>
                             <h1 className='font-semibold'>{item?.name}</h1>
                             <p className='text-xs text-slate-600'>{item?.email}</p>

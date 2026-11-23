@@ -9,6 +9,45 @@ const BREAKPOINT_WIDTHS = {
   lg: 992, xl: 1200, xxl: 1600,
 };
 
+const DEFERRED_NAV_CATEGORIES = new Set(['administration']);
+
+const normalizeNavValue = (value) => String(value ?? '').trim().toLowerCase();
+
+const isDeferredNavItem = (item) => (
+  DEFERRED_NAV_CATEGORIES.has(normalizeNavValue(item?.category))
+);
+
+const matchesNavigationKey = (item, keys) => keys.some((key) => {
+  const normalizedKey = normalizeNavValue(key);
+  return [item?.key, item?.path, item?.label]
+    .some((value) => normalizeNavValue(value) === normalizedKey);
+});
+
+function partitionNavigationItems(data, keys) {
+  const main = [];
+  const pinned = [];
+
+  data.forEach((item) => {
+    if (matchesNavigationKey(item, keys)) {
+      pinned.push(item);
+      return;
+    }
+
+    if (item.children?.length) {
+      const partitioned = partitionNavigationItems(item.children, keys);
+      if (partitioned.main.length) {
+        main.push({ ...item, children: partitioned.main });
+      }
+      pinned.push(...partitioned.pinned);
+      return;
+    }
+
+    main.push(item);
+  });
+
+  return { main, pinned };
+}
+
 /*
   initConfig  — layout structure, set once at mount, never changes
   liveConfig  — reactive values, update after mount
@@ -48,6 +87,8 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
     headerItems = [],
     appName = 'My App',
     user = { name: 'Admin', email: '' },
+    businessName = 'Business',
+    businessRole = '',
     notificationCount = 0,
     onLogout,
     onProfile,
@@ -89,7 +130,11 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
 
   // ─── Sort ───────────────────────────────────────────────────────────────
   const sortByOrder = useCallback((data) => (
-    [...data].sort((a, b) => (a[orderKey] ?? Infinity) - (b[orderKey] ?? Infinity))
+    [...data].sort((a, b) => {
+      const categoryDifference = Number(isDeferredNavItem(a)) - Number(isDeferredNavItem(b));
+      if (categoryDifference !== 0) return categoryDifference;
+      return (a[orderKey] ?? Infinity) - (b[orderKey] ?? Infinity);
+    })
   ), [orderKey]);
 
   // ─── Group ──────────────────────────────────────────────────────────────
@@ -116,7 +161,12 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
     });
 
     const sorted = Object.entries(groupMap).sort(
-      ([a], [b]) => (groupOrder[a] ?? Infinity) - (groupOrder[b] ?? Infinity)
+      ([a], [b]) => {
+        const categoryDifference = Number(DEFERRED_NAV_CATEGORIES.has(normalizeNavValue(a)))
+          - Number(DEFERRED_NAV_CATEGORIES.has(normalizeNavValue(b)));
+        if (categoryDifference !== 0) return categoryDifference;
+        return (groupOrder[a] ?? Infinity) - (groupOrder[b] ?? Infinity);
+      }
     );
 
     return { groupMap: Object.fromEntries(sorted), groupOrder, ungrouped };
@@ -127,17 +177,26 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
     key: item.key || item.path || item.label,
     icon: item.icon,
     label: item.label,
+    title: <span className="business-sider__tooltip-label">{item.label}</span>,
+    category: item.category,
     onClick: () => item.path && navigate(item.path),
   }), [navigate]);
 
+  const partitionedItems = useMemo(() => {
+    const keys = bottomKey ? [].concat(bottomKey) : [];
+    return keys.length
+      ? partitionNavigationItems(items, keys)
+      : { main: items, pinned: [] };
+  }, [bottomKey, items]);
+
   // ─── Build full sider menu items ────────────────────────────────────────
   const processedSiderItems = useMemo(() => {
-    if (!items?.length) return [];
+    if (!partitionedItems.main.length) return [];
 
     let result = [];
 
     if (isGrouped && groupKey) {
-      const { groupMap, ungrouped } = groupData(items);
+      const { groupMap, ungrouped } = groupData(partitionedItems.main);
       sortByOrder(ungrouped).forEach((item) => result.push(buildItem(item)));
 
       Object.entries(groupMap).forEach(([groupName, groupItems]) => {
@@ -157,7 +216,7 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
         }
       });
     } else {
-      result = sortByOrder(items).map((item) =>
+      result = sortByOrder(partitionedItems.main).map((item) =>
         item.children?.length
           ? {
             key: item.key || item.label,
@@ -169,17 +228,13 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
       );
     }
 
-    if (bottomKey) {
-      const bottomKeys = [].concat(bottomKey);
-      const isBottom = (item) =>
-        bottomKeys.some((k) => item.key === k || item.label === k);
-      const pinned = result.filter(isBottom);
-      const rest = result.filter((item) => !isBottom(item));
-      return [...rest, ...pinned];
-    }
-
     return result;
-  }, [items, isGrouped, groupKey, groupData, groupVariant, buildItem, sortByOrder, bottomKey]);
+  }, [partitionedItems.main, isGrouped, groupKey, groupData, groupVariant, buildItem, sortByOrder]);
+
+  const processedBottomItems = useMemo(
+    () => sortByOrder(partitionedItems.pinned).map(buildItem),
+    [buildItem, partitionedItems.pinned, sortByOrder],
+  );
 
   // ─── Build header menu items ────────────────────────────────────────────
   const processedHeaderItems = useMemo(() => {
@@ -257,12 +312,15 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
       defaultFooter={defaultFooter}
       appName={appName}
       user={user}
+      businessName={businessName}
+      businessRole={businessRole}
       notificationCount={notificationCount}
       onLogout={onLogout}
       onProfile={onProfile}
       showSiderProfile={showSiderProfile}
       showSiderLogout={showSiderLogout}
       processedSiderItems={processedSiderItems}
+      processedBottomItems={processedBottomItems}
       processedHeaderItems={processedHeaderItems}
       selectedKeys={selectedKeys}
       openKeys={openKeys}
@@ -275,9 +333,9 @@ const useSider = (initConfig = {}, liveConfig = {}) => {
       colors={colors}
     />
   ), [
-    collapsed, processedSiderItems, processedHeaderItems,
+    collapsed, processedSiderItems, processedBottomItems, processedHeaderItems,
     selectedKeys, openKeys, onCollapse, toggle,
-    appName, user, notificationCount, onLogout, onProfile,
+    appName, user, businessName, businessRole, notificationCount, onLogout, onProfile,
     showSiderProfile, showSiderLogout,
     variant, collapsedWidth, collapsible, breakpoint, reverseArrow,
     theme, width, headerHeight, siderStyle, headerStyle,

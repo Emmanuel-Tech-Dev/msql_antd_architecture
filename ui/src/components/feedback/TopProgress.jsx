@@ -4,8 +4,8 @@ import { useLocation } from 'react-router-dom';
 
 const ROOT_CLASS = 'pointer-events-none fixed inset-x-0 top-0 z-[10000] h-[3px] overflow-hidden';
 const BAR_CLASS = [
-    'absolute inset-y-0 left-0 origin-left bg-[var(--color-accent,#d4570a)]',
-    'shadow-[0_0_12px_color-mix(in_srgb,var(--color-accent,#d4570a)_60%,transparent)]',
+    'absolute inset-y-0 left-0 origin-left bg-[var(--ads-accent)]',
+    'shadow-[0_0_12px_color-mix(in_srgb,var(--ads-accent)_60%,transparent)]',
     'transition-[width,opacity] duration-200 ease-out motion-reduce:duration-[1ms]',
 ].join(' ');
 

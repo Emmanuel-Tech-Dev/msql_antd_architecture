@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { Avatar, Spin, Typography } from "antd";
+import { Avatar, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useNavigationRoutes } from "../../core/provider/ResourceProvider";
 import useRouteGuard from "../../core/hooks/access/useRouteGuard";
@@ -9,28 +9,29 @@ import useIcons from "../../hooks/useIcons";
 import useNotification from "../../hooks/useNotification";
 import useSider from "../../hooks/useSider";
 import { useTheme } from "../../hooks/useTheme";
-
-function SecureSessionFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center gap-3.5 bg-[var(--color-bg-base)] bg-[linear-gradient(rgba(26,23,20,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(26,23,20,0.035)_1px,transparent_1px)] text-[var(--color-text-primary)] [background-size:32px_32px] [&>div:last-child>span]:block [&>div:last-child>span:last-child]:mt-0.5 [&>div:last-child>span:last-child]:text-xs">
-      {/* <div className="secure-session__mark">B</div> */}
-      <Spin size="small" />
-      <div>
-        <Typography.Text strong>Preparing your workspace</Typography.Text>
-        <Typography.Text type="secondary">Verifying access and loading assigned routes.</Typography.Text>
-      </div>
-    </div>
-  );
-}
+import useScrollToTop from "../../hooks/useScrolToTop";
+import AppLoading from "../feedback/AppLoading";
 
 export default function AppLayout() {
   const { isAllowed, isReady } = useRouteGuard("/login");
   const { message } = useNotification();
   const { resolveIcon } = useIcons();
   const navigate = useNavigate();
+  useScrollToTop();
   const navigationRoutes = useNavigationRoutes();
   const user = useAuthStore((state) => state.user);
+  const roles = useAuthStore((state) => state.roles);
   const { appearance: siderConfig } = useTheme();
+  const businessName = user?.business?.name
+    ?? user?.business_name
+    ?? user?.organization_name
+    ?? "Business";
+
+  const primaryRole = roles?.[0];
+  const businessRole = typeof primaryRole === "string"
+    ? primaryRole
+    : primaryRole?.role_name ?? primaryRole?.name ?? "";
+
   const shellConfig = useMemo(() => ({
     ...siderConfig,
     headerStyle: siderConfig?.header?.sticky
@@ -81,8 +82,12 @@ export default function AppLayout() {
     user: {
       name: user?.name ?? "Admin",
       email: user?.email ?? "",
+      customId: user?.custom_id ?? "",
+      registrationNumber: user?.registration_number ?? "",
       avatar: user?.avatar ?? user?.profile_picture ?? null,
     },
+    businessName,
+    businessRole,
     notificationCount: 0,
     showSiderProfile: true,
     showSiderLogout: true,
@@ -102,7 +107,7 @@ export default function AppLayout() {
     >
       <Avatar
         shape="square"
-        className="shrink-0 !rounded-[var(--ads-radius-md)] !font-[var(--font-display)] !font-extrabold !text-[var(--ads-text-inverse)]"
+        className="shrink-0 rounded-(--ads-radius-md)! !font-[var(--font-display)] !font-extrabold !text-[var(--ads-text-inverse)]"
         style={{ background: siderConfig?.colors.accent, color: siderConfig?.colors.accentText }}
       >
         {siderConfig?.brand.mark}
@@ -112,7 +117,7 @@ export default function AppLayout() {
           <Typography.Text className="block !font-[var(--font-display)] !text-[15px] !leading-[1.1]" style={{ color: siderConfig?.colors.textPrimary }} strong>
             {siderConfig?.brand.name}
           </Typography.Text>
-          <Typography.Text className="mt-[3px] block !font-mono !text-[9px] uppercase tracking-[0.08em]" style={{ color: siderConfig?.colors.textMuted }}>
+          <Typography.Text className="mt-[3px] block !font-mono !text-[length:var(--ads-font-size-caption)] uppercase tracking-[0.08em]" style={{ color: siderConfig?.colors.textMuted }}>
             {siderConfig?.brand.caption}
           </Typography.Text>
         </div>
@@ -120,7 +125,7 @@ export default function AppLayout() {
     </div>
   );
 
-  if (!isAllowed || !isReady) return <SecureSessionFallback />;
+  if (!isAllowed || !isReady) return <AppLoading />;
 
   return sider.layoutJSX({
     siderHeader,
