@@ -38,6 +38,7 @@ export const useTableScaffold = (table) => useAdminQuery(table ? `tables/${table
 export const useTableVersions = (table) => useAdminQuery(table ? `tables/${table}/versions` : null);
 export const useTableExport = (table, options) => useAdminQuery(table ? `tables/${table}/export` : null, options);
 export const useMetadataLookups = () => useAdminQuery("lookups");
+export const useMetadataPermissions = () => useAdminQuery("permissions");
 
 export const useSaveDefinition = () => useAdminMutation("put");
 export const useRestoreVersion = () => useAdminMutation("post");

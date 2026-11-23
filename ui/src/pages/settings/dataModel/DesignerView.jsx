@@ -3,7 +3,7 @@ import { Alert, App, Button, Segmented, Skeleton, Tag } from 'antd';
 import { ArrowDownOutlined, ArrowUpOutlined, DesktopOutlined, EyeInvisibleOutlined, MobileOutlined, SettingOutlined } from '@ant-design/icons';
 import MetadataForm from '../../../components/metadata/MetadataForm';
 import { useTableMetadata } from '../../../core/metadata/useTableMetadata';
-import { useMetadataLookups, useSaveDefinition, useTableDefinition } from '../../../core/metadata/useMetadataAdmin';
+import { useMetadataLookups, useMetadataPermissions, useSaveDefinition, useTableDefinition } from '../../../core/metadata/useMetadataAdmin';
 import { typeLabel } from './fieldCatalogue';
 import { Eyebrow, Panel, ScreenHeader } from './dataModelShared';
 import FieldInspector from './FieldInspector';
@@ -90,7 +90,7 @@ function FormPreview({ table, draft }) {
 
 // Form, list and history of one described table, edited as a draft and saved
 // as a new version in one go.
-function Workspace({ table, definition, runtime, lookups, tab, go }) {
+function Workspace({ table, definition, runtime, lookups, permissions, tab, go }) {
     const { message, modal } = App.useApp();
     const save = useSaveDefinition();
     const [settings, setSettings] = useState(definition.table);
@@ -147,7 +147,7 @@ function Workspace({ table, definition, runtime, lookups, tab, go }) {
                         <Panel className="lg:sticky lg:top-4">
                             <div className="max-h-[80vh] overflow-y-auto p-[18px]">
                                 {field
-                                    ? <FieldInspector key={field.column_name} field={field} sections={settings.sections ?? []} lookups={lookups}
+                                    ? <FieldInspector key={field.column_name} field={field} sections={settings.sections ?? []} lookups={lookups} permissions={permissions}
                                         otherFields={fields.filter((item) => item.column_name !== field.column_name && item.type !== 'primaryKey')} onChange={setField} />
                                     : <TableInspector settings={settings} fields={fields} onChange={setSettings} />}
                             </div>
@@ -165,6 +165,7 @@ export default function DesignerView({ table, tab, go }) {
     const definition = useTableDefinition(table);
     const runtime = useTableMetadata(table);
     const lookups = useMetadataLookups();
+    const permissions = useMetadataPermissions();
 
     if (definition.isLoading || lookups.isLoading || runtime.isLoading) return <div className="p-8"><Skeleton active paragraph={{ rows: 12 }} /></div>;
     if (definition.error) {
@@ -177,6 +178,6 @@ export default function DesignerView({ table, tab, go }) {
     }
     return (
         <Workspace key={definition.data.table.version} table={table} definition={definition.data} runtime={runtime.data}
-            lookups={lookups.data ?? []} tab={tab} go={go} />
+            lookups={lookups.data ?? []} permissions={permissions.data ?? []} tab={tab} go={go} />
     );
 }

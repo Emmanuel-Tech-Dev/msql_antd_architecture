@@ -52,6 +52,7 @@ class MetadataAdminRoute {
 
   lookups(app) {
     app.get("/api/v1/metadata-admin/lookups", async (req, res) => ok(res, await admin.listLookups()));
+    app.get("/api/v1/metadata-admin/permissions", async (req, res) => ok(res, await admin.listPermissions()));
     app.post("/api/v1/metadata-admin/lookups/preview", async (req, res) => {
       ok(res, await previewLookup(req.body?.lookup ?? {}, { parent: req.body?.parent }));
     });
@@ -69,12 +70,13 @@ class MetadataAdminRoute {
 
   recordImport(app) {
     app.post("/api/v1/metadata-admin/import/:table/check", async (req, res) => {
-      ok(res, await admin.checkRecords(req.params.table, req.body?.rows));
+      ok(res, await admin.checkRecords(req.params.table, req.body?.rows, { permissions: req.permissions, privileged: req.isPrivileged }));
     });
     app.post("/api/v1/metadata-admin/import/:table", async (req, res) => {
       const imported = await admin.importRecords(req.params.table, req.body?.rows, {
         skipProblems: req.body?.skipProblems !== false,
         actorUserId: req.user.sub,
+        access: { permissions: req.permissions, privileged: req.isPrivileged },
       });
       ok(res, imported, `${imported.imported} records imported`, 201);
     });

@@ -2,7 +2,7 @@ jest.mock("../core/config/conn", () => ({ query: jest.fn(), getConnection: jest.
 jest.mock("../shared/helpers/logger", () => ({ error: jest.fn(), app: jest.fn() }));
 
 const db = require("../core/config/conn");
-const { metadataSchema, validateRecordAgainstMetadata } = require("../core/lib/metadataSchema");
+const { metadataSchema, unreadableColumns, validateRecordAgainstMetadata } = require("../core/lib/metadataSchema");
 
 const field = (column_name, type, overrides = {}) => ({
   column_name,
@@ -126,5 +126,41 @@ describe("server-side metadata checks", () => {
     const result = schema.safeParse({ name: "Road levy", kind: "LEVY", levy_body: "Ministry", rate: 8 });
     expect(result.success).toBe(false);
     expect(result.error.issues[0].message).toBe("A levy is at most 5%");
+  });
+});
+
+describe("field access for a user's request", () => {
+  const EMPLOYEES = [
+    field("id", "primaryKey"),
+    field("name", "text", { label: "Name", form_visible: 1 }),
+    field("status", "text", { label: "Status", form_visible: 0 }),
+    field("salary", "money", { label: "Salary", form_visible: 1, config: { readPermission: "view:salary", writePermission: "manage:salary" } }),
+  ];
+  const staff = { permissions: ["update:employees", "view:salary"], privileged: false };
+  const payroll = { permissions: ["update:employees", "view:salary", "manage:salary"], privileged: false };
+
+  test("a field hidden from the form is dropped from a user's request but server code may set it", async () => {
+    mockMetadata({ fields: EMPLOYEES });
+    const fromUser = await validateRecordAgainstMetadata("employees", { name: "Ama", status: "approved" }, { mode: "update", access: payroll });
+    expect(fromUser).toEqual({ record: { name: "Ama" }, errors: {} });
+
+    const fromServer = await validateRecordAgainstMetadata("employees", { status: "approved" }, { mode: "update" });
+    expect(fromServer).toEqual({ record: { status: "approved" }, errors: {} });
+  });
+
+  test("changing a guarded field needs its write permission", async () => {
+    mockMetadata({ fields: EMPLOYEES });
+    const denied = await validateRecordAgainstMetadata("employees", { salary: 9000 }, { mode: "update", access: staff });
+    expect(denied.errors).toEqual({ salary: "You can't change Salary" });
+
+    const allowed = await validateRecordAgainstMetadata("employees", { salary: 9000 }, { mode: "update", access: payroll });
+    expect(allowed).toEqual({ record: { salary: 9000 }, errors: {} });
+  });
+
+  test("columns guarded by a read permission the user lacks are unreadable; privileged users read everything", async () => {
+    mockMetadata({ fields: EMPLOYEES });
+    await expect(unreadableColumns("employees", { permissions: ["read:employees"] })).resolves.toEqual(["salary"]);
+    await expect(unreadableColumns("employees", staff)).resolves.toEqual([]);
+    await expect(unreadableColumns("employees", { permissions: [], privileged: true })).resolves.toEqual([]);
   });
 });

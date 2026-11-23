@@ -22,6 +22,12 @@ class BaseService {
     this.response = response;
   }
 
+  // The signed-in user's permissions: writes through the generic API are a
+  // user's request, so the metadata's user-only rules apply.
+  access() {
+    return { permissions: this.request.permissions ?? [], privileged: Boolean(this.request.isPrivileged) };
+  }
+
   validateWriteRecord(payload) {
     if (!payload || Array.isArray(payload) || typeof payload !== "object") {
       throw new AppError("ERR_INVALID_INPUT", "Record must be an object");
@@ -78,7 +84,11 @@ class BaseService {
       filterable: options.filterable ?? null,
       sortable: options.sortable ?? null,
       fullTextSearch: options.fullTextSearch ?? null,
-      exclude: [...(options.exclude || []), ...(headerConfig.exclude || [])],
+      exclude: [
+        ...(options.exclude || []),
+        ...(headerConfig.exclude || []),
+        ...(this.request.validatedResource?.restricted ?? []),
+      ],
     };
 
     const model = await new Model()
@@ -119,9 +129,9 @@ class BaseService {
     }
 
     const model = new Model();
-    const tableColumns = await model.getTableColumns(resources);
+    const readableColumns = this.request.validatedResource?.fields ?? [];
     if (
-      !tableColumns.includes(column) ||
+      !readableColumns.includes(column) ||
       SENSITIVE_COLUMNS.has(column.toLowerCase())
     ) {
       throw new AppError("ERR_ACCESS_DENIED", "Filter column is not available");
@@ -141,6 +151,7 @@ class BaseService {
         table: resources,
         maxLimit: 100,
         defaultLimit: 20,
+        exclude: this.request.validatedResource?.restricted ?? [],
       });
     const result = await model.paginate(paginate.page, paginate.limit);
 
@@ -165,7 +176,7 @@ class BaseService {
     const { record, errors } = await validateRecordAgainstMetadata(
       resources,
       this.validateWriteRecord(payload),
-      { mode: "create" },
+      { mode: "create", access: this.access() },
     );
     if (Object.keys(errors).length) throwFieldErrors(errors);
     return new Model().insert(resources, record).execute();
@@ -189,7 +200,7 @@ class BaseService {
       const checked = await validateRecordAgainstMetadata(
         resources,
         this.validateWriteRecord(item),
-        { mode: "create" },
+        { mode: "create", access: this.access() },
       );
       records.push(checked.record);
       for (const [column, message] of Object.entries(checked.errors)) {
@@ -209,7 +220,7 @@ class BaseService {
     const { record, errors } = await validateRecordAgainstMetadata(
       resources,
       this.validateWriteRecord(payload),
-      { mode: "update", existing },
+      { mode: "update", existing, access: this.access() },
     );
     if (Object.keys(errors).length) throwFieldErrors(errors);
     const writableRecord = { ...record };

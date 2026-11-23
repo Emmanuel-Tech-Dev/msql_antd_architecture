@@ -10,7 +10,10 @@ class MetadataRoute {
 
   tableMetadata(app) {
     app.get("/api/v1/metadata/:table", async (req, res) => {
-      const data = await getTableMetadata(req.params.table);
+      const data = await getTableMetadata(req.params.table, {
+        permissions: req.permissions,
+        privileged: req.isPrivileged,
+      });
       res.status(200).json({
         status: "ok",
         message: "Operation Successful!",

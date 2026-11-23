@@ -50,7 +50,7 @@ function ConditionEditor({ label, condition, onChange, otherFields }) {
 }
 
 // Settings of one field in the form designer.
-export default function FieldInspector({ field, sections, lookups, otherFields, onChange }) {
+export default function FieldInspector({ field, sections, lookups, permissions, otherFields, onChange }) {
     const config = field.config ?? {};
     const set = (changes) => onChange({ ...field, ...changes });
     const setConfig = (key, value) => {
@@ -147,6 +147,19 @@ export default function FieldInspector({ field, sections, lookups, otherFields, 
                     </div>
                 ))}
                 <Button type="dashed" icon={<PlusOutlined />} onClick={() => setConfig('rules', [...rules, { rule: 'minLength', value: 3 }])}>Add rule</Button>
+            </div>
+
+            <div className="flex flex-col gap-2.5 rounded-[calc(var(--app-radius,6px)*2)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-3">
+                <span className="text-[13px] font-semibold">Access</span>
+                {[['readPermission', 'Who can see it', 'Everyone who can read the table'], ['writePermission', 'Who can change it', 'Same as who can see it']].map(([key, label, empty]) => (
+                    <label key={key} className="flex flex-col gap-1.5 text-[13px] font-medium">{label}
+                        <Select showSearch allowClear placeholder={empty} value={config[key]} onChange={(value) => setConfig(key, value)} disabled={isKey}
+                            options={permissions.map((permission) => ({ value: permission.permission_name, label: permission.permission_name, title: permission.description }))} />
+                    </label>
+                ))}
+                <span className="text-[12.5px] text-[var(--color-text-secondary)]">
+                    Enforced by the server: without the permission the field is left out of records, forms and lists, or shown read-only. Add permissions on the Permissions page and give them to roles.
+                </span>
             </div>
 
             <ConditionEditor label="Show this field when" condition={config.visibleWhen} otherFields={otherFields} onChange={(value) => setConfig('visibleWhen', value)} />

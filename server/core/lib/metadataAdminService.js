@@ -227,6 +227,11 @@ async function saveLookup(lookupKey, lookup, { actorUserId } = {}) {
 }
 
 // The next free migration number and a file name for a downloaded migration.
+// The permissions a field can be guarded with (who can see or change it).
+async function listPermissions() {
+  return new Model().select(["permission_name", "description"], "admin_permissions").orderBy("permission_name", "ASC").execute();
+}
+
 async function newTableSql(spec) {
   describableTable(spec.table);
   const [existing] = await new Model().select(["TABLE_NAME"], "information_schema.TABLES")
@@ -237,13 +242,13 @@ async function newTableSql(spec) {
 
 // Rows from a CSV, checked as if each were added through the table's form,
 // plus values its unique columns already hold (in the table or the file).
-async function checkRecords(table, rows) {
+async function checkRecords(table, rows, access) {
   describableTable(table);
   if (!Array.isArray(rows) || !rows.length) throw new AppError("ERR_VALIDATION_FAILED", "The file has no rows");
   if (rows.length > 5000) throw new AppError("ERR_VALIDATION_FAILED", "Import at most 5,000 rows at a time");
 
   const results = [];
-  for (const row of rows) results.push(await validateRecordAgainstMetadata(table, row, { mode: "create" }));
+  for (const row of rows) results.push(await validateRecordAgainstMetadata(table, row, { mode: "create", access }));
 
   const model = new Model();
   const labels = Object.fromEntries((await new Model().select(["column_name", "col_real_name"], "tables_metadata")
@@ -267,8 +272,8 @@ async function checkRecords(table, rows) {
 
 // Inserts the checked rows in one transaction: the ready ones, or none at all
 // when any row has a problem and skipProblems is off.
-async function importRecords(table, rows, { skipProblems = true, actorUserId } = {}) {
-  const checked = await checkRecords(table, rows);
+async function importRecords(table, rows, { skipProblems = true, actorUserId, access } = {}) {
+  const checked = await checkRecords(table, rows, access);
   const problems = checked.filter((result) => Object.keys(result.errors).length);
   if (problems.length && !skipProblems) {
     throw new AppError("ERR_VALIDATION_FAILED", `${problems.length} rows have problems; nothing was imported`);
@@ -298,6 +303,7 @@ module.exports = {
   getDefinition,
   importRecords,
   listLookups,
+  listPermissions,
   listTables,
   listVersions,
   newTableSql,

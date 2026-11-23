@@ -1,7 +1,7 @@
 const { z } = require("zod");
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
-const { findMissingLookupValues } = require("./metadataService");
+const { canReadField, canWriteField, findMissingLookupValues } = require("./metadataService");
 
 // Server-side enforcement of a described table's metadata (metadata upgrade
 // phase 3). A table is described when metadata_tables has an enabled row for
@@ -30,16 +30,35 @@ async function loadDescribedFields(table) {
   if (!described) return null;
 
   return new Model()
-    .select(["column_name", "col_real_name", "type", "editable", "disabled", "required", "config"], "tables_metadata")
+    .select(["column_name", "col_real_name", "type", "form_visible", "editable", "disabled", "required", "config"], "tables_metadata")
     .where("table_name", "=", table)
     .execute();
 }
 
 // Primary keys and disabled fields are never written; a field that is not
 // editable can be set when a record is created but not changed afterwards.
-function isWritable(field, mode) {
+// `access` (the user's permissions) marks a user's request: it also may not
+// set fields hidden from the form or guarded by a permission it lacks.
+// Server code that passes no access may set those.
+function isWritable(field, mode, access) {
   if (field.type === "primaryKey" || Number(field.disabled) === 1) return false;
+  if (access && (Number(field.form_visible) === 0 || !canWriteField(field, access))) return false;
   return mode === "create" || Number(field.editable) !== 0;
+}
+
+// A user who sends a field they may not change is told so, not ignored.
+function forbiddenErrors(fields, record, access) {
+  if (!access) return {};
+  return Object.fromEntries(fields
+    .filter((field) => Object.hasOwn(record, field.column_name) && !canWriteField(field, access))
+    .map((field) => [field.column_name, `You can't change ${field.col_real_name || field.column_name}`]));
+}
+
+// Columns of a described table the user may not read; the generic API
+// leaves them out of records, filters and search.
+async function unreadableColumns(table, access) {
+  const fields = await loadDescribedFields(table);
+  return (fields ?? []).filter((field) => !canReadField(field, access)).map((field) => field.column_name);
 }
 
 function withRules(schema, field) {
@@ -146,8 +165,8 @@ function isRequired(field, values) {
     || (config.requiredWhen !== undefined && conditionMet(config.requiredWhen, values));
 }
 
-function buildSchema(fields, mode, existing) {
-  const writable = fields.filter((field) => isWritable(field, mode));
+function buildSchema(fields, mode, existing, access) {
+  const writable = fields.filter((field) => isWritable(field, mode, access));
   const shape = Object.fromEntries(writable.map((field) => [
     field.column_name,
     fieldSchema(field),
@@ -176,9 +195,9 @@ function requiredErrors(writable, values, mode, existing) {
 
 // The zod schema for one generic write, or null when the table is not
 // described. Fields the metadata does not let this write set are dropped.
-async function metadataSchema(table, { mode = "create", existing = {} } = {}) {
+async function metadataSchema(table, { mode = "create", existing = {}, access } = {}) {
   const fields = await loadDescribedFields(table);
-  return fields ? buildSchema(fields, mode, existing) : null;
+  return fields ? buildSchema(fields, mode, existing, access) : null;
 }
 
 async function lookupErrors(fields, values, merged) {
@@ -209,21 +228,22 @@ function fieldErrorsFrom(issues) {
 // (types coerced, non-writable fields removed). Undescribed tables get the
 // record back unchanged. Errors come back per field:
 // { errors: { rate: "Rate must be at most 100" } }.
-async function validateRecordAgainstMetadata(table, record, { mode = "create", existing = {} } = {}) {
+async function validateRecordAgainstMetadata(table, record, { mode = "create", existing = {}, access } = {}) {
   const fields = await loadDescribedFields(table);
   if (!fields) return { record, errors: {} };
 
-  const writable = fields.filter((field) => isWritable(field, mode));
-  const parsed = buildSchema(fields, mode, existing).safeParse(record);
+  const writable = fields.filter((field) => isWritable(field, mode, access));
+  const forbidden = forbiddenErrors(fields, record, access);
+  const parsed = buildSchema(fields, mode, existing, access).safeParse(record);
   if (!parsed.success) {
     // zod skips the whole-record checks when a field fails, so required
     // fields and lookups are checked here too: every problem at once.
-    const errors = { ...requiredErrors(writable, record, mode, existing), ...fieldErrorsFrom(parsed.error.issues) };
+    const errors = { ...forbidden, ...requiredErrors(writable, record, mode, existing), ...fieldErrorsFrom(parsed.error.issues) };
     const unchecked = writable.filter((field) => !errors[field.column_name]);
     return { record, errors: { ...errors, ...(await lookupErrors(unchecked, record, { ...existing, ...record })) } };
   }
 
-  const errors = await lookupErrors(writable, parsed.data, { ...existing, ...parsed.data });
+  const errors = { ...forbidden, ...(await lookupErrors(writable, parsed.data, { ...existing, ...parsed.data })) };
   return { record: parsed.data, errors };
 }
 
@@ -238,5 +258,6 @@ module.exports = {
   conditionMet,
   metadataSchema,
   throwFieldErrors,
+  unreadableColumns,
   validateRecordAgainstMetadata,
 };

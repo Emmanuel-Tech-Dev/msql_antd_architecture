@@ -18,8 +18,10 @@ function requireIdentifier(value, label) {
 }
 
 // A described table: its settings, its fields in form order, and the
-// lookups those fields use (with the field each lookup depends on).
-async function getTableMetadata(table) {
+// lookups those fields use (with the field each lookup depends on). Fields
+// the user may not see are left out; fields they may not change come back
+// read-only.
+async function getTableMetadata(table, access) {
   requireIdentifier(table, "table name");
   const [settings] = await new Model()
     .select(["table_name", "label", "singular_label", "description", "icon", "title_column",
@@ -32,7 +34,7 @@ async function getTableMetadata(table) {
     throw new AppError("ERR_NOT_FOUND", `Table ${table} is not described`);
   }
 
-  const fields = await new Model()
+  const described = await new Model()
     .select(["column_name", "col_real_name", "type", "form_visible", "list_visible", "editable",
       "disabled", "required", "section_key", "col_span", "config", "rank", "version"],
     "tables_metadata")
@@ -40,6 +42,10 @@ async function getTableMetadata(table) {
     .orderBy("rank", "ASC")
     .orderBy("id", "ASC")
     .execute();
+
+  const fields = described
+    .filter((field) => canReadField(field, access))
+    .map((field) => (canWriteField(field, access) ? field : { ...field, disabled: 1 }));
 
   const lookupKeys = [...new Set(fields.map((field) => field.config?.lookup).filter(Boolean))];
   const lookups = lookupKeys.length
@@ -106,6 +112,12 @@ function filteredLookupQuery({ lookup, model, checkColumn }, columns, parent) {
 }
 
 const isBlank = (value) => value === undefined || value === null || value === "";
+
+// A field's config may guard it with permissions: readPermission to see it,
+// writePermission (or, failing that, readPermission) to change it.
+const holds = ({ permissions = [], privileged = false } = {}, permission) => !permission || privileged || permissions.includes(permission);
+const canReadField = (field, access) => holds(access, field.config?.readPermission);
+const canWriteField = (field, access) => holds(access, field.config?.writePermission ?? field.config?.readPermission);
 
 // The options of one lookup, built only from its server-side definition.
 // A dependent lookup returns nothing until the parent value is given.
@@ -192,6 +204,9 @@ async function uploadFieldFile(table, column, file, { permissions = [], privileg
   if (!field || !UPLOAD_TYPES[field.type] || Number(field.disabled) === 1) {
     throw new AppError("ERR_NOT_FOUND", `${table}.${column} is not a file field`);
   }
+  if (!canWriteField(field, { permissions, privileged })) {
+    throw new AppError("ERR_ACCESS_DENIED", null, { message: `You can't change ${field.col_real_name || column}`, resource: table });
+  }
   if (!file?.buffer) {
     throw new AppError("ERR_VALIDATION_FAILED", "Choose a file to upload");
   }
@@ -213,4 +228,6 @@ async function uploadFieldFile(table, column, file, { permissions = [], privileg
   return { ...stored, name: file.originalname };
 }
 
-module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues, previewLookup, uploadFieldFile };
+module.exports = {
+  canReadField, canWriteField, getTableMetadata, getLookupOptions, findMissingLookupValues, previewLookup, uploadFieldFile,
+};
