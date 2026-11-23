@@ -51,9 +51,9 @@ async function getTableMetadata(table) {
   return { table: settings, fields, lookups };
 }
 
-// The options of one lookup, built only from its server-side definition.
-// A dependent lookup returns nothing until the parent value is given.
-async function getLookupOptions(lookupKey, { parent, permissions = [], privileged = false } = {}) {
+// A lookup definition with its source checked: the table exists, is not a
+// blocked source, and every column it names is real and not sensitive.
+async function loadLookup(lookupKey) {
   requireIdentifier(lookupKey, "lookup key");
   const [lookup] = await new Model()
     .select(["lookup_key", "source_table", "value_column", "label_column", "extra_columns",
@@ -65,17 +65,8 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
   if (!lookup) {
     throw new AppError("ERR_NOT_FOUND", "Lookup not found");
   }
-  if (lookup.required_permission && !privileged && !permissions.includes(lookup.required_permission)) {
-    throw new AppError("ERR_ACCESS_DENIED", null, {
-      message: `Missing lookup permission: ${lookup.required_permission}`,
-      resource: lookupKey,
-    });
-  }
   if (BLOCKED_SOURCES.has(lookup.source_table)) {
     throw new AppError("ERR_ACCESS_DENIED", "This source is not available as a lookup");
-  }
-  if (lookup.depends_on && (parent === undefined || parent === null || parent === "")) {
-    return [];
   }
 
   const model = new Model();
@@ -90,9 +81,12 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
     }
     return column;
   };
+  return { lookup, model, checkColumn };
+}
 
-  const extraColumns = (lookup.extra_columns ?? []).map(checkColumn);
-  const columns = [...new Set([checkColumn(lookup.value_column), checkColumn(lookup.label_column), ...extraColumns])];
+// The lookup's rows: its fixed filters, plus the parent value for a
+// dependent lookup.
+function filteredLookupQuery({ lookup, model, checkColumn }, columns, parent) {
   const query = model.select(columns, lookup.source_table);
   for (const filter of lookup.base_filters ?? []) {
     query.where(checkColumn(filter.column), "=", filter.value);
@@ -100,6 +94,27 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
   if (lookup.depends_on) {
     query.where(checkColumn(lookup.filter_column), "=", String(parent));
   }
+  return query;
+}
+
+const isBlank = (value) => value === undefined || value === null || value === "";
+
+// The options of one lookup, built only from its server-side definition.
+// A dependent lookup returns nothing until the parent value is given.
+async function getLookupOptions(lookupKey, { parent, permissions = [], privileged = false } = {}) {
+  const source = await loadLookup(lookupKey);
+  const { lookup, checkColumn } = source;
+  if (lookup.required_permission && !privileged && !permissions.includes(lookup.required_permission)) {
+    throw new AppError("ERR_ACCESS_DENIED", null, {
+      message: `Missing lookup permission: ${lookup.required_permission}`,
+      resource: lookupKey,
+    });
+  }
+  if (lookup.depends_on && isBlank(parent)) return [];
+
+  const extraColumns = (lookup.extra_columns ?? []).map(checkColumn);
+  const columns = [...new Set([checkColumn(lookup.value_column), checkColumn(lookup.label_column), ...extraColumns])];
+  const query = filteredLookupQuery(source, columns, parent);
   for (const sort of lookup.sort ?? []) {
     query.orderBy(checkColumn(sort.column), sort.direction);
   }
@@ -112,4 +127,23 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
   }));
 }
 
-module.exports = { getTableMetadata, getLookupOptions };
+// The values a write names that the lookup does not offer (used by the
+// server-side metadata checks). A dependent lookup is filtered by the
+// record's own parent value. Only existence is revealed, so the lookup's
+// read permission is not required.
+async function findMissingLookupValues(lookupKey, values, record = {}) {
+  const source = await loadLookup(lookupKey);
+  const { lookup, checkColumn } = source;
+  const parent = lookup.depends_on ? record[lookup.depends_on] : undefined;
+  const wanted = [...new Set(values.map(String))];
+  if (lookup.depends_on && isBlank(parent)) return wanted;
+
+  const valueColumn = checkColumn(lookup.value_column);
+  const rows = await filteredLookupQuery(source, [valueColumn], parent)
+    .whereIn(valueColumn, wanted)
+    .execute();
+  const found = new Set(rows.map((row) => String(row[valueColumn])));
+  return wanted.filter((value) => !found.has(value));
+}
+
+module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues };

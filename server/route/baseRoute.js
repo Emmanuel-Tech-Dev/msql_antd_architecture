@@ -237,7 +237,7 @@ class BaseRoute {
         throw new AppError("ERR_NOT_FOUND");
       }
 
-      const result = await service.updateRecord(req.body);
+      const result = await service.updateRecord(req.body, data);
 
       res.status(200).json({
         status: "ok",

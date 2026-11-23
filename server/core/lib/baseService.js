@@ -1,6 +1,7 @@
 const utils = require("../../shared/utils/functions");
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
+const { throwFieldErrors, validateRecordAgainstMetadata } = require("./metadataSchema");
 const { getLookupColumns } = require("../config/lookupRegistry");
 
 const SENSITIVE_COLUMNS = new Set([
@@ -161,9 +162,13 @@ class BaseService {
 
   async create(payload) {
     const { resources } = this.request.params;
-    return new Model()
-      .insert(resources, this.validateWriteRecord(payload))
-      .execute();
+    const { record, errors } = await validateRecordAgainstMetadata(
+      resources,
+      this.validateWriteRecord(payload),
+      { mode: "create" },
+    );
+    if (Object.keys(errors).length) throwFieldErrors(errors);
+    return new Model().insert(resources, record).execute();
   }
 
   async bulkCreate(payload) {
@@ -178,17 +183,36 @@ class BaseService {
         "Bulk records must contain between 1 and 500 items",
       );
     }
-    const records = payload.map((record) => this.validateWriteRecord(record));
+    const records = [];
+    const errors = {};
+    for (const [index, item] of payload.entries()) {
+      const checked = await validateRecordAgainstMetadata(
+        resources,
+        this.validateWriteRecord(item),
+        { mode: "create" },
+      );
+      records.push(checked.record);
+      for (const [column, message] of Object.entries(checked.errors)) {
+        errors[`${index}.${column}`] = `Record ${index + 1}: ${message}`;
+      }
+    }
+    if (Object.keys(errors).length) throwFieldErrors(errors);
     return new Model().bulkInsert(resources, records).execute();
   }
 
-  async updateRecord(payload) {
+  async updateRecord(payload, existing = {}) {
     const { resources, id } = this.request.params;
     const primaryKey = this.request.validatedResource?.primaryKey;
     if (!primaryKey) {
       throw new AppError("ERR_INVALID_INPUT", "Resource has no primary key");
     }
-    const writableRecord = { ...this.validateWriteRecord(payload) };
+    const { record, errors } = await validateRecordAgainstMetadata(
+      resources,
+      this.validateWriteRecord(payload),
+      { mode: "update", existing },
+    );
+    if (Object.keys(errors).length) throwFieldErrors(errors);
+    const writableRecord = { ...record };
     delete writableRecord[primaryKey];
     if (Object.keys(writableRecord).length === 0) {
       throw new AppError(

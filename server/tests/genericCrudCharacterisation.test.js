@@ -1,13 +1,15 @@
 // Safety net for the metadata upgrade (phase 0): what the generic
 // /api/:resources routes accept and refuse for the admin tables today.
-// Later phases must keep these passing, except the cases marked "until
-// phase 3", which change on purpose once metadata rules are enforced.
+// Later phases must keep these passing. Since phase 3, writes to a described
+// table (an enabled metadata_tables row) are also checked against its
+// metadata; the last group shows that change.
 
 jest.mock("../core/config/conn", () => ({ query: jest.fn(), getConnection: jest.fn() }));
 jest.mock("../shared/helpers/logger", () => ({ error: jest.fn(), app: jest.fn() }));
 
 const db = require("../core/config/conn");
 const validateTable = require("../core/middleware/validateTable");
+const adminTablesMetadata = require("./fixtures/adminTablesMetadata.v2.json");
 const BaseService = require("../core/lib/baseService");
 
 const column = (Field, Key = "") => ({ Field, Key });
@@ -37,8 +39,14 @@ const SCHEMAS = {
   staff_accounts: [column("id", "PRI"), column("name"), column("password"), column("api_key")],
 };
 
-function mockDatabase() {
+function mockDatabase({ describedTables = [] } = {}) {
   db.query.mockImplementation(async (sql, params = []) => {
+    if (sql.includes("FROM `metadata_tables`")) {
+      return [describedTables.includes(params[0]) ? [{ table_name: params[0] }] : []];
+    }
+    if (sql.includes("FROM `tables_metadata`")) {
+      return [adminTablesMetadata.filter((field) => field.table_name === params[0])];
+    }
     if (sql.includes("information_schema.tables")) {
       return [[{ count: SCHEMAS[params[0]] ? 1 : 0 }]];
     }
@@ -142,8 +150,28 @@ describe("generic writes", () => {
   });
 });
 
-describe("until phase 3: values are not checked against metadata", () => {
-  test("an empty required name, a wrong type and an unlisted option are all accepted", async () => {
+describe("since phase 3: described tables are checked against their metadata", () => {
+  test("an empty required name, a wrong type and an unlisted option are refused, field by field", async () => {
+    mockDatabase({ describedTables: ["admin_resources"] });
+    const req = await resolve("admin_resources");
+
+    await expect(new BaseService(req).create({ resource: "", display_order: "first", http_method: "FETCH" }))
+      .rejects.toMatchObject({
+        errorCode: "ERR_VALIDATION_FAILED",
+        metadata: {
+          errors: {
+            resource: "Resource Name is required",
+            resource_path: "Path is required",
+            resource_type: "Type is required",
+            display_order: "Sidebar Order must be a number",
+            http_method: "HTTP Method must be one of the listed options",
+          },
+        },
+      });
+    expect(writes()).toHaveLength(0);
+  });
+
+  test("a table that is not described still accepts any value for its columns", async () => {
     const req = await resolve("admin_resources");
     await new BaseService(req).create({ resource: "", display_order: "first", http_method: "FETCH" });
 
