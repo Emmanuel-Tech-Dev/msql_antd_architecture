@@ -45,6 +45,8 @@ function sectionsOf(metadata, shownFields) {
 // A caller that submits from its own button (a modal's OK) passes `form`
 // and `showActions={false}`. A table with a `stepper` setting is shown as
 // steps (its own Back / Continue buttons, whatever showActions says).
+// `metadata` replaces the loaded metadata (the builder previews a draft
+// with it), and `preview` never saves.
 export default function MetadataForm({
     table,
     record,
@@ -54,6 +56,8 @@ export default function MetadataForm({
     slots = {},
     submitText,
     form: externalForm,
+    metadata: draftMetadata,
+    preview = false,
     showActions = true,
     notify = true,
     onSaved,
@@ -63,7 +67,9 @@ export default function MetadataForm({
     const { message } = useNotification();
     const [ownForm] = Form.useForm();
     const form = externalForm ?? ownForm;
-    const { data: metadata, isLoading, error } = useTableMetadata(table);
+    const loaded = useTableMetadata(draftMetadata ? null : table);
+    const metadata = draftMetadata ?? loaded.data;
+    const { isLoading, error } = draftMetadata ? { isLoading: false, error: null } : loaded;
     const mode = record ? 'edit' : 'create';
     const create = useCreate({ resource: table });
     const update = useUpdate({ resource: table });
@@ -90,6 +96,10 @@ export default function MetadataForm({
     const submit = async () => {
         const values = form.getFieldsValue(true);
         setErrorFields([]);
+        if (preview) {
+            message.info(`Preview only: this ${singular.toLowerCase()} was not saved`);
+            return;
+        }
         const payload = Object.fromEntries(shownFields
             .filter((field) => isWritableField(field, mode))
             .map((field) => [field.column_name, getFieldType(field.type).fromForm(values[field.column_name])]));

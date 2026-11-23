@@ -26,6 +26,7 @@ const Resources = lazy(() => import("./pages/admin/Resources"));
 const SystemLogs = lazy(() => import("./pages/settings/SystemLogs"));
 const DatabaseBackup = lazy(() => import("./pages/settings/DatabaseBackup"));
 const AppearanceSettings = lazy(() => import("./pages/settings/AppearanceSettings"));
+const DataModel = lazy(() => import("./pages/settings/dataModel/DataModel"));
 const ProfileSettings = lazy(() => import("./pages/settings/ProfileSettings"));
 const Documentation = lazy(() => import("./pages/docs/Documentation"));
 
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="settings/system_logs" element={<SystemLogs />} />
             <Route path="settings/database_backup" element={<DatabaseBackup />} />
             <Route path="settings/appearance" element={<AppearanceSettings />} />
+            <Route path="settings/data-model" element={<DataModel />} />
             <Route path="profile" element={<ProfileSettings />} />
             <Route path="404" element={<NotFound404 />} />
             <Route path="*" element={<NotFound404 />} />

@@ -93,8 +93,10 @@ function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel
 // A table's list with search, sort and paging, and its add / edit / delete,
 // all from the table's metadata. `columns` adjusts a column by name (title,
 // render, ...); `header({ addButton })` places the add button.
-export default function MetadataTable({ table, pageSize = 10, ...props }) {
-    const { data: metadata, isLoading, error } = useTableMetadata(table);
+export default function MetadataTable({ table, pageSize = 10, metadata: draftMetadata, ...props }) {
+    const loaded = useTableMetadata(draftMetadata ? null : table);
+    const metadata = draftMetadata ?? loaded.data;
+    const { isLoading, error } = draftMetadata ? { isLoading: false, error: null } : loaded;
     if (isLoading) return <Skeleton active paragraph={{ rows: 6 }} />;
     if (error || !metadata) {
         return <Alert type="error" showIcon title="This list could not be loaded" description={error?.message ?? `${table} is not described`} />;
