@@ -4,6 +4,7 @@ import "react-skeletonify/dist/index.css";
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { SkeletonProvider } from 'react-skeletonify';
+import TestFramework from "./pages/admin/Test";
 
 const AppLayout = lazy(() => import("./components/Layout/AppLayout"));
 const Test = lazy(() => import("./pages/Test"));
@@ -43,55 +44,56 @@ export default function App() {
         }}
       >
         <Suspense fallback={<div className="flex min-h-40 items-center justify-center">Loading…</div>}>
-        <Routes>
-          {/* Auth Routes */}
+          <Routes>
+            {/* Auth Routes */}
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/docs" element={<Documentation />} />
-          <Route path="/init_psd_recovery" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
-          <Route path="/reset_password" element={<ResetPassword />} />
-          <Route path="/otp_request" element={<OtpRequest />} />
-          <Route path="/verify_otp" element={<OtpVerify />} />
-          <Route path="/change-password" element={<Navigate to="/change_password" replace />} />
-          <Route path="/change_password" element={<ChangePassword />} />
-          <Route path="/auth/otp/request-login/*" element={<Navigate to="/otp_request" replace />} />
-          <Route path="/auth/otp/verify-login/*" element={<Navigate to="/verify_otp" replace />} />
-          {/* Protected Admin Routes */}
-          <Route path="/admin" element={
-            // <ProtectedRoute>
-            //   <DropdownSidebarLayout />
-            // </ProtectedRoute>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/docs" element={<Documentation />} />
+            <Route path="/init_psd_recovery" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<Navigate to="/reset_password" replace />} />
+            <Route path="/reset_password" element={<ResetPassword />} />
+            <Route path="/otp_request" element={<OtpRequest />} />
+            <Route path="/verify_otp" element={<OtpVerify />} />
+            <Route path="/change-password" element={<Navigate to="/change_password" replace />} />
+            <Route path="/change_password" element={<ChangePassword />} />
+            <Route path="/auth/otp/request-login/*" element={<Navigate to="/otp_request" replace />} />
+            <Route path="/auth/otp/verify-login/*" element={<Navigate to="/verify_otp" replace />} />
+            {/* Protected Admin Routes */}
+            <Route path="/admin" element={
+              // <ProtectedRoute>
+              //   <DropdownSidebarLayout />
+              // </ProtectedRoute>
 
-            <AppLayout />
+              <AppLayout />
 
 
 
-          }>
-            <Route index element={<Test />} />
-            <Route path="home" element={<Test />} />
-            <Route path="test" element={<Analytics />} />
-            <Route path="test1" element={<AnalyticsHospital />} />
-            <Route path="test2" element={<AnalyticsSchool />} />
-            <Route path="test3" element={<AnalyticsEcommerce />} />
-            <Route path="management/users" element={<Users />} />
-            <Route path="management/user-statistics" element={<UserStatistics />} />
-            <Route path="management/roles&permissions" element={<Roles />} />
-            <Route path="management/permissions" element={<Permissions />} />
-            <Route path="management/resources" element={<Resources />} />
-            <Route path="settings/system_logs" element={<SystemLogs />} />
-            <Route path="settings/database_backup" element={<DatabaseBackup />} />
-            <Route path="settings/appearance" element={<AppearanceSettings />} />
-            <Route path="settings/data-model" element={<DataModel />} />
-            <Route path="profile" element={<ProfileSettings />} />
-            <Route path="404" element={<NotFound404 />} />
+            }>
+              <Route index element={<Test />} />
+              <Route path="home" element={<Test />} />
+              <Route path="testing" element={<TestFramework />} />
+              <Route path="test" element={<Analytics />} />
+              <Route path="test1" element={<AnalyticsHospital />} />
+              <Route path="test2" element={<AnalyticsSchool />} />
+              <Route path="test3" element={<AnalyticsEcommerce />} />
+              <Route path="management/users" element={<Users />} />
+              <Route path="management/user-statistics" element={<UserStatistics />} />
+              <Route path="management/roles&permissions" element={<Roles />} />
+              <Route path="management/permissions" element={<Permissions />} />
+              <Route path="management/resources" element={<Resources />} />
+              <Route path="settings/system_logs" element={<SystemLogs />} />
+              <Route path="settings/database_backup" element={<DatabaseBackup />} />
+              <Route path="settings/appearance" element={<AppearanceSettings />} />
+              <Route path="settings/data-model" element={<DataModel />} />
+              <Route path="profile" element={<ProfileSettings />} />
+              <Route path="404" element={<NotFound404 />} />
+              <Route path="*" element={<NotFound404 />} />
+            </Route>
+
+            <Route path="/404" element={<NotFound404 />} />
             <Route path="*" element={<NotFound404 />} />
-          </Route>
-
-          <Route path="/404" element={<NotFound404 />} />
-          <Route path="*" element={<NotFound404 />} />
-        </Routes>
+          </Routes>
         </Suspense>
 
       </SkeletonProvider>
