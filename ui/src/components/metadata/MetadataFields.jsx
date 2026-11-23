@@ -10,7 +10,7 @@ function columnSpan(field, formColumns) {
     return span === 24 ? 24 / (formColumns || 1) : span;
 }
 
-function FieldItem({ field, mode, readOnly, lookupDependsOn, rules }) {
+function FieldItem({ field, table, mode, readOnly, lookupDependsOn, rules }) {
     const definition = getFieldType(field.type);
     const label = fieldLabel(field);
     const placeholder = field.config?.placeholder ?? `${CHOICE_TYPES.has(field.type) ? 'Select' : 'Enter'} ${label}`;
@@ -23,7 +23,7 @@ function FieldItem({ field, mode, readOnly, lookupDependsOn, rules }) {
             extra={field.config?.helpText}
             valuePropName={definition.valuePropName ?? 'value'}
         >
-            {definition.input({ field, disabled, placeholder, lookupDependsOn })}
+            {definition.input({ field, table, disabled, placeholder, lookupDependsOn })}
         </Form.Item>
     );
 }
@@ -40,7 +40,7 @@ export default function MetadataFields({ metadata, mode = 'create', section, fie
             {formFieldsOf(metadata, { fields, section }).map((field) => {
                 const column = field.column_name;
                 const config = field.config ?? {};
-                const itemProps = { field, mode, readOnly, lookupDependsOn: dependsOn[config.lookup] ?? undefined };
+                const itemProps = { field, table: metadata?.table?.table_name, mode, readOnly, lookupDependsOn: dependsOn[config.lookup] ?? undefined };
                 const conditional = config.visibleWhen || config.requiredWhen;
 
                 return (

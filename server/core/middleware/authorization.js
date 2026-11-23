@@ -23,11 +23,13 @@ const AUTHENTICATED_CORE_ENDPOINTS = new Set([
   "/api/v1/bootstrap",
   "/auth/auth_user",
 ]);
-// Forms need field metadata (which bootstrap already gives every user) and
-// lookup options; metadataService checks each lookup's own permission.
+// Forms need field metadata (which bootstrap already gives every user),
+// lookup options and file uploads; metadataService checks each lookup's own
+// permission and the table's create/update permission for an upload.
 const AUTHENTICATED_CORE_PATTERNS = [
   "/api/v1/metadata/:table",
   "/api/v1/lookups/:key",
+  "/api/v1/uploads/:table/:column",
 ];
 
 // Optional authenticated-open endpoints still require an explicit system

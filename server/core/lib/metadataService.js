@@ -3,6 +3,8 @@ const utils = require("../../shared/utils/functions");
 const Model = require("../model/model");
 const { SENSITIVE_COLUMNS } = require("../middleware/validateTable");
 const { SENSITIVE_GENERIC_TABLES } = require("../config/lookupRegistry");
+const { v4: uuidv4 } = require("uuid");
+const uploadServices = require("./uploadServices");
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // Never a lookup source, whatever a lookup row says.
@@ -146,4 +148,50 @@ async function findMissingLookupValues(lookupKey, values, record = {}) {
   return wanted.filter((value) => !found.has(value));
 }
 
-module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues };
+// What a file or image field accepts unless its config narrows it.
+const UPLOAD_TYPES = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  file: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"],
+};
+
+// Stores the file for one file or image field of a described table and
+// returns where it is. Anyone who may create or update that table's records
+// may upload for it; the field's metadata decides the accepted types and size,
+// and the upload service checks the content really is that type.
+async function uploadFieldFile(table, column, file, { permissions = [], privileged = false } = {}) {
+  requireIdentifier(table, "table name");
+  requireIdentifier(column, "column name");
+  if (!privileged && !permissions.includes(`create:${table}`) && !permissions.includes(`update:${table}`)) {
+    throw new AppError("ERR_ACCESS_DENIED", null, { message: `Missing create:${table} or update:${table}`, resource: table });
+  }
+
+  const [field] = await new Model()
+    .select(["column_name", "col_real_name", "type", "disabled", "config"], "tables_metadata")
+    .where("table_name", "=", table)
+    .where("column_name", "=", column)
+    .execute();
+  if (!field || !UPLOAD_TYPES[field.type] || Number(field.disabled) === 1) {
+    throw new AppError("ERR_NOT_FOUND", `${table}.${column} is not a file field`);
+  }
+  if (!file?.buffer) {
+    throw new AppError("ERR_VALIDATION_FAILED", "Choose a file to upload");
+  }
+
+  const label = field.col_real_name || column;
+  const maxSizeMb = Number(field.config?.maxSizeMb) || 10;
+  if (file.size > maxSizeMb * 1024 * 1024) {
+    throw new AppError("ERR_VALIDATION_FAILED", `${label} must be at most ${maxSizeMb} MB`);
+  }
+  const accepted = Array.isArray(field.config?.accept)
+    ? field.config.accept.filter((type) => UPLOAD_TYPES[field.type].includes(type))
+    : UPLOAD_TYPES[field.type];
+
+  const stored = await uploadServices.uploadDocument(file, {
+    folder: `metadata/${table}`,
+    publicId: `${column}-${uuidv4()}`,
+    allowedTypes: accepted,
+  });
+  return { ...stored, name: file.originalname };
+}
+
+module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues, uploadFieldFile };

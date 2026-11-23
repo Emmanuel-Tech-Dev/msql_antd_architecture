@@ -2,12 +2,13 @@ import { Checkbox, DatePicker, Input, InputNumber, Radio, Select, Switch, Tag, T
 import dayjs from 'dayjs';
 import cryptoRandomString from 'crypto-random-string';
 import LookupSelect from '../../components/metadata/LookupSelect';
+import UploadField from '../../components/metadata/UploadField';
 
 // One definition per field type, shared by MetadataForm (input, value
 // conversion) and MetadataTable (cell). Built-in types are registered the
 // same way a project adds its own: registerFieldType('signaturePad', {...}).
 //
-// input({ field, disabled, placeholder, lookupDependsOn }) -> antd control
+// input({ field, table, disabled, placeholder, lookupDependsOn }) -> antd control
 //   (Form.Item gives it value / onChange)
 // toForm(stored) / fromForm(formValue): stored value <-> form value
 // cell(value, record, field): how the value shows in a list
@@ -38,8 +39,6 @@ const text = {
 registerFieldType('text', text);
 registerFieldType('phone', text);
 registerFieldType('url', text);
-registerFieldType('file', text);
-registerFieldType('image', text);
 registerFieldType('email', { ...text, input: ({ disabled, placeholder }) => <Input type="email" disabled={disabled} placeholder={placeholder} /> });
 registerFieldType('password', { ...text, input: ({ disabled, placeholder }) => <Input.Password disabled={disabled} placeholder={placeholder} />, cell: () => '••••••' });
 registerFieldType('textarea', {
@@ -48,6 +47,21 @@ registerFieldType('textarea', {
   input: ({ disabled, placeholder, field }) => <Input.TextArea disabled={disabled} placeholder={placeholder} autoSize={{ minRows: field.config?.rows ?? 3, maxRows: 10 }} />,
 });
 registerFieldType('richText', { ...registry.get('textarea') });
+const upload = (kind) => ({
+  input: ({ field, table, disabled }) => (
+    <UploadField kind={kind} table={table} column={field.column_name} disabled={disabled}
+      accept={field.config?.accept?.join(',')} maxSizeMb={field.config?.maxSizeMb} />
+  ),
+  toForm: (value) => blankToUndefined(value) ?? null,
+});
+registerFieldType('image', {
+  ...upload('image'),
+  cell: (value) => (value ? <img src={value} alt="" width={32} height={32} className="rounded object-cover" /> : ''),
+});
+registerFieldType('file', {
+  ...upload('file'),
+  cell: (value) => (value ? <a href={value} target="_blank" rel="noreferrer">View file</a> : ''),
+});
 registerFieldType('generatedId', {
   ...text,
   input: () => <Input readOnly />,

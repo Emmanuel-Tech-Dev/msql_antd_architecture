@@ -78,7 +78,18 @@ const uploadLarge = multer({
   fileFilter,
 });
 
+// A metadata form's file or image field: one file, kept in memory. The field's
+// metadata decides the accepted types; uploadServices checks the content.
+const metadataFieldUpload = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 1,
+  },
+});
+
 module.exports = {
+  metadataFieldUpload,
   uploadSingle,
   uploadMultiple,
   uploadLarge,

@@ -42,6 +42,16 @@ const METADATA = {
   },
 };
 
+METADATA.suppliers = {
+  table: { table_name: "suppliers", label: "Suppliers", singular_label: "Supplier", form_layout: "modal", form_columns: 1, sections: [] },
+  fields: [
+    field("id", "ID", "primaryKey", { form_visible: 0 }),
+    field("name", "Name", "text", { required: 1 }),
+    field("logo", "Logo", "image"),
+  ],
+  lookups: [],
+};
+
 const LOOKUPS = {
   roles: [{ value: "Auditor", label: "Auditor" }, { value: "User", label: "User" }],
   permissions: [{ value: "read:reports", label: "read:reports" }],
@@ -87,6 +97,7 @@ beforeEach(() => {
       const [, kind, name] = url.match(/api\/v1\/(metadata|lookups)\/(\w+)/) ?? [];
       if (kind === "metadata") return { data: METADATA[name] };
       if (kind === "lookups") return { data: name === "resources_by_type" && !payload?.parent ? [] : LOOKUPS[name] };
+      if (url.startsWith("api/v1/uploads/")) return { data: { url: "https://files.example/metadata/suppliers/logo-1.png", name: payload.get("file").name } };
       return { data: null };
     }),
     create: vi.fn(async () => ({ data: { id: 1 } })),
@@ -190,6 +201,33 @@ describe("MetadataForm", () => {
     expect(id).toBe(4);
     expect(variables).not.toHaveProperty("code");
     expect(variables).toMatchObject({ name: "VAT", rate: 12.5, kind: "VAT", channels: ["SMS", "EMAIL"] });
+  });
+});
+
+describe("file and image fields", () => {
+  test("a chosen image is uploaded for its field, and saving sends the stored file's address", { timeout: 30_000 }, async () => {
+    renderWithProviders(<MetadataForm table="suppliers" />);
+    await screen.findByText("Logo", { selector: "label" });
+    await typeInto("Name", "Kumasi Timber Works");
+
+    const logoItem = screen.getByText("Logo", { selector: "label" }).closest(".ant-form-item");
+    const image = new File([new Uint8Array([137, 80, 78, 71])], "logo.png", { type: "image/png" });
+    await act(async () => { fireEvent.change(logoItem.querySelector("input[type=file]"), { target: { files: [image] } }); });
+
+    await waitFor(() => expect(dataProvider.custom).toHaveBeenCalledWith(expect.objectContaining({
+      url: "api/v1/uploads/suppliers/logo",
+      method: "post",
+      headers: { "Content-Type": "multipart/form-data" },
+    })));
+    const [{ payload }] = dataProvider.custom.mock.calls.find(([request]) => request.url.startsWith("api/v1/uploads/"));
+    expect(payload.get("file").name).toBe("logo.png");
+
+    await submit("Add supplier");
+    await waitFor(() => expect(dataProvider.create).toHaveBeenCalled());
+    expect(dataProvider.create.mock.calls[0][0].variables).toEqual({
+      name: "Kumasi Timber Works",
+      logo: "https://files.example/metadata/suppliers/logo-1.png",
+    });
   });
 });
 

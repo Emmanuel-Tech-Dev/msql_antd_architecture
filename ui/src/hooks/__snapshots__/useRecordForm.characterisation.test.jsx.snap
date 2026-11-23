@@ -43,7 +43,7 @@ exports[`admin form > adding a record 1`] = `
     "required": false,
   },
   {
-    "control": "text",
+    "control": "file",
     "disabled": false,
     "label": "avatar",
     "required": false,
@@ -59,7 +59,7 @@ exports[`admin form > adding a record 1`] = `
     "required": false,
   },
   {
-    "control": "text",
+    "control": "file",
     "disabled": false,
     "label": "profile picture",
     "required": false,
@@ -110,7 +110,7 @@ exports[`admin form > editing a record 1`] = `
     "required": false,
   },
   {
-    "control": "text",
+    "control": "file",
     "disabled": false,
     "label": "avatar",
     "required": false,
@@ -126,7 +126,7 @@ exports[`admin form > editing a record 1`] = `
     "required": false,
   },
   {
-    "control": "text",
+    "control": "file",
     "disabled": false,
     "label": "profile picture",
     "required": false,
