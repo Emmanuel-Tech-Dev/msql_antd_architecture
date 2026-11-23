@@ -67,6 +67,12 @@ async function loadLookup(lookupKey) {
   if (!lookup) {
     throw new AppError("ERR_NOT_FOUND", "Lookup not found");
   }
+  return prepareLookup(lookup);
+}
+
+async function prepareLookup(lookup) {
+  const lookupKey = lookup.lookup_key;
+  requireIdentifier(lookup.source_table, "lookup source table");
   if (BLOCKED_SOURCES.has(lookup.source_table)) {
     throw new AppError("ERR_ACCESS_DENIED", "This source is not available as a lookup");
   }
@@ -127,6 +133,19 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
     label: row[lookup.label_column],
     ...Object.fromEntries(extraColumns.map((column) => [column, row[column]])),
   }));
+}
+
+// Runs a lookup definition that may not be saved yet (the builder's "Test
+// it"), with the same checks as a saved one. A dependent lookup is tried
+// with the given parent value.
+async function previewLookup(lookup, { parent, limit = 20 } = {}) {
+  const source = await prepareLookup({ ...lookup, lookup_key: lookup.lookup_key ?? "preview" });
+  const { checkColumn } = source;
+  const columns = [...new Set([checkColumn(lookup.value_column), checkColumn(lookup.label_column)])];
+  const query = filteredLookupQuery(source, columns, lookup.depends_on ? parent : undefined);
+  for (const sort of lookup.sort ?? []) query.orderBy(checkColumn(sort.column), sort.direction);
+  const rows = await query.limit(Math.min(Number(limit) || 20, 100)).execute();
+  return rows.map((row) => ({ value: row[lookup.value_column], label: row[lookup.label_column] }));
 }
 
 // The values a write names that the lookup does not offer (used by the
@@ -194,4 +213,4 @@ async function uploadFieldFile(table, column, file, { permissions = [], privileg
   return { ...stored, name: file.originalname };
 }
 
-module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues, uploadFieldFile };
+module.exports = { getTableMetadata, getLookupOptions, findMissingLookupValues, previewLookup, uploadFieldFile };

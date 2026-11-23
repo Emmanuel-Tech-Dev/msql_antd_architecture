@@ -181,6 +181,18 @@ describe("stepper form", () => {
     expect(screen.queryByRole("complementary", { name: "Summary" })).toBeNull();
   });
 
+  test("editing a record: fields are filled, any step can be opened, and saving updates it", { timeout: 30_000 }, async () => {
+    const onSaved = vi.fn();
+    renderForm({ onSaved, record: { id: 7, name: "Kumasi Timber Works", category: "RAW", city: "Kumasi", payment_terms: "NET30", credit_limit: 5000 } });
+    expect((await screen.findByLabelText("Supplier name")).value).toBe("Kumasi Timber Works");
+    await act(async () => { fireEvent.click(within(stepCard("Terms")).getByRole("button")); });
+    expect(await screen.findByLabelText(/30 days/)).toBeTruthy();
+    await press(/save changes/i);
+    await waitFor(() => expect(dataProvider.update).toHaveBeenCalled());
+    expect(dataProvider.update.mock.calls[0][0]).toMatchObject({ id: 7, variables: { name: "Kumasi Timber Works", city: "Kumasi", payment_terms: "NET30", credit_limit: 5000 } });
+    expect(onSaved).toHaveBeenCalled();
+  });
+
   test("a table without a stepper keeps the plain form", async () => {
     metadata = supplierMetadata(null);
     renderForm();

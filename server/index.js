@@ -39,6 +39,7 @@ const UiSettingsRoute = require("./route/UiSettingsRoute");
 const AdminStatisticsRoute = require("./route/AdminStatisticsRoute");
 const UserDirectoryRoute = require("./route/UserDirectoryRoute");
 const MetadataRoute = require("./route/MetadataRoute");
+const MetadataAdminRoute = require("./route/MetadataAdminRoute");
 const backupHistoryService = require("./core/lib/backupHistoryService");
 const { validateOrigin } = require("./core/config/origins");
 const { initRealtime } = require("./core/realtime/socketServer");
@@ -70,6 +71,9 @@ const limiter = rateLimiter({
 // console.log(bodyPaser.json());
 
 app.use(cookieParser());
+// A CSV import sends up to 5,000 rows; every other request keeps the default
+// 100 kB limit.
+app.use("/api/v1/metadata-admin/import", express.json({ limit: "10mb" }));
 app.use(express.json());
 app.use(limiter);
 app.use(bodyPaser.json());
@@ -149,6 +153,7 @@ new UiSettingsRoute(app);
 new AdminStatisticsRoute(app);
 new UserDirectoryRoute(app);
 new MetadataRoute(app);
+new MetadataAdminRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 
