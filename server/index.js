@@ -38,6 +38,7 @@ const BackupRoute = require("./route/BackupRoute");
 const UiSettingsRoute = require("./route/UiSettingsRoute");
 const AdminStatisticsRoute = require("./route/AdminStatisticsRoute");
 const UserDirectoryRoute = require("./route/UserDirectoryRoute");
+const MetadataRoute = require("./route/MetadataRoute");
 const backupHistoryService = require("./core/lib/backupHistoryService");
 const { validateOrigin } = require("./core/config/origins");
 const { initRealtime } = require("./core/realtime/socketServer");
@@ -147,6 +148,7 @@ new BackupRoute(app);
 new UiSettingsRoute(app);
 new AdminStatisticsRoute(app);
 new UserDirectoryRoute(app);
+new MetadataRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 

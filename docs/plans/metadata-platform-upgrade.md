@@ -1,6 +1,6 @@
 # Framework upgrade plan: metadata platform, form builder and bootstrap
 
-Status: **approved** (decisions taken 2026-11-23, section 7). Phases 0 and 1 done (2026-11-23); phase 2 next.
+Status: **approved** (decisions taken 2026-11-23, section 7). Phases 0–2 done (2026-11-23); phase 3 next.
 Scope: `msql_antd_architecture` only. Business projects built on the framework (for example viLuxeInvoice) adopt it later, as a separate step.
 
 ## 1. Why
@@ -149,13 +149,15 @@ Each phase is shippable on its own, keeps existing screens working, and ends wit
 
 **Result:** `server/core/lib/bootstrapService.js` reads the registry; `validateTable.js` lost its bootstrap branches; migration 019 completes the dataset column lists (adds `show_in_nav` and timestamps, so the data matches the old `*` requests) and registers `ui_settings` as OPTIONAL. Row caching (`cache_ttl_seconds`) is not implemented: the registry value is kept for later, and every sign-in reads fresh rows as before. Tests: `bootstrapService.test.js` and the updated `bootstrapCharacterisation.test.js`.
 
-### Phase 2: Metadata data model v2 (G3, G4)
+### Phase 2: Metadata data model v2 (G3, G4) (done 2026-11-23)
 - Migrations: the new `tables_metadata` columns with backfills, a duplicate clean-up plus the unique key, `metadata_tables` (one row per currently described table, backfilled), `metadata_lookups`.
 - A conversion step: every `sqlSelect` option and `extra_options` cascade becomes a `metadata_lookups` row, and the field's `config.lookup` points at it. Anything that can't be converted is listed in the migration output, never dropped silently. `LOOKUP_REGISTRY` entries become lookup rows.
 - Old type names are mapped (3.2). Readers accept both.
 - `GET /api/v1/metadata/:table` and `GET /api/v1/lookups/:key`.
 
 **Done when:** all existing metadata is expressed in the new columns, no SQL is left in `options`, and the old admin forms still work.
+
+**Result:** migrations 020 and 021. `backend_visible` and `frontend_visible` were renamed to `form_visible` and `list_visible` (021); `required` is still generated from `validator` until phase 3/4 replaces that convention. Optional input settings live in `config` rather than columns (021): `placeholder`, `helpText`, `default`, `rules`, `visibleWhen`, `requiredWhen`, next to the type settings (`options`, `lookup`, ...). Columns keep what every field has and the layout the designer moves in bulk (`rank`, `section_key`, `col_span`). Select options moved to `config.options`; the six SQL selects and the `resource_type` → `resource` cascade became five lookups (`roles`, `permissions`, `users`, `resource_types`, `resources_by_type`), each with a `required_permission`. Type names moved to the v2 catalogue; `ui/src/core/metadata/legacyField.js` maps them back for `useRecordForm`, which now reads `config.options`, loads lookups from `GET /api/v1/lookups/:key` and refreshes dependent lookups. Startup also loads `metadata_lookups` (keys and dependencies only). New: `GET /api/v1/metadata/:table` (`metadataService.js`, `MetadataRoute.js`); both endpoints are open to every signed-in user, lookups check their own permission. Proof: the migration was run on a scratch copy of the database (no SQL left, generated columns match all rows), and `useRecordForm.characterisation.test.jsx` renders every admin form from the converted rows (`adminTablesMetadata.v2.json`) identically. Deferred to phase 4: `LOOKUP_REGISTRY` and `/api/v1/extra_meta_options` stay for the ad-hoc callers `useGlobalSelect` and `useDynamicForm`, which move to named lookups with the new runtime.
 
 ### Phase 3: Server enforcement (G2)
 - `metadataSchema(table)` and the type definitions on the server side, wired into the generic write routes for described tables, with field-level error responses.

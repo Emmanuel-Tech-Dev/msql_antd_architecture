@@ -8,11 +8,24 @@ import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntdApp } from "antd";
 import adminTablesMetadata from "../../../server/tests/fixtures/adminTablesMetadata.json";
+import adminTablesMetadataV2 from "../../../server/tests/fixtures/adminTablesMetadata.v2.json";
 import { DataProviderContext } from "../core/provider/DataProvider";
 import { useStore as useValuesStore } from "../store/values-store";
 import useRecordForm from "./useRecordForm";
 
 const SYSTEM_RESOURCE_TYPES = [{ resource_type: "API_ENDPOINT" }, { resource_type: "BROWSER_ROUTE" }];
+// The lookup keys and dependencies startup loads (migration 020).
+const METADATA_LOOKUPS = [
+  { lookup_key: "roles", depends_on: null },
+  { lookup_key: "permissions", depends_on: null },
+  { lookup_key: "users", depends_on: null },
+  { lookup_key: "resource_types", depends_on: null },
+  { lookup_key: "resources_by_type", depends_on: "resource_type" },
+];
+const LOOKUP_OPTIONS = {
+  resource_types: SYSTEM_RESOURCE_TYPES.map(({ resource_type }) => ({ value: resource_type, label: resource_type })),
+  resources_by_type: [{ value: "read:reports", label: "/api/v1/reports" }],
+};
 
 function RecordFormHarness({ table, existingRecord }) {
   const recordForm = useRecordForm("tables_metadata", "table_name");
@@ -25,11 +38,13 @@ function RecordFormHarness({ table, existingRecord }) {
   return recordForm.recordModal({ createTitle: "Add", editTitle: "Edit", shouldDrag: false });
 }
 
-async function renderForm(table, existingRecord) {
+async function renderForm(table, existingRecord, metadata = adminTablesMetadata) {
   const dataProvider = {
-    custom: vi.fn(async () => ({ data: { details: SYSTEM_RESOURCE_TYPES } })),
+    custom: vi.fn(async ({ url }) => (url.startsWith("/api/v1/lookups/")
+      ? { data: LOOKUP_OPTIONS[url.split("/").pop()] ?? [] }
+      : { data: { details: SYSTEM_RESOURCE_TYPES } })),
   };
-  useValuesStore.getState().setRuntimeValues({ tables_metadata: adminTablesMetadata });
+  useValuesStore.getState().setRuntimeValues({ tables_metadata: metadata, metadata_lookups: METADATA_LOOKUPS });
 
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -115,5 +130,59 @@ test("the resource type options come from the lookup endpoint, not from SQL run 
     method: "post",
     payload: { lookup: { table: "system_resources", fields: ["resource_type"] } },
     unwrap: true,
+  });
+});
+
+describe("metadata v2 (migration 020)", () => {
+  test.each(Object.keys(SAMPLE_RECORDS))("%s renders the same forms from the converted metadata", async (table) => {
+    for (const existingRecord of [undefined, SAMPLE_RECORDS[table]]) {
+      await renderForm(table, existingRecord);
+      const original = await describeFields();
+      cleanup();
+      document.body.innerHTML = "";
+
+      await renderForm(table, existingRecord, adminTablesMetadataV2);
+      expect(await describeFields()).toEqual(original);
+      cleanup();
+      document.body.innerHTML = "";
+    }
+  }, 30_000);
+
+  test("a lookup is loaded from the lookups endpoint by name", async () => {
+    const dataProvider = await renderForm("admin_resources", undefined, adminTablesMetadataV2);
+    await waitFor(() => expect(dataProvider.custom).toHaveBeenCalledWith({ url: "/api/v1/lookups/resource_types", unwrap: true }));
+    expect(dataProvider.custom.mock.calls.some(([request]) => request.url.includes("extra_meta_options"))).toBe(false);
+  });
+
+  test("choosing a resource type loads the resources of that type", async () => {
+    const field = (column_name, col_real_name, type, config, rank) => ({
+      table_name: "admin_permission_resources", column_name, col_real_name, type, config,
+      options: null, extra_options: null, backend_visible: 1, frontend_visible: 1, form_visible: 1,
+      list_visible: 1, editable: 1, validator: "", required: 0, disabled: 0, rank,
+    });
+    const dataProvider = await renderForm("admin_permission_resources", undefined, [
+      field("resource_type", "Resource Type", "select", { options: [{ value: "API_ENDPOINT", label: "API_ENDPOINT" }] }, 1),
+      field("resource", "Resource", "lookup", { lookup: "resources_by_type" }, 2),
+    ]);
+    expect(dataProvider.custom).not.toHaveBeenCalled();
+
+    const [typeSelect] = document.querySelectorAll(".ant-modal-body .ant-select");
+    await act(async () => { fireEvent.mouseDown(typeSelect.querySelector(".ant-select-selector") ?? typeSelect); });
+    const option = await waitFor(() => {
+      const found = document.querySelector(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option");
+      expect(found).not.toBeNull();
+      return found;
+    });
+    await act(async () => { fireEvent.click(option); });
+
+    await waitFor(() => expect(dataProvider.custom).toHaveBeenCalledWith({
+      url: "/api/v1/lookups/resources_by_type",
+      payload: { parent: "API_ENDPOINT" },
+      unwrap: true,
+    }));
+    await waitFor(async () => {
+      const fields = await describeFields();
+      expect(fields[1]).toMatchObject({ label: "Resource", options: ["/api/v1/reports"] });
+    });
   });
 });

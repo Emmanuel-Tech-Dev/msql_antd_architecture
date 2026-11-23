@@ -6,12 +6,11 @@ function toBoolean(value, fallback = false) {
 }
 
 export function getFieldPolicy(field = {}, mode = "create") {
-  // form_visible is the preferred future field. backend_visible remains the
-  // legacy fallback so existing metadata continues to render unchanged.
-  const formVisible = Object.hasOwn(field, "form_visible")
-    ? toBoolean(field.form_visible)
-    : toBoolean(field.backend_visible);
-  const listVisible = toBoolean(field.frontend_visible);
+  // form_visible and list_visible replaced backend_visible and
+  // frontend_visible (migration 021); the old names are read only for
+  // metadata from before that change.
+  const formVisible = toBoolean(field.form_visible ?? field.backend_visible);
+  const listVisible = toBoolean(field.list_visible ?? field.frontend_visible);
   const editable = toBoolean(field.editable, true);
   const explicitlyDisabled = toBoolean(field.disabled);
 

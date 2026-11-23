@@ -2,6 +2,7 @@ const AppError = require("../../shared/helpers/AppError");
 const utils = require("../../shared/utils/functions");
 const {
   canAccessResource,
+  matchesResourcePath,
 } = require("../lib/authorizationPolicy");
 const { loadUserAuthority } = require("../lib/authorityService");
 const {
@@ -22,6 +23,12 @@ const AUTHENTICATED_CORE_ENDPOINTS = new Set([
   "/api/v1/bootstrap",
   "/auth/auth_user",
 ]);
+// Forms need field metadata (which bootstrap already gives every user) and
+// lookup options; metadataService checks each lookup's own permission.
+const AUTHENTICATED_CORE_PATTERNS = [
+  "/api/v1/metadata/:table",
+  "/api/v1/lookups/:key",
+];
 
 // Optional authenticated-open endpoints still require an explicit system
 // setting and must also appear in this code-level safety allowlist.
@@ -113,7 +120,10 @@ function createAuthorizationMiddleware({ abacEngine = defaultAbacEngine } = {}) 
       let baselineAllowed = false;
       let matchedResources = [];
 
-      if (AUTHENTICATED_CORE_ENDPOINTS.has(requestedPath)) {
+      if (
+        AUTHENTICATED_CORE_ENDPOINTS.has(requestedPath)
+        || AUTHENTICATED_CORE_PATTERNS.some((pattern) => matchesResourcePath(pattern, requestedPath))
+      ) {
         accessMode = "AUTHENTICATED_CORE";
         baselineAllowed = true;
       }

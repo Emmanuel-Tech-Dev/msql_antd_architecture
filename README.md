@@ -157,7 +157,7 @@ After authentication, the UI posts a profile key (`{ profile: "authenticated_sta
 
 ### Metadata-driven forms
 
-`tables_metadata` describes field labels, types, rank, validation, visibility, write policy, and options. `useRecordForm` interprets it for both create and edit flows. Lookup metadata is converted into a structured request and checked against `server/core/config/lookupRegistry.js`; metadata alone cannot authorize database access.
+`tables_metadata` describes field labels, types, rank, validation, visibility, write policy, and type settings in `config` (static `options`, or a named `lookup`). `metadata_tables` holds per-table settings. A lookup field names a row in `metadata_lookups`; the server builds its options from that definition only (`GET /api/v1/lookups/:key`, with `?parent=` for a dependent lookup) and checks its `required_permission`. Metadata never contains SQL. `GET /api/v1/metadata/:table` returns a table's settings, fields and lookups. `useRecordForm` interprets the metadata for create and edit flows.
 
 ### Tables and server state
 

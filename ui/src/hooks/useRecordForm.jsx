@@ -13,6 +13,7 @@ import useNotification from './useNotification';
 import { useQueryClient } from "@tanstack/react-query";
 import { legacySqlToLookup } from '../utils/lookup_utils';
 import { getFieldPolicy } from '../core/metadata/fieldPolicy';
+import { toLegacyField } from '../core/metadata/legacyField';
 import queryKeys from '../core/queryKeys';
 import { useDataProvider } from '../core/provider/DataProvider';
 
@@ -60,7 +61,8 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         if (!tblName) return [];
         return valuesStore
             .getValuesBy(tblMetaDataName, whrKeyName, tblName)
-            ?.sort((a, b) => (Number(a.rank || 0)) - (Number(b.rank || 0))) ?? [];
+            ?.sort((a, b) => (Number(a.rank || 0)) - (Number(b.rank || 0)))
+            .map(toLegacyField) ?? [];
         //    / console.log("Values", va)
     }, [tblName, tblMetaDataName, whrKeyName, valuesStore]);
 
@@ -71,6 +73,10 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     }, [tblMeta, fields]);
 
     // ─── helpers ──────────────────────────────────────────────────────────
+    function lookupDependsOn(lookupKey) {
+        return valuesStore.getValuesBy('metadata_lookups', 'lookup_key', lookupKey)[0]?.depends_on ?? null;
+    }
+
     function selectOptionLabelRender(image, key, value, row) {
         const vl = value?.split(',').map((val) => row[val]).join(' - ');
         return image ? (
@@ -167,7 +173,8 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                     case 'jsonMultiSelect': {
                         if (!sqlSelectResult[name] && !batchedSqlResults[name]) {
                             const p = meta[i]['options'] ? JSON.parse(meta[i]['options']) : {};
-                            options = Object.entries(p).map(([k, v]) => ({ value: k, label: v }));
+                            options = meta[i].config?.options
+                                ?? Object.entries(p).map(([k, v]) => ({ value: k, label: v }));
                             batchedSqlResults[name] = options;
                         } else {
                             options = batchedSqlResults[name] ?? sqlSelectResult[name];
@@ -192,6 +199,25 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                     case 'sqlCheck':
                     case 'sqlSelect':
                     case 'sqlMultiSelect': {
+                        // Metadata v2: a named lookup the server resolves. A
+                        // dependent lookup loads when its parent field changes.
+                        const lookupKey = meta[i].config?.lookup;
+                        if (lookupKey) {
+                            if (sqlSelectResult[name] || batchedSqlResults[name]) {
+                                options = batchedSqlResults[name] ?? sqlSelectResult[name];
+                            } else if (!lookupDependsOn(lookupKey) && !extraMetaRef.current.has(name)) {
+                                extraMetaRef.current.add(name);
+                                setExtraMetaList((r) => [...r, name]);
+                                const { data: rows } = await dataProvider.custom({
+                                    url: `/api/v1/lookups/${lookupKey}`,
+                                    unwrap: true,
+                                });
+                                options = rows ?? [];
+                                batchedSqlResults[name] = options;
+                            }
+                            break;
+                        }
+
                         const p = meta[i]['options'] ? JSON.parse(meta[i]['options']) : {};
                         // console.log(p)
                         let sql = p?.sql;
@@ -642,6 +668,27 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
 
         const tblMetaForKey = valuesStore.getValuesBy(tblMetaDataName, whrKeyName, tblName);
         const elem = tblMetaForKey.find((item) => item?.column_name === key) ?? {};
+
+        const dependentFields = tblMetaForKey.filter(
+            (field) => field?.config?.lookup && lookupDependsOn(field.config.lookup) === key,
+        );
+        if (dependentFields.length) {
+            targetPendingRef.current.add(guardKey);
+            try {
+                await Promise.all(dependentFields.map(async (field) => {
+                    const { data: rows } = await dataProvider.custom({
+                        url: `/api/v1/lookups/${field.config.lookup}`,
+                        payload: { parent: v },
+                        unwrap: true,
+                    });
+                    setSqlSelectResult((prev) => ({ ...prev, [field.column_name]: rows ?? [] }));
+                }));
+                setOptionsVersion((n) => n + 1);
+            } finally {
+                targetPendingRef.current.delete(guardKey);
+            }
+        }
+
         const options = elem.extra_options;
         if (!options) return;
 
