@@ -1,5 +1,6 @@
 const validateTable = require("../core/middleware/validateTable");
 const BaseService = require("../core/lib/baseService");
+const { loadBootstrapProfile } = require("../core/lib/bootstrapService");
 const AppError = require("../shared/helpers/AppError");
 // const authMiddleWare = require("../core/middleware/authMiddleWare");
 // const authorization = require("../core/middleware/authorization");
@@ -273,12 +274,17 @@ class BaseRoute {
 
   bootstrap(app) {
     app.post("/api/v1/bootstrap", async (req, res) => {
-      const service = new BaseService(req, res);
-      const data = await service.bootstrap(req.body);
-      //console.log(data);
+      if (req.body?.tables) {
+        throw new AppError("ERR_INVALID_INPUT", "Bootstrap takes a profile key, not a table list");
+      }
+      const { stores, unavailable } = await loadBootstrapProfile(req.body?.profile, {
+        permissions: req.permissions,
+        privileged: req.isPrivileged,
+      });
       res.json({
         success: true,
-        data,
+        data: stores,
+        unavailable,
       });
     });
   }

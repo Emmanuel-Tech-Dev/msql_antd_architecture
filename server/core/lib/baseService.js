@@ -2,7 +2,6 @@ const utils = require("../../shared/utils/functions");
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
 const { getLookupColumns } = require("../config/lookupRegistry");
-const { resolveTableDefinition } = require("../middleware/validateTable");
 
 const SENSITIVE_COLUMNS = new Set([
   "password",
@@ -212,41 +211,6 @@ class BaseService {
       .delete(payload?.resources)
       .where(primaryKey, "=", payload?.id)
       .execute();
-  }
-
-  async bootstrap(payload = {}) {
-    const configs = Array.isArray(payload.tables) ? payload.tables : [];
-    if (!configs.length || configs.length > 20) {
-      throw new AppError(
-        "ERR_INVALID_INPUT",
-        "Bootstrap requires between 1 and 20 table configurations",
-      );
-    }
-    const results = {};
-    const storeNames = new Set();
-
-    for (const config of configs) {
-      const definition = await resolveTableDefinition(config, {
-        purpose: "bootstrap",
-        roles: this.request.roles,
-        permissions: this.request.permissions,
-      });
-      if (storeNames.has(definition.storeName)) {
-        throw new AppError(
-          "ERR_INVALID_INPUT",
-          `Duplicate bootstrap store name: ${definition.storeName}`,
-        );
-      }
-      storeNames.add(definition.storeName);
-      const model = new Model().select(definition.fields, definition.table);
-      for (const filter of definition.filters) {
-        model.where(filter.column, filter.operator, filter.value);
-      }
-      const rows = await model.limit(definition?.limit).execute();
-      results[definition.storeName] = utils.redactSensitiveData(rows);
-    }
-
-    return results;
   }
 
   async lookup(payload = {}) {

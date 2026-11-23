@@ -101,38 +101,8 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
         queryFn: () => dataProvider.custom({
             url: 'api/v1/bootstrap',
             method: 'post',
-            payload: {
-                tables: [
-                    {
-                        table: 'tables_metadata',
-                        storeName: 'tables_metadata',
-                        fields: ['*'],
-                        // limit: 2000,
-                    },
-                    {
-                        table: 'admin_resources',
-                        storeName: 'admin_resources',
-                        fields: ['*'],
-                        // limit: 1000,
-                    },
-                    {
-                        table: 'admin_permissions',
-                        storeName: 'permissions',
-                        fields: ['*'],
-                        // limit: 1000,
-                    },
-                    {
-                        table: 'ui_settings',
-                        storeName: 'ui_settings',
-                        fields: ['id', 'setting_key', 'setting_value', 'description', 'is_active', 'version'],
-                        filters: [
-                            { column: 'setting_key', operator: '=', value: 'layout.sider' },
-                            { column: 'is_active', operator: '=', value: 1 },
-                        ],
-                        // limit: 10,
-                    },
-                ],
-            },
+            // The server decides what startup loads (bootstrap registry).
+            payload: { profile: 'authenticated_startup' },
         }),
         enabled: !isPublicRoute && isAuthenticated,
         staleTime: 0, // Always refetch when component remounts
@@ -201,6 +171,9 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
 
     if (bootstrapError) {
         console.error('[Framework] Bootstrap failed:', bootstrapError.message);
+    }
+    if (data?.data?.unavailable?.length) {
+        console.warn('[Framework] Startup data not loaded:', data.data.unavailable.join(', '));
     }
     if (authUserError) {
         console.error('[Framework] auth_user fetch failed:', authUserError.message);

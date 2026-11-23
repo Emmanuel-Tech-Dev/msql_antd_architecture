@@ -153,7 +153,7 @@ Authentication establishes identity. Authorization separately maps roles to perm
 
 ### Bootstrap
 
-After authentication, the UI requests startup-critical datasets such as `tables_metadata`, `admin_resources`, `admin_permissions`, and active `ui_settings`. The server resolves physical tables and columns, removes sensitive fields, applies bounded filters/limits, and requires `read:<table>` for non-core bootstrap datasets unless the caller is privileged.
+After authentication, the UI posts a profile key (`{ profile: "authenticated_startup" }`) to `/api/v1/bootstrap`. The server reads that profile from the `framework_bootstrap_*` registry: its enabled datasets for the current environment, in load order, each with its registered columns (sensitive ones are refused), fixed filters, sort and row limit. A dataset with a `required_permission` loads only for holders and privileged users. A failing `OPTIONAL` dataset is left out and listed in `unavailable`; a failing `REQUIRED` one fails the request. The browser cannot name tables or columns. To load more at startup, register a dataset and add it to the profile in a migration.
 
 ### Metadata-driven forms
 

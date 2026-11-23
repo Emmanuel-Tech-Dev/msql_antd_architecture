@@ -1,6 +1,6 @@
 # Framework upgrade plan: metadata platform, form builder and bootstrap
 
-Status: **approved** (decisions taken 2026-11-23, section 7). Phase 0 done (2026-11-23); phase 1 next.
+Status: **approved** (decisions taken 2026-11-23, section 7). Phases 0 and 1 done (2026-11-23); phase 2 next.
 Scope: `msql_antd_architecture` only. Business projects built on the framework (for example viLuxeInvoice) adopt it later, as a separate step.
 
 ## 1. Why
@@ -140,12 +140,14 @@ Each phase is shippable on its own, keeps existing screens working, and ends wit
 
 **Result:** `settings-store.js` removed; the temporary-password UI arrived with the viLuxeInvoice sync. Safety net: `server/tests/genericCrudCharacterisation.test.js` (generic routes; the "until phase 3" case changes on purpose), `server/tests/bootstrapCharacterisation.test.js` (what sign-in loads; phase 1 must match it), `server/tests/fixtures/adminTablesMetadata.json` (the admin tables' metadata rows, input for the phase 2 conversion), and `ui/src/hooks/useRecordForm.characterisation.test.jsx` with snapshots of each admin form (Vitest added to the UI). Quirks the snapshots record: the generated User ID is a hidden field; "is system role" is disabled even when adding; roles show Description before Role (equal ranks); editing shows only the fields present in the record.
 
-### Phase 1: Connect the bootstrap registry (G1)
+### Phase 1: Connect the bootstrap registry (G1) (done 2026-11-23)
 - Server: `bootstrap({ profile })` as in 3.6, the migration for the `ui_settings` dataset, and removal of the old request shape.
 - UI: `FrameworkProvider.jsx` sends the profile key, and the stores are filled exactly as before.
 - Tests: profile resolution, environment filter, column whitelist, required vs optional failure, unknown profile refused, disabled dataset skipped.
 
 **Done when:** sign-in loads the same data as today, and a request naming tables is refused.
+
+**Result:** `server/core/lib/bootstrapService.js` reads the registry; `validateTable.js` lost its bootstrap branches; migration 019 completes the dataset column lists (adds `show_in_nav` and timestamps, so the data matches the old `*` requests) and registers `ui_settings` as OPTIONAL. Row caching (`cache_ttl_seconds`) is not implemented: the registry value is kept for later, and every sign-in reads fresh rows as before. Tests: `bootstrapService.test.js` and the updated `bootstrapCharacterisation.test.js`.
 
 ### Phase 2: Metadata data model v2 (G3, G4)
 - Migrations: the new `tables_metadata` columns with backfills, a duplicate clean-up plus the unique key, `metadata_tables` (one row per currently described table, backfilled), `metadata_lookups`.
