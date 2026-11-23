@@ -23,7 +23,7 @@ async function getTableMetadata(table) {
   requireIdentifier(table, "table name");
   const [settings] = await new Model()
     .select(["table_name", "label", "singular_label", "description", "icon", "title_column",
-      "default_sort", "search_columns", "form_layout", "form_columns", "sections", "version"],
+      "default_sort", "search_columns", "form_layout", "form_columns", "sections", "stepper", "version"],
     "metadata_tables")
     .where("table_name", "=", table)
     .where("enabled", "=", 1)

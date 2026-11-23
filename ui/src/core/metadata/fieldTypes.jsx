@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import cryptoRandomString from 'crypto-random-string';
 import LookupSelect from '../../components/metadata/LookupSelect';
 import UploadField from '../../components/metadata/UploadField';
+import ChoiceGroup from '../../components/metadata/ChoiceGroup';
 
 // One definition per field type, shared by MetadataForm (input, value
 // conversion) and MetadataTable (cell). Built-in types are registered the
@@ -13,6 +14,10 @@ import UploadField from '../../components/metadata/UploadField';
 // toForm(stored) / fromForm(formValue): stored value <-> form value
 // cell(value, record, field): how the value shows in a list
 // fullWidth: always spans the whole row
+//
+// Display settings in a field's config: select / multiSelect take
+// display "chips" or "cards" (an option may carry a description for cards);
+// money takes currency ("GHS") as a prefix.
 // createDefault(): value for a new record when the field has no default
 
 const registry = new Map();
@@ -25,7 +30,8 @@ export function getFieldType(type) {
   return registry.get(type) ?? registry.get('text');
 }
 
-const options = (field) => (field.config?.options ?? []).map((option) => ({ value: String(option.value), label: option.label }));
+const options = (field) => (field.config?.options ?? []).map((option) => ({ value: String(option.value), label: option.label, description: option.description }));
+const displayedAsChoices = (field) => ['chips', 'cards'].includes(field.config?.display);
 const optionLabel = (field, value) => options(field).find((option) => option.value === String(value))?.label ?? value;
 const toList = (value) => (Array.isArray(value) ? value : String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
 const blankToUndefined = (value) => (value === null || value === '' ? undefined : value);
@@ -75,7 +81,17 @@ const number = {
   toForm: (value) => (value === null || value === '' || value === undefined ? undefined : Number(value)),
   cell: (value) => value ?? '',
 };
-for (const type of ['number', 'integer', 'money', 'percent', 'duration']) registerFieldType(type, number);
+for (const type of ['number', 'integer', 'percent', 'duration']) registerFieldType(type, number);
+registerFieldType('money', {
+  ...number,
+  input: ({ disabled, placeholder, field }) => (
+    <InputNumber className="!w-full" disabled={disabled} placeholder={placeholder ?? '0.00'} min={field.config?.min ?? 0} max={field.config?.max}
+      precision={field.config?.precision ?? 2} prefix={field.config?.currency} />
+  ),
+  cell: (value, record, field) => (value === null || value === undefined || value === ''
+    ? ''
+    : `${field.config?.currency ? `${field.config.currency} ` : ''}${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+});
 
 const choice = {
   toForm: (value) => (value === null || value === undefined || value === '' ? undefined : String(value)),
@@ -83,7 +99,9 @@ const choice = {
 };
 registerFieldType('select', {
   ...choice,
-  input: ({ disabled, placeholder, field }) => <Select disabled={disabled} placeholder={placeholder} options={options(field)} showSearch optionFilterProp="label" allowClear />,
+  input: ({ disabled, placeholder, field }) => (displayedAsChoices(field)
+    ? <ChoiceGroup name={field.column_name} display={field.config.display} options={options(field)} disabled={disabled} />
+    : <Select disabled={disabled} placeholder={placeholder} options={options(field)} showSearch optionFilterProp="label" allowClear />),
 });
 registerFieldType('radio', {
   ...choice,
@@ -97,7 +115,9 @@ const multiChoice = {
 };
 registerFieldType('multiSelect', {
   ...multiChoice,
-  input: ({ disabled, placeholder, field }) => <Select mode="multiple" disabled={disabled} placeholder={placeholder} options={options(field)} optionFilterProp="label" />,
+  input: ({ disabled, placeholder, field }) => (displayedAsChoices(field)
+    ? <ChoiceGroup multiple name={field.column_name} display={field.config.display} options={options(field)} disabled={disabled} />
+    : <Select mode="multiple" disabled={disabled} placeholder={placeholder} options={options(field)} optionFilterProp="label" />),
 });
 registerFieldType('checkboxGroup', {
   ...multiChoice,

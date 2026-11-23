@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Form, Modal } from 'antd';
 import MetadataForm from '../components/metadata/MetadataForm';
+import { useTableMetadata } from '../core/metadata/useTableMetadata';
 
 // The open / edit / modal way of using a metadata form, over the same engine
 // as MetadataForm (one form engine for the whole framework). Pages call
@@ -20,6 +21,9 @@ const useRecordForm = () => {
     // The options of the save in progress ({ notify, onSuccess, onError }) and
     // the promise save() returned for it.
     const pendingSave = useRef(null);
+    // A table shown as steps brings its own Back / Continue / Save buttons.
+    const { data: openedMetadata } = useTableMetadata(opened?.resource);
+    const stepped = Boolean(openedMetadata?.table?.stepper);
 
     const open = useCallback((next) => {
         form.resetFields();
@@ -75,7 +79,8 @@ const useRecordForm = () => {
             onCancel={close}
             okText={okText}
             confirmLoading={saving}
-            width={width}
+            width={width ?? (stepped ? 1000 : undefined)}
+            footer={stepped ? null : modalProps.footer}
             destroyOnHidden
         >
             {childrenTop}
@@ -87,6 +92,7 @@ const useRecordForm = () => {
                     initialValues={opened.initialValues}
                     fields={fields}
                     showActions={false}
+                    onCancel={close}
                     notify={pendingSave.current?.notify !== false}
                     onSaved={(saved) => {
                         pendingSave.current?.onSuccess?.(saved);

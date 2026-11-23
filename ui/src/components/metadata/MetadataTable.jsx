@@ -72,9 +72,12 @@ function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel
         <MetadataForm {...formProps} table={table} record={editing.record} onSaved={close} onCancel={close} />
     );
     const Container = metadata.table?.form_layout === 'drawer' ? Drawer : Modal;
-    const containerProps = Container === Drawer
-        ? { width: Number(metadata.table?.form_columns) === 2 ? 720 : 480 }
-        : { footer: null, width: Number(metadata.table?.form_columns) === 2 ? 760 : 520 };
+    const wide = Number(metadata.table?.form_columns) === 2;
+    const containerProps = metadata.table?.stepper
+        ? (Container === Drawer ? { width: 960 } : { footer: null, width: 1000 })
+        : Container === Drawer
+            ? { width: wide ? 720 : 480 }
+            : { footer: null, width: wide ? 760 : 520 };
 
     return (
         <>
