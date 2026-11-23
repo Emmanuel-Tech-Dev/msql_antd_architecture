@@ -1,0 +1,369 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`admin form > adding a record 1`] = `
+[
+  {
+    "control": "hidden",
+    "disabled": true,
+    "label": "",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Full Name",
+    "required": true,
+  },
+  {
+    "control": "email",
+    "disabled": false,
+    "label": "Email",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Phone Number",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "oauth provider",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Status",
+    "options": [
+      "Inactive",
+      "Active",
+    ],
+    "required": false,
+  },
+  {
+    "control": "upload",
+    "disabled": false,
+    "label": "Upload avatar",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "forced password change",
+    "options": [
+      "No",
+      "Yes",
+    ],
+    "required": false,
+  },
+  {
+    "control": "upload",
+    "disabled": false,
+    "label": "Upload profile picture",
+    "required": false,
+  },
+]
+`;
+
+exports[`admin form > editing a record shows only the record's fields 1`] = `
+[
+  {
+    "control": "hidden",
+    "disabled": true,
+    "label": "",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Full Name",
+    "required": true,
+  },
+  {
+    "control": "email",
+    "disabled": false,
+    "label": "Email",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Phone Number",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Status",
+    "options": [
+      "Inactive",
+      "Active",
+    ],
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "forced password change",
+    "options": [
+      "No",
+      "Yes",
+    ],
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_permissions form > adding a record 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Permission Name",
+    "required": true,
+  },
+  {
+    "control": "textarea",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "alias",
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_permissions form > editing a record shows only the record's fields 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Permission Name",
+    "required": true,
+  },
+  {
+    "control": "textarea",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "alias",
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_resources form > adding a record 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Resource Name",
+    "required": true,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Path",
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Type",
+    "options": [
+      "API_ENDPOINT",
+      "BROWSER_ROUTE",
+    ],
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "HTTP Method",
+    "options": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "ALL",
+    ],
+    "required": false,
+  },
+  {
+    "control": "textarea",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Icon",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Public Access",
+    "options": [
+      "No",
+      "Yes",
+    ],
+    "required": false,
+  },
+  {
+    "control": "number",
+    "disabled": false,
+    "label": "Sidebar Order",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "category",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Show in navigation",
+    "options": [
+      "Hide",
+      "Show",
+    ],
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_resources form > editing a record shows only the record's fields 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Resource Name",
+    "required": true,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Path",
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Type",
+    "options": [
+      "API_ENDPOINT",
+      "BROWSER_ROUTE",
+    ],
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "HTTP Method",
+    "options": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "ALL",
+    ],
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Public Access",
+    "options": [
+      "No",
+      "Yes",
+    ],
+    "required": false,
+  },
+  {
+    "control": "number",
+    "disabled": false,
+    "label": "Sidebar Order",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "category",
+    "required": false,
+  },
+  {
+    "control": "select",
+    "disabled": false,
+    "label": "Show in navigation",
+    "options": [
+      "Hide",
+      "Show",
+    ],
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_roles form > adding a record 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Role",
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": true,
+    "label": "is system role",
+    "options": [],
+    "required": false,
+  },
+]
+`;
+
+exports[`admin_roles form > editing a record shows only the record's fields 1`] = `
+[
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Description",
+    "required": false,
+  },
+  {
+    "control": "text",
+    "disabled": false,
+    "label": "Role",
+    "required": true,
+  },
+  {
+    "control": "select",
+    "disabled": true,
+    "label": "is system role",
+    "options": [],
+    "required": false,
+  },
+]
+`;

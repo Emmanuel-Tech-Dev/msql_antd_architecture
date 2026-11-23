@@ -138,6 +138,7 @@ cd server
 npm test
 
 cd ../ui
+npm test
 npm run lint
 npm run build
 ```

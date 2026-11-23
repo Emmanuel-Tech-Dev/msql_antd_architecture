@@ -1,6 +1,6 @@
 # Framework upgrade plan: metadata platform, form builder and bootstrap
 
-Status: **proposed** (2026-11-14). Nothing here is built yet.
+Status: **approved** (decisions taken 2026-11-23, section 7). Phase 0 done (2026-11-23); phase 1 next.
 Scope: `msql_antd_architecture` only. Business projects built on the framework (for example viLuxeInvoice) adopt it later, as a separate step.
 
 ## 1. Why
@@ -18,7 +18,7 @@ The framework calls itself metadata-driven, and the database is meant to describ
 | G5 | **There is no screen for managing metadata.** | `tables_metadata` describes itself (17 rows) so it could be edited, but no page does. |
 | G6 | **Projects duplicate field definitions.** | viLuxeInvoice's reference lists (units, taxes, payment terms, ...) have `tables_metadata` rows, yet define their columns again in JavaScript with types the metadata lacks (`money`, `percent`, `days`, `status`, `lookup`, `color`). |
 | G7 | **The form engine is hard to extend.** | `useRecordForm.jsx` is 1,125 lines that push JSX into an array inside a big `switch`, with about 25 `useState` calls. Adding a field type means editing it in several places. |
-| G8 | **Bootstrap can silently cut off metadata.** | The `tables_metadata` dataset has `max_rows 2000` and loads every table's metadata for every user. Past 2,000 fields, forms would lose fields with no error. |
+| G8 | **Bootstrap can silently cut off metadata.** | Bootstrap loads every table's metadata for every user, capped by the default row limit of 1,000 (`normalizeLimit` in `validateTable.js`; the registry's `max_rows 2000` is not used). Past 1,000 fields, forms would lose fields with no error. 120 rows today (2026-11-23). |
 | G9 | **Dead and leftover code.** | `ui/src/store/settings-store.js` (old bootstrap entries, unused). The temporary-password UI still needs merging into `Users.jsx` and `Login.jsx` (the server is done; see the README of the `framework-update` bundle). |
 
 ## 2. Goals and non-goals
@@ -129,14 +129,16 @@ The screen is designed in a Claude artifact first and approved before any code.
 
 ## 4. Phases
 
-Each phase is shippable on its own, keeps existing screens working, and ends with the server tests (`npx jest`), the UI lint and build passing.
+Each phase is shippable on its own, keeps existing screens working, and ends with the server tests (`npx jest`), the UI tests (`npm test`), the UI lint and build passing.
 
-### Phase 0: Housekeeping and a safety net
+### Phase 0: Housekeeping and a safety net (done 2026-11-23)
 - Remove `ui/src/store/settings-store.js` once a search confirms nothing imports it.
 - Merge the temporary-password UI into `Users.jsx` and `Login.jsx` (after the uncommitted work in them is committed).
 - Add characterisation tests: for the admin tables (`admin`, `admin_roles`, `admin_permissions`, `admin_resources`), what the current form renders and what the generic routes accept and reject. Later phases must keep these passing.
 
 **Done when:** the safety-net tests pass and pin today's behaviour.
+
+**Result:** `settings-store.js` removed; the temporary-password UI arrived with the viLuxeInvoice sync. Safety net: `server/tests/genericCrudCharacterisation.test.js` (generic routes; the "until phase 3" case changes on purpose), `server/tests/bootstrapCharacterisation.test.js` (what sign-in loads; phase 1 must match it), `server/tests/fixtures/adminTablesMetadata.json` (the admin tables' metadata rows, input for the phase 2 conversion), and `ui/src/hooks/useRecordForm.characterisation.test.jsx` with snapshots of each admin form (Vitest added to the UI). Quirks the snapshots record: the generated User ID is a hidden field; "is system role" is disabled even when adding; roles show Description before Role (equal ranks); editing shows only the fields present in the record.
 
 ### Phase 1: Connect the bootstrap registry (G1)
 - Server: `bootstrap({ profile })` as in 3.6, the migration for the `ui_settings` dataset, and removal of the old request shape.
@@ -200,9 +202,9 @@ Use **metadata** (`MetadataForm` / `MetadataTable`) when the screen edits one re
 | The server and browser disagreeing on rules | One rule format, one type definition per type, tests that run the same cases through both. |
 | A bigger metadata payload | Per-table loading with version caching instead of one bootstrap list. |
 
-## 7. Decisions needed before starting
+## 7. Decisions (taken 2026-11-23)
 
-1. **Evolve `tables_metadata` in place (recommended) or start fresh tables?** In place keeps everything working and lets each phase ship; fresh tables are cleaner but need a big switch-over.
-2. **May metadata be edited directly in production,** or only in development and then shipped as a migration? Recommended: allowed for superadmin/dev, with versions and an audit trail; production changes also exportable as a migration.
-3. **Is `repeater` (child tables) in scope now,** or after the builder ships? Recommended: after (phase 6).
-4. **The permission name** for the builder: `manage:metadata` (proposed).
+1. **Evolve `tables_metadata` in place.** Additive migrations with backfills; every phase ships on its own.
+2. **Metadata may be edited in production** by superadmin/dev, with every change versioned (restorable), audited, and exportable as a migration.
+3. **`repeater` (child tables) comes after the builder,** in phase 6.
+4. **The builder permission is `manage:metadata`.**
