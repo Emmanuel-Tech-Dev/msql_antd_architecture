@@ -1,6 +1,6 @@
 # Framework upgrade plan: metadata platform, form builder and bootstrap
 
-Status: **approved** (decisions taken 2026-11-23, section 7). Phases 0–3 done (2026-11-23); phase 4 next.
+Status: **approved** (decisions taken 2026-11-23, section 7). Phases 0–3 done (2026-11-23); phase 4 in progress (runtime built, Permissions moved).
 Scope: `msql_antd_architecture` only. Business projects built on the framework (for example viLuxeInvoice) adopt it later, as a separate step.
 
 ## 1. Why
@@ -173,6 +173,8 @@ Each phase is shippable on its own, keeps existing screens working, and ends wit
 - Deprecate `useRecordForm` (an adapter keeps any remaining callers working), and remove `tables_metadata` from bootstrap.
 
 **Done when:** the admin pages run on the new runtime, look and behave the same or better, and adding a field type means one `registerFieldType` call.
+
+**Progress (2026-11-23):** runtime in `ui/src/core/metadata/` (`fieldTypes.jsx` registry with all built-in types, `fieldRules.js` with the server's rules and messages, `useTableMetadata.js`) and `ui/src/components/metadata/` (`MetadataForm`, `MetadataFields`, `MetadataTable`, `LookupSelect`). Built on antd `Form`, so typing re-renders only the field (tested). Permissions page moved; migration 023 describes its two tables (`list_visible`, labels, search columns). Look kept as today (user decision: no separate design round). Next: Resources, Roles, Users; then the `useRecordForm` adapter and removing `tables_metadata` from bootstrap.
 
 ### Phase 5: Metadata builder (G5)
 - Design the Data model screens in a Claude artifact (tables list, form designer, field inspector, list designer, lookups, versions) with empty, loading, error and permission states, at desktop and phone width. **Get approval.**
