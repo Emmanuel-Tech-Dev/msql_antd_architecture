@@ -186,3 +186,47 @@ describe("metadata v2 (migration 020)", () => {
     });
   });
 });
+
+describe("typing performance", () => {
+  test("typing does not re-render the page, and saving sends what was typed", async () => {
+    let pageRenders = 0;
+    let createRequest;
+    function RolesPage() {
+      pageRenders += 1;
+      const recordForm = useRecordForm("tables_metadata", "table_name");
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      useEffect(() => { recordForm.openCreate("admin_roles"); }, []);
+      return recordForm.recordModal({ createTitle: "Add", shouldDrag: false });
+    }
+    const dataProvider = {
+      custom: vi.fn(async () => ({ data: [] })),
+      create: vi.fn(async (request) => { createRequest = request; return { data: {} }; }),
+    };
+    useValuesStore.getState().setRuntimeValues({ tables_metadata: adminTablesMetadataV2, metadata_lookups: METADATA_LOOKUPS });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AntdApp>
+          <DataProviderContext.Provider value={dataProvider}>
+            <RolesPage />
+          </DataProviderContext.Provider>
+        </AntdApp>
+      </QueryClientProvider>,
+    );
+    const roleInput = await waitFor(() => {
+      const found = document.querySelector('.ant-modal-body input[placeholder="Enter Role"]');
+      expect(found).not.toBeNull();
+      return found;
+    });
+    await act(async () => { fireEvent.change(roleInput, { target: { value: "A" } }); });
+    const rendersAfterFirstKey = pageRenders;
+
+    for (const value of ["Au", "Aud", "Audi", "Audit", "Audito", "Auditor"]) {
+      await act(async () => { fireEvent.change(roleInput, { target: { value } }); });
+    }
+    expect(pageRenders).toBe(rendersAfterFirstKey);
+
+    await act(async () => { fireEvent.click(document.querySelector(".ant-modal-footer .ant-btn-primary")); });
+    await waitFor(() => expect(dataProvider.create).toHaveBeenCalled());
+    expect(createRequest).toMatchObject({ resource: "admin_roles", variables: { role_name: "Auditor" } });
+  });
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ValuesStore from '../store/values-store';
 import utils from '../utils/function_utils';
 import { Image, Modal, Input, Select, Checkbox, Radio, DatePicker, TimePicker } from 'antd';
@@ -31,7 +31,13 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     const [showModal, setShowModal] = useState(false);
     const [tblMetaDataName, setTblMetaDataName] = useState(tablesMetaData);
     const [whrKeyName, setWhrKeyName] = useState(whereKeyName);
-    const [record, setRecord] = useState({});
+    // The values being edited live in a ref, not state: the inputs are
+    // uncontrolled, and storing each keystroke in state re-rendered the whole
+    // page using this hook (its table included) on every key press.
+    const recordRef = useRef({});
+    const setRecord = useCallback((next) => {
+        recordRef.current = typeof next === 'function' ? next(recordRef.current) : next;
+    }, []);
     const [mode, setMode] = useState('create');
     const [recordId, setRecordId] = useState(undefined);
     const [form, setForm] = useState(undefined);
@@ -113,7 +119,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
 
         try {
             const meta = mode === 'edit'
-                ? filteredMeta.filter((item) => Object.hasOwn(record, item.column_name))
+                ? filteredMeta.filter((item) => Object.hasOwn(recordRef.current, item.column_name))
                 : filteredMeta;
             if (!meta?.length) {
                 formBuildingRef.current = false;
@@ -139,7 +145,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
                 if (!visible) continue;
 
                 // read from ref — always current value, never stale, no form rebuild on keystroke
-                const value = record[name] ?? undefined;
+                const value = recordRef.current[name] ?? undefined;
                 const marginBottom = 'mb-2';
                 const showValidatorIndicator = validator ? <label className="text-red-500">*</label> : '';
 
@@ -758,7 +764,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         const result = {};
 
         for (const key in validatorMap) {
-            const value = record[key];
+            const value = recordRef.current[key];
             const rule = validatorMap[key]?.validator;
             const realName = validatorMap[key]?.realName;
             if (rule) {
@@ -788,7 +794,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     const queryClient = useQueryClient();
 
     // Replace save():
-    function getUpdatePayload(resource, source = record) {
+    function getUpdatePayload(resource, source = recordRef.current) {
         const metadata = valuesStore.getValuesBy(tblMetaDataName, whrKeyName, resource) ?? [];
         const metadataByColumn = new Map(metadata.map((item) => [item.column_name, item]));
 
@@ -817,7 +823,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
     async function save(options, legacyCallback) {
         const config = normalizeSaveConfig(options, legacyCallback);
         const resource = config.resource ?? tblName;
-        const context = { mode, resource, id: recordId, record: { ...record } };
+        const context = { mode, resource, id: recordId, record: { ...recordRef.current } };
 
         if (config.validate !== false) {
             const validation = validateShowErrorMessage();
@@ -843,7 +849,7 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
             return { success: false, error };
         }
 
-        let payload = mode === 'edit' ? getUpdatePayload(resource) : { ...record };
+        let payload = mode === 'edit' ? getUpdatePayload(resource) : { ...recordRef.current };
         try {
             if (config.transform) {
                 payload = await config.transform(payload, context);
@@ -1154,7 +1160,9 @@ const useRecordForm = (tablesMetaData, whereKeyName, autoFetch = true) => {
         setShowModal,
         setTblMetaDataName, setWhrKeyName,
         save, saveSelected, saveWithFiles,
-        upload, record, editor,
+        upload, editor,
+        // Always the values as typed so far (read at the time of use).
+        get record() { return recordRef.current; },
         childrenBottom, setChildrenBottom,
         childrenTop, setChildrenTop,
         form, buildForm,
