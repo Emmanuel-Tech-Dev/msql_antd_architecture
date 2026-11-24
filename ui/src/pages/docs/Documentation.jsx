@@ -31,6 +31,19 @@ import HookLab from './HookLab';
 import ArchitectureSimulator from './architecture-simulator/ArchitectureSimulator';
 import './Documentation.css';
 
+// Smooth scrolling only for people who haven't asked for less motion.
+const scrollBehavior = () => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
+// The clipboard can be refused (permissions, insecure origin); copying then just doesn't confirm.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const toneIcons = {
   note: <InfoCircleOutlined />,
   warning: <WarningOutlined />,
@@ -66,7 +79,7 @@ function CodeBlock({ block }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(block.value);
+    if (!(await copyText(block.value))) return;
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
@@ -119,7 +132,7 @@ function DocumentationBlock({ block, index }) {
       <section className="docs-block" aria-labelledby={headingId}>
         <h2 id={headingId}>{block.title}</h2>
         <ul className="docs-bullets">
-          {block.items.map((item) => <li key={item}>{item}</li>)}
+          {block.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}
         </ul>
       </section>
     );
@@ -131,8 +144,8 @@ function DocumentationBlock({ block, index }) {
         <h2 id={headingId}>{block.title}</h2>
         <ol className="docs-steps">
           {block.items.map((item, itemIndex) => (
-            <li key={item.title}>
-              <span>{String(itemIndex + 1).padStart(2, '0')}</span>
+            <li key={itemIndex}>
+              <span aria-hidden="true">{String(itemIndex + 1).padStart(2, '0')}</span>
               <div><strong>{item.title}</strong><p>{item.text}</p></div>
             </li>
           ))}
@@ -216,8 +229,9 @@ function SearchDialog({ open, onClose, onSelect }) {
       width={680}
     >
       <div className="docs-search__input">
-        <SearchOutlined />
+        <SearchOutlined aria-hidden="true" />
         <Input
+          aria-label="Search documentation"
           autoFocus
           bordered={false}
           onChange={(event) => setQuery(event.target.value)}
@@ -226,6 +240,7 @@ function SearchDialog({ open, onClose, onSelect }) {
         />
         <button aria-label="Close search" onClick={close} type="button"><CloseOutlined /></button>
       </div>
+      <p className="docs-visually-hidden" aria-live="polite">{query.trim() ? `${results.length} matching sections` : ''}</p>
       <div className="docs-search__results">
         {results.length ? results.map((result) => (
           <button
@@ -235,7 +250,7 @@ function SearchDialog({ open, onClose, onSelect }) {
           >
             <span className="docs-search__result-icon"><FileTextOutlined /></span>
             <span><small>{result.group}</small><strong>{result.title}</strong><em>{result.summary}</em></span>
-            <ArrowRightOutlined />
+            <ArrowRightOutlined aria-hidden="true" />
           </button>
         )) : <Empty description="No documentation sections match that search" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
       </div>
@@ -252,6 +267,7 @@ export default function Documentation() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform ?? '');
 
   const requestedId = location.hash.replace('#', '');
   const activeIndex = Math.max(0, documentationSections.findIndex((section) => section.id === requestedId));
@@ -266,12 +282,12 @@ export default function Documentation() {
 
   const selectSection = (id) => {
     navigate(`/docs#${id}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
     setMobileNavOpen(false);
   };
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(window.location.href);
+    if (!(await copyText(window.location.href))) return;
     setLinkCopied(true);
     window.setTimeout(() => setLinkCopied(false), 1400);
   };
@@ -294,6 +310,7 @@ export default function Documentation() {
 
   return (
     <div className="docs-shell">
+      <a className="docs-skip-link" href="#main-content">Skip to content</a>
       <header className="docs-header">
         <div className="docs-header__brand">
           <button className="docs-menu-button" aria-label="Open documentation navigation" onClick={() => setMobileNavOpen(true)} type="button">
@@ -304,7 +321,7 @@ export default function Documentation() {
           <Tag bordered={false}>v{documentationMeta.version}</Tag>
         </div>
         <button className="docs-search-trigger" onClick={() => setSearchOpen(true)} type="button">
-          <SearchOutlined /><span>Search documentation</span><kbd>Ctrl K</kbd>
+          <SearchOutlined aria-hidden="true" /><span>Search documentation</span><kbd>{isMac ? '⌘ K' : 'Ctrl K'}</kbd>
         </button>
         <div className="docs-header__actions">
           <Tooltip title={isDark ? 'Use light theme' : 'Use dark theme'}>
@@ -322,7 +339,7 @@ export default function Documentation() {
           <div className="docs-sidebar__status"><i /><span><strong>Public reference</strong><small>Updated {documentationMeta.updated}</small></span></div>
         </aside>
 
-        <main className="docs-main" id="main-content">
+        <main className="docs-main" id="main-content" tabIndex={-1}>
           <article className={`docs-article${activeSection.id === 'architecture-simulator' ? ' docs-article--wide' : ''}`}>
             <div className="docs-article__meta">
               <span>{activeSection.eyebrow}</span>
@@ -366,7 +383,7 @@ export default function Documentation() {
           {toc.map((item) => (
             <button
               key={item.id}
-              onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })}
               type="button"
             >
               {item.title}

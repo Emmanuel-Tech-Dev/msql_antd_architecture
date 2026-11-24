@@ -1,8 +1,8 @@
 export const documentationMeta = {
   product: "MySQL ORM Framework",
   edition: "Production architecture guide",
-  version: "1.0",
-  updated: "14 July 2026",
+  version: "1.1",
+  updated: "24 November 2026",
 };
 
 const p = (text) => ({ type: "paragraph", text });
@@ -80,8 +80,8 @@ export const documentationSections = [
         ],
       ),
       bullets("Design principles", [
-        "Database-driven where change should be operational: navigation visibility, permissions, table metadata, and appearance settings.",
-        "Code-controlled where a mistake would widen the trust boundary: authentication, authorization policy, table validation, lookup registration, sensitive columns, and backup execution.",
+        "Database-driven where change should be operational: navigation visibility, permissions, form and list metadata, lookups, sign-in fields, startup data, and appearance settings.",
+        "Code-controlled where a mistake would widen the trust boundary: authentication, authorization and ABAC policies, table validation, sensitive tables and columns, schema changes (migrations), and backup execution.",
         "One normalized data-provider contract between UI hooks and server endpoints.",
         "Friendly messages for end users; technical request details remain available to developers and operators.",
         "SuperAdmin and dev are privileged system roles; all other roles are evaluated from explicit permissions and resource mappings.",
@@ -159,7 +159,8 @@ export const documentationSections = [
         "Axios adds the bearer access token",
         "Express authenticates the token",
         "Authorization resolves roles, permissions, and endpoint resources",
-        "validateTable resolves physical schema and removes sensitive columns",
+        "validateTable resolves physical schema and removes sensitive and permission-guarded columns",
+        "Metadata rules check the record: types, required fields, rules, lookups, field access",
         "BaseService builds the allowed operation",
         "Model and QueryBuilder execute a parameterized query",
         "The response is normalized and cached by React Query",
@@ -185,9 +186,19 @@ export const documentationSections = [
             "FrameworkProvider, route guard, useSider",
           ],
           [
-            "Form fields and behavior",
-            "tables_metadata",
-            "ValuesStore and useRecordForm",
+            "Forms, lists and their rules",
+            "metadata_tables, tables_metadata, metadata_versions",
+            "GET /api/v1/metadata/:table → MetadataForm and MetadataTable; metadataSchema on every generic write",
+          ],
+          [
+            "Field-level access",
+            "tables_metadata.config readPermission / writePermission",
+            "validateTable, metadataSchema, getTableMetadata",
+          ],
+          [
+            "Startup data",
+            "framework_bootstrap_profiles and framework_bootstrap_datasets",
+            "bootstrapService and FrameworkProvider",
           ],
           [
             "Appearance",
@@ -199,7 +210,7 @@ export const documentationSections = [
             "system_settings plus environment",
             "SettingsManager and server services",
           ],
-          ["Lookup safety", "Code-level lookupRegistry", "BaseService.lookup"],
+          ["Lookup sources", "metadata_lookups (the browser sends only a key)", "metadataService.getLookupOptions"],
         ],
       ),
       callout(
@@ -210,13 +221,13 @@ export const documentationSections = [
       bullets("Runtime state model", [
         "React Query owns remote server state and invalidation.",
         "Zustand stores identity, roles, permissions, and the resource registry.",
-        "The tracked ValuesStore holds bootstrap datasets such as tables_metadata and ui_settings.",
+        "The ValuesStore holds bootstrap datasets such as admin_resources, permissions and ui_settings. Table metadata is fetched per table and cached by React Query under ['metadata', table].",
         "LocalForage is an optional browser persistence layer for offline-oriented use cases; it is not authorization state.",
         "Ant Design ConfigProvider and CSS custom properties expose the resolved appearance consistently to Ant Design, Tailwind, and vanilla CSS.",
       ]),
       callout(
         "Architecture decision",
-        "Bootstrap is request-driven but server-validated. Development can add a required dataset in FrameworkProvider without maintaining a second static backend list; the server still resolves the real table and columns, blocks sensitive namespaces, and checks read permissions for non-core datasets.",
+        "Bootstrap is registry-driven. The browser asks for a profile (authenticated_startup) and never names a table; framework_bootstrap_datasets decides the tables, columns, filters, row limits, environment and required permission. Adding startup data is a migration, not a UI change.",
       ),
     ],
   },
@@ -243,7 +254,7 @@ export const documentationSections = [
       ),
       callout(
         "Frontend scenarios",
-        "The component library includes protected pages, useTableApi tables, useRecordForm metadata forms, registered lookup selects, upload fields, Tiptap rich-text editors, charts, and offline tables. Their simulations cover missing routes or providers, unsupported metadata renderers, unsafe HTML, browser-only upload validation, unresolved offline conflicts, invalid metadata, missing lookups, and incomplete cache invalidation.",
+        "The component library includes protected pages, useTableApi tables, MetadataForm and useRecordForm forms, lookup selects, upload fields, Tiptap rich-text editors, charts, and offline tables. Their simulations cover missing routes or providers, unsupported metadata renderers, unsafe HTML, browser-only upload validation, unresolved offline conflicts, invalid metadata, missing lookups, and incomplete cache invalidation.",
       ),
       callout(
         "Server scenarios",
@@ -275,7 +286,7 @@ export const documentationSections = [
         "Initialize request logging, cookies, JSON parsing, rate limiting, CORS, and Helmet",
         "Register public authentication routes",
         "Install authentication and authorization middleware",
-        "Register logs, backup, UI settings, access-control, and generic data routes",
+        "Register logs, backup, UI settings, statistics, user directory, metadata, metadata builder, access-control, and generic data routes",
         "Install the not-found and central error handlers",
         "Initialize logging and preload system settings",
         "Listen on PORT and handle graceful shutdown signals",
@@ -286,11 +297,11 @@ export const documentationSections = [
         [
           [
             "core/config",
-            "MySQL pool, Cloudinary, Multer, Swagger definition, and lookup allowlists",
+            "MySQL pool, Cloudinary, Multer, Swagger definition, allowed origins, and the legacy lookup allowlist",
           ],
           [
             "core/lib",
-            "Authentication, authorization policy/events, generic services, query building, settings, uploads, and backups",
+            "Authentication, authorization policy, ABAC engine and events, generic services, the metadata engine and builder, query building, settings, uploads, and backups",
           ],
           [
             "core/middleware",
@@ -302,7 +313,7 @@ export const documentationSections = [
           ],
           [
             "route",
-            "HTTP endpoint families for auth, generic CRUD, ACL administration, logs, backup, and UI settings",
+            "HTTP endpoint families for auth, generic CRUD, ACL administration, user directory, metadata, the metadata builder, logs, backup, and UI settings",
           ],
           ["schema", "Input schemas used by request validation"],
           [
@@ -313,7 +324,7 @@ export const documentationSections = [
           ["scripts", "Migration execution and ACL seed generation"],
           [
             "tests",
-            "Authorization policy, middleware, and lookup-registry regression coverage",
+            "Authorization, ABAC, generic CRUD, metadata schema and scaffold, bootstrap, backup and lookup regression coverage (Jest)",
           ],
         ],
       ),
@@ -324,7 +335,22 @@ export const documentationSections = [
           [
             "BaseService",
             "Generic list, one, create, bulk create, update, delete, bootstrap, and lookup operations",
-            "Uses validated resources and writable/readable columns",
+            "Uses validated resources and per-user readable/writable columns; every write passes validateRecordAgainstMetadata",
+          ],
+          [
+            "metadataSchema",
+            "Builds a zod schema from a table's metadata and checks generic writes",
+            "Server-side required, rules, options, show-when, lookups, read-only, hidden and permission-guarded fields",
+          ],
+          [
+            "metadataService",
+            "Serves table metadata, lookup options and field uploads",
+            "Lookups by key only; per-user field filtering; upload type and size from metadata",
+          ],
+          [
+            "metadataAdminService",
+            "The Data model builder: describe, save versions, restore, export, lookups, new-table migrations, CSV import",
+            "manage:metadata only; never changes the schema; hidden system tables; audit log on save",
           ],
           [
             "Model",
@@ -395,6 +421,11 @@ export const documentationSections = [
             "Validates the complete appearance document and versions updates",
           ],
           [
+            "Metadata builder",
+            "route/MetadataAdminRoute.js",
+            "Describe tables, version definitions, lookups, migrations for new tables, CSV record import",
+          ],
+          [
             "Authorization events",
             "core/lib/authorizationEvents.js",
             "Broadcasts access changes so active clients can refresh",
@@ -442,7 +473,7 @@ export const documentationSections = [
           [
             "mysqlOrmProvider",
             "getList, getOne, getMany, create, update, deleteOne, custom",
-            "Core data hooks, useTableApi, useRecordForm, settings pages",
+            "Core data hooks, useTableApi, MetadataForm, MetadataTable, settings pages",
           ],
           [
             "mysqlOrmAuthProvider",
@@ -488,7 +519,7 @@ export const documentationSections = [
           [
             "Bootstrap values",
             "values-store",
-            "tables_metadata, admin_resources, permissions, ui_settings",
+            "admin_resources, permissions, ui_settings (table metadata is cached per table by React Query)",
           ],
           [
             "Persistent browser data",
@@ -518,8 +549,8 @@ export const documentationSections = [
           ],
           [
             "Records",
-            "useRecordForm, useDynamicForm, useUpload, useTextEditor",
-            "Metadata-driven create/edit and specialized fields",
+            "MetadataForm, MetadataTable, MetadataFields, useTableMetadata, useRecordForm (thin wrapper), useDynamicForm, useUpload, useTextEditor",
+            "Metadata-driven lists, create/edit forms and specialized fields",
           ],
           [
             "Tables",
@@ -574,7 +605,7 @@ return <CustomTable dataSource={query.data?.data} />;`,
       "Session lifecycle, role inheritance, user-specific ALLOW/DENY authority, permission mappings, route overrides, cache invalidation, and delegation safety.",
     blocks: [
       flow("Sign-in and authorization", [
-        "Login verifies email, status, and password hash",
+        "Login finds the account by any sign-in column allowed in the auth.login_identifiers setting, then checks status and password hash",
         "Server issues a short-lived access token and refresh cookie",
         "UI stores the access token in sessionStorage and user state in Zustand",
         "auth_user resolves roles, permissions, resources, and current profile",
@@ -641,7 +672,28 @@ return <CustomTable dataSource={query.data?.data} />;`,
       ),
       callout(
         "Why this is hybrid RBAC",
-        "Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. Time-limited overrides introduce one controlled ABAC-style environment condition; richer subject, resource, and environment policies can be added later without replacing the RBAC foundation.",
+        "Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. After the role check passes, the ABAC engine runs policies over the subject, resource and environment; policies can only deny.",
+      ),
+      table(
+        "ABAC policies",
+        ["Rule", "Detail"],
+        [
+          ["Order", "RBAC baseline first. If it fails, the request is denied without running policies."],
+          ["Effect", "A policy returns ALLOW or DENY. Policies cannot grant access the baseline refused."],
+          ["Failure", "A policy that throws is treated as a denial (POLICY_ERROR)."],
+          ["Built-in", "core.authenticated-subject and core.active-account deny unauthenticated subjects and inactive accounts."],
+          ["Projects", "Register more policies (ownership, branch, time of day) in the AbacPolicyRegistry; each sees the subject, resource and environment context."],
+        ],
+      ),
+      table(
+        "Field-level access (metadata)",
+        ["Setting", "Without it the user…"],
+        [
+          ["In the form switched off", "can't set the field through a user request; server code still can"],
+          ["config.readPermission", "doesn't get the field in records, filters, search, the form or the list"],
+          ["config.writePermission (falls back to readPermission)", "sees the field read-only; sending it fails with \"You can't change …\""],
+          ["Privileged roles", "superadmin and dev see and change every field"],
+        ],
       ),
       code(
         "Effective authority precedence",
@@ -734,122 +786,151 @@ Content-Type: application/json
     id: "metadata-forms",
     group: "Core use cases",
     title: "Metadata-driven forms",
-    eyebrow: "tables_metadata + useRecordForm",
+    eyebrow: "MetadataForm + MetadataTable",
     audience: "Developers and admins",
     readTime: "20 min",
     summary:
-      "How database metadata becomes create/edit UI, safe lookups, validation, uploads, custom saves, and cache refreshes.",
+      "Describe a table once: the same description builds its list and form, and the server enforces it on every write.",
     blocks: [
       p(
-        "tables_metadata is the form schema consumed at runtime. Each row describes one database column: its human label, input type, rank, validation, visibility, edit policy, lookup configuration, and optional dependent behavior. useRecordForm interprets those rows into a single create/edit workflow.",
+        "A described table has one row in metadata_tables (labels, title column, sort, search, form layout, sections, stepper) and one row per field in tables_metadata (label, type, in form, in list, required, editable, read-only, section, width, and a config JSON). Lookups live in metadata_lookups and every saved definition in metadata_versions. The UI and the server read the same rows.",
       ),
-      flow("Form construction", [
-        "openCreate or openEdit selects a resource and mode",
-        "useRecordForm reads matching tables_metadata rows from ValuesStore",
-        "fieldPolicy decides visibility and writability",
-        "Lookup definitions are converted from legacy SQL-shaped metadata into a structured lookup request",
-        "The server checks lookupRegistry and returns only registered columns",
-        "React elements are assembled and rendered in the record modal",
-        "save validates, transforms, submits, invalidates related resources, and resets",
+      flow("From description to screen", [
+        "A page renders <MetadataTable table=\"taxes\" />",
+        "useTableMetadata fetches GET /api/v1/metadata/taxes (cached 60 s per table)",
+        "The server leaves out fields the user may not read and marks fields they may not change read-only",
+        "MetadataTable builds columns, search and actions from the list fields and the user's permissions",
+        "Add or Edit opens MetadataForm in a modal, drawer or page, optionally as steps",
+        "Each field renders through the field type registry",
+        "Save sends the record; the server checks it against the same metadata before writing",
       ]),
       table(
-        "Common metadata types",
-        ["Type", "Rendered control", "Typical options"],
+        "tables_metadata columns",
+        ["Column", "Meaning"],
         [
-          [
-            "text / number / textArea",
-            "Ant Design Input",
-            "Placeholder, width, validation",
-          ],
-          [
-            "date / dateRange / time",
-            "DatePicker / RangePicker / TimePicker",
-            "Formatting and required state",
-          ],
-          [
-            "json/csv radio or check",
-            "Radio.Group / Checkbox.Group",
-            "Inline JSON map or comma-separated values",
-          ],
-          [
-            "sqlSelect / sqlMultiSelect",
-            "Select",
-            "Registered table, fields, key, label, optional grouping/image",
-          ],
-          [
-            "file / files",
-            "Upload",
-            "MIME, count, destination, multipart save",
-          ],
-          ["textEditor", "Self-hosted Tiptap editor", "Rich HTML bound into the record payload"],
-          [
-            "dynaFormSimple / dynaFormNested",
-            "Dynamic Form.List",
-            "Repeatable and nested structured input",
-          ],
+          ["column_name / col_real_name", "Physical column and its label"],
+          ["type", "Field type from the registry (see below)"],
+          ["form_visible / list_visible", "Shown in the form / shown as a list column. Hidden from the form also means users can't set it."],
+          ["required / editable / disabled", "Required; editable after create; read-only (never written)"],
+          ["section_key / col_span / rank", "Section, width out of 24, order"],
+          ["config (JSON)", "options, lookup, placeholder, helpText, default, rules, visibleWhen, requiredWhen, min, max, display, currency, accept, maxSizeMb, readPermission, writePermission"],
         ],
       ),
       table(
-        "Primary useRecordForm API",
-        ["Member", "Purpose"],
+        "Field types",
+        ["Group", "Types"],
         [
-          [
-            "openCreate(resource, initialValues)",
-            "Open a create form and seed values",
-          ],
-          [
-            "openEdit(resource, record, id)",
-            "Open edit mode with an existing record",
-          ],
-          [
-            "changeValue(value, key)",
-            "Update the in-progress record and trigger dependent options",
-          ],
-          ["save(options)", "Standard or custom create/update operation"],
-          ["saveWithFiles(options)", "Multipart variant of save"],
-          ["saveSelected(keys)", "Update only selected writable edit fields"],
-          [
-            "reset / resetCompletely",
-            "Clear form, upload, option, and modal state",
-          ],
+          ["Text", "text, textarea, richText, email, phone, url, password"],
+          ["Numbers", "integer, number, money, percent, duration"],
+          ["Dates", "date, dateTime, time"],
+          ["Choices", "switch, select, multiSelect, radio, checkboxGroup (select/multiSelect can show as chips or cards)"],
+          ["From another table", "lookup, multiLookup (config.lookup names a metadata_lookups key)"],
+          ["Files", "image, file (uploaded to /api/v1/uploads/:table/:column, checked against accept and maxSizeMb)"],
+          ["System", "primaryKey, generatedId, color"],
         ],
       ),
       code(
-        "Standard save",
-        "jsx",
-        `const recordForm = useRecordForm('tables_metadata', 'table_name');
-
-recordForm.openCreate('projects');
-await recordForm.save({
-  successMessage: 'Project created',
-  invalidateResources: ['projects'],
-});`,
+        "A field's config",
+        "json",
+        `{
+  "placeholder": "e.g. 15",
+  "helpText": "Applied to the net amount",
+  "min": 0,
+  "max": 100,
+  "rules": [{ "rule": "pattern", "value": "^[0-9.]+$", "message": "Numbers only" }],
+  "visibleWhen": { "field": "kind", "in": ["LEVY"] },
+  "requiredWhen": { "field": "kind", "in": ["LEVY"] },
+  "readPermission": "view:tax_rates"
+}`,
       ),
       code(
-        "Custom endpoint and payload",
+        "A whole page",
         "jsx",
-        `await recordForm.save({
-  resource: 'admin',
-  endpoint: '/access/users/provision',
-  method: 'post',
-  transform: (payload, context) => ({
-    user: payload,
-    requestedMode: context.mode,
-  }),
-  invalidateResources: ['admin', 'admin_user_roles'],
-  successMessage: 'User provisioned',
-});`,
+        `import MetadataTable from '../components/metadata/MetadataTable';
+
+export default function Taxes() {
+  return (
+    <PageHeader title="Taxes">
+      <MetadataTable
+        table="taxes"
+        columns={{ rate: { render: (value) => \`\${value}%\` } }}
+      />
+    </PageHeader>
+  );
+}`,
       ),
-      bullets("Why invalidateResources exists", [
-        "A write may change more than the resource used by the form.",
-        "React Query considers cached lists valid until invalidated or stale.",
-        "List every affected resource so visible tables refetch and show the server’s final state.",
-        "The edited record cache is removed when a standard edit completes.",
+      code(
+        "A form on its own",
+        "jsx",
+        `<MetadataForm
+  table="taxes"
+  record={editing}            // omit to create
+  fields={['name', 'rate']}  // optional subset
+  onSaved={() => close()}
+/>
+
+// useRecordForm is a thin wrapper for pages that open the form imperatively:
+const form = useRecordForm();
+form.openCreate('taxes', { kind: 'VAT' });
+{form.recordModal({ createTitle: 'Add tax', onOk: () => form.save() })}`,
+      ),
+      table(
+        "Extending it",
+        ["Need", "How"],
+        [
+          ["A new field type", "registerFieldType('rating', { render, ... }) in core/metadata/fieldTypes.jsx"],
+          ["A new form layout", "registerFormLayout('wizard', Component) in core/metadata/formLayouts.js; steps is built in"],
+          ["A custom column or cell", "MetadataTable columns={{ column: { title, render } }}"],
+          ["Extra content in a form", "MetadataForm slots"],
+          ["Workflow rules", "A hand-written route; metadataSchema(table) can be reused and extended with zod"],
+        ],
+      ),
+      callout(
+        "Lookups are keys",
+        "A lookup field names a metadata_lookups key. The server decides the source table, value and label columns, filter, sort, row limit and required permission. The browser never sends SQL or column names.",
+        "warning",
+      ),
+      callout(
+        "Tables that aren't described",
+        "They still work through the generic API with permission checks, but get no field rules. Describe a table in Settings › Data model before building screens on it.",
+      ),
+    ],
+  },
+  {
+    id: "data-model-builder",
+    group: "Core use cases",
+    title: "Data model builder",
+    eyebrow: "Settings › Data model",
+    audience: "Admins and developers",
+    readTime: "12 min",
+    summary:
+      "Describe tables, design forms and lists with a live preview, edit lookups, keep versions, import records and write migrations for new tables.",
+    blocks: [
+      p(
+        "The builder is the browser editor for table metadata. It needs the manage:metadata permission (superadmin and dev by default). Every change is a draft until you choose Save as vN; a save takes effect at once for every user and writes an audit entry.",
+      ),
+      table(
+        "Screens",
+        ["Screen", "What you do"],
+        [
+          ["Tables", "See every table, described or not. Credential, token, log and framework tables are never listed."],
+          ["Describe", "Fields are guessed from the columns (types, options from ENUMs, lookups from foreign keys). Review and save as version 1."],
+          ["Form", "Outline (sections, order), live preview on desktop or phone, and an inspector for each field or the table (layout, columns, sections, steps)."],
+          ["List", "Which fields are columns, their order, which ones search covers, and the default sort, with the live list below."],
+          ["History", "Every version with what changed and who changed it. Restore saves the old version as a new one. Export JSON, field CSV or a SQL migration; import JSON or CSV into the draft."],
+          ["Lookups", "Edit or create a lookup and preview its choices before saving. Shows which fields use it."],
+          ["New table", "Design columns; the builder writes a migration file (table, metadata, permissions, API resources). Save it in server/resources/migrations and run npm run migrate."],
+          ["Import records", "Choose a table and a CSV, match columns to fields, check the rows against the same rules as the form, then import, optionally skipping rows with problems."],
+        ],
+      ),
+      bullets("What the builder never does", [
+        "Change the database schema. New tables and columns go through migration files.",
+        "List or describe credential, token, log or framework tables.",
+        "Save without a version: every save is recorded in metadata_versions with the user who made it.",
       ]),
       callout(
-        "Lookup rule",
-        "Metadata may describe a lookup, but it cannot authorize one. Add the lookup table and only the required columns to server/core/config/lookupRegistry.js. Never register credential, token, secret, or unrestricted configuration tables.",
-        "warning",
+        "Carrying a definition to another install",
+        "Export the migration from History and add it to the other project's migrations. It upserts the table's metadata and the lookups it uses.",
       ),
     ],
   },
@@ -1074,20 +1155,20 @@ await recordForm.save({
           text: "Define the table, indexes, foreign keys, timestamps, and rollback/forward strategy.",
         },
         {
-          title: "Add tables_metadata",
-          text: "Create one row per UI-managed field. Mark primary keys and server-controlled values as non-writable.",
+          title: "Describe it",
+          text: "Open Settings › Data model, choose Describe, review the guessed fields and save. Or use New table, which writes the table, metadata and permissions in one migration.",
         },
         {
           title: "Register API resources",
           text: "Add method/path rows to admin_resources and map them to permissions.",
         },
         {
-          title: "Add the code resource",
-          text: "Declare label, permissions, and searchable columns in the FrameworkProvider resource configuration.",
+          title: "Design the form and list",
+          text: "Arrange sections, widths, rules and list columns in the builder; guard sensitive fields with read/write permissions.",
         },
         {
           title: "Build the page",
-          text: "Use core data hooks, useTableApi, useRecordForm, PageHeader, and permission-aware actions.",
+          text: "Usually just <MetadataTable table=\"…\" /> inside PageHeader. Hand-build only what metadata can't express.",
         },
         {
           title: "Test roles",
@@ -1118,16 +1199,16 @@ await recordForm.save({
       ]),
       steps("Add a lookup", [
         {
-          title: "Describe it in metadata",
-          text: "Use a supported lookup definition with exact fields, key, and label columns.",
+          title: "Create the lookup",
+          text: "Settings › Data model › Lookups: key, source table, stored value, shown label, sort, optional dependency and permission.",
         },
         {
-          title: "Register safe columns",
-          text: "Add only the required table and columns to lookupRegistry.js.",
+          title: "Preview it",
+          text: "Preview choices before saving; the server refuses blocked tables and unknown columns.",
         },
         {
-          title: "Test rejection",
-          text: "Confirm an unregistered column and table remain forbidden.",
+          title: "Point fields at it",
+          text: "Give lookup fields config.lookup = the key. The server checks submitted values against the same lookup.",
         },
         {
           title: "Test the form",
@@ -1140,12 +1221,12 @@ await recordForm.save({
           text: "Bootstrap should contain only data needed before normal pages can operate.",
         },
         {
-          title: "Add the request config",
-          text: "Add table, storeName, explicit fields, narrow filters, and a bounded limit in FrameworkProvider.",
+          title: "Register the dataset",
+          text: "In a migration, add a framework_bootstrap_datasets row (source, columns, filters, max rows, permission) and link it to the authenticated_startup profile.",
         },
         {
           title: "Keep validation server-side",
-          text: "Core bootstrap tables are allowlisted; other tables require read:table unless the role is privileged.",
+          text: "The browser only names the profile. Sensitive sources are blocked, and a dataset with required_permission is skipped for users without it.",
         },
         {
           title: "Consume from ValuesStore",
@@ -1309,11 +1390,11 @@ return <PageHeader
     blocks: [
       table("Which hook should I choose?", ["Need", "Preferred hook", "Notes"], [
         ["Online or offline table", "useTableApi", "Composes state, query, columns, selection, and Ant Table props"],
-        ["Metadata create/edit form", "useRecordForm", "Primary record workflow; do not build separate add/edit hooks"],
-        ["Repeatable JSON form fields", "useDynamicForm", "Normally consumed through useRecordForm"],
+        ["List plus create/edit for a table", "MetadataTable / MetadataForm", "Built from the table's metadata; useRecordForm wraps MetadataForm for imperative pages"],
+        ["Repeatable JSON form fields", "useDynamicForm", "Standalone; a metadata repeater field type is planned"],
         ["Reusable filter bar/drawer", "useDynamicFilter", "Builds values, controls, active count, and request filters"],
         ["Controlled modal or drawer", "useModal / useDrawer", "Use when content is not a metadata record form"],
-        ["Upload field", "useUpload", "Normally coordinated by useRecordForm/saveWithFiles"],
+        ["Upload field", "useUpload", "Metadata image/file fields upload through /api/v1/uploads instead"],
         ["Permission administration", "useAccessControl", "Loads and saves users/permissions/routes by entity"],
         ["Browser persistence", "useLocalForage", "IndexedDB-backed cache or offline data"],
         ["Workspace shell", "useSider", "AppLayout owns the production instance"],
@@ -1350,26 +1431,16 @@ useEffect(() => {
 
 // Search, filters, sorting, and pagination now run in memory.
 // table.setRecord(null) returns the hook to API mode.`),
-      code("Tutorial: complete useRecordForm page", "jsx", `const form = useRecordForm('tables_metadata', 'table_name');
-const table = useTableApi({}, {}, 'id', { table: 'projects' });
+      code("Tutorial: a complete metadata page", "jsx", `// List, search, add, edit and delete, all from the table's metadata.
+<PageHeader title="Projects">
+  <MetadataTable table="projects" />
+</PageHeader>
 
+// Imperative variant when the page owns its own table:
+const form = useRecordForm();
 const create = () => form.openCreate('projects', { status: 'active' });
 const edit = (row) => form.openEdit('projects', row, row.id);
-
-return <>
-  <PageHeader title="Projects" actions={<Button onClick={create}>Add project</Button>} />
-  <Table {...table.tableProps} columns={[
-    { title: 'Name', dataIndex: 'name' },
-    { title: 'Actions', render: (_, row) => <Button onClick={() => edit(row)}>Edit</Button> },
-  ]} />
-  {form.recordModal({
-    createTitle: 'Add project',
-    editTitle: 'Edit project',
-    onOk: () => form.save({
-      invalidateResources: ['projects', 'project_summary'],
-    }),
-  })}
-</>`),
+{form.recordModal({ createTitle: 'Add project', editTitle: 'Edit project', onOk: () => form.save() })}`),
       code("Tutorial: reusable dynamic filters", "jsx", `const filters = useDynamicFilter({
   variant: 'horizontal',
   filters: [
@@ -1414,7 +1485,7 @@ await cache.deleteItem('recent');
         ["useStatistics", "Not implemented", "The file is currently empty; do not import it until an API and tests are added"],
         ["useBootstrap", "Compatibility shim", "Bootstrap is now owned by FrameworkProvider"],
       ]),
-      callout("Stable versus specialized", "Core hooks and useRecordForm/useTableApi are framework contracts. Visualization, legacy request, and domain hooks are conveniences whose API may evolve. Wrap specialized behavior in your own feature component when multiple pages depend on it."),
+      callout("Stable versus specialized", "Core hooks, MetadataForm/MetadataTable and useTableApi are framework contracts. Visualization, legacy request, and domain hooks are conveniences whose API may evolve. Wrap specialized behavior in your own feature component when multiple pages depend on it."),
     ],
   },
   {
@@ -1429,7 +1500,7 @@ await cache.deleteItem('recent');
       p("Use the generic API for ordinary table CRUD. Add custom routes only when an operation spans tables, has business invariants, invokes an external system, needs a transaction, or has a response that is not a table resource. Custom does not mean unvalidated."),
       steps("Tutorial: expose a table through generic CRUD", [
         { title: "Create the migration", text: "Define projects with a primary key, bounded columns, indexes, timestamps, and foreign keys." },
-        { title: "Apply metadata", text: "Insert tables_metadata rows only for fields the UI should manage." },
+        { title: "Describe it", text: "Describe the table in Settings › Data model (or let New table write the whole migration). The server then enforces its rules on every generic write." },
         { title: "Create API resources", text: "Register GET/POST/PUT/DELETE paths and methods in admin_resources." },
         { title: "Create permissions", text: "Add read/create/update/delete permission names and map them to resources." },
         { title: "Assign a role", text: "Map only the permissions required by that role." },
@@ -1554,19 +1625,15 @@ logger.security('Project archived', {
       ]),
       steps("1. Database and metadata", [
         { title: "Create projects", text: "Use the migration from Backend tutorials and apply it through npm run migrate." },
-        { title: "Insert field metadata", text: "Add name, code, and status. Mark id and timestamps as hidden/non-writable. Give fields deterministic rank values." },
-        { title: "Add a safe lookup if needed", text: "For owner_id, register only admin.id, name, email and use structured lookup metadata." },
+        { title: "Describe the table", text: "Settings › Data model › Describe. Check the guessed types: status becomes a select from the ENUM, timestamps read-only, id the primary key." },
+        { title: "Add a lookup if needed", text: "For owner_id, create a lookup (source admin, value custom_id, label name) and point the field at it." },
       ]),
-      code("Metadata intent", "json", `[
-  { "column_name": "name", "col_real_name": "Project name", "type": "text", "rank": 10 },
-  { "column_name": "code", "col_real_name": "Reference code", "type": "text", "rank": 20 },
-  {
-    "column_name": "status",
-    "col_real_name": "Status",
-    "type": "jsonSelect",
-    "options": { "active": "Active", "archived": "Archived" },
-    "rank": 30
-  }
+      code("What the builder saves", "json", `[
+  { "column_name": "name", "col_real_name": "Project name", "type": "text", "required": 1, "rank": 1 },
+  { "column_name": "code", "col_real_name": "Reference code", "type": "text", "required": 1, "rank": 2,
+    "config": { "rules": [{ "rule": "pattern", "value": "^[A-Z0-9-]{3,30}$" }] } },
+  { "column_name": "status", "col_real_name": "Status", "type": "select", "rank": 3,
+    "config": { "options": [{ "value": "active", "label": "Active" }, { "value": "archived", "label": "Archived" }], "display": "chips" } }
 ]`),
       steps("2. Access control", [
         { title: "Register endpoints", text: "Create API_RESOURCE rows for GET /api/projects/table, POST /api/projects, PUT /api/projects/:id, and DELETE /api/projects/:id." },
@@ -1589,38 +1656,16 @@ logger.security('Project archived', {
   },
 }`),
       code("4. Compose the page", "jsx", `export default function Projects() {
-  const canCreate = useCan('create:projects');
-  const canEdit = useCan('update:projects');
-  const table = useTableApi({}, {}, 'id', {
-    table: 'projects',
-    searchable: ['name', 'code'],
-  });
-  const form = useRecordForm('tables_metadata', 'table_name');
-
-  const columns = [
-    { title: 'Project', dataIndex: 'name', ...table.getColumnSearchProps('name') },
-    { title: 'Code', dataIndex: 'code' },
-    { title: 'Status', dataIndex: 'status' },
-    ...(canEdit ? [{
-      title: 'Actions',
-      render: (_, row) => <Button onClick={() => form.openEdit('projects', row)}>Edit</Button>,
-    }] : []),
-  ];
-
-  return <>
-    <PageHeader
-      title="Projects"
-      description="Manage active and archived projects."
-      actions={canCreate && <Button onClick={() => form.openCreate('projects')}>Add project</Button>}
-    />
-    <Input.Search onSearch={table.handleGlobalSearch} />
-    <CustomTable tableConfig={table} columns={columns} />
-    {form.recordModal({
-      createTitle: 'Add project',
-      editTitle: 'Edit project',
-      onOk: () => form.save({ invalidateResources: ['projects'] }),
-    })}
-  </>;
+  // Columns, search, add/edit/delete and permission checks come from the
+  // metadata and the user's create/update/delete:projects permissions.
+  return (
+    <PageHeader title="Projects" description="Manage active and archived projects.">
+      <MetadataTable
+        table="projects"
+        columns={{ status: { render: (value) => <Tag>{value}</Tag> } }}
+      />
+    </PageHeader>
+  );
 }`),
       steps("5. Register and verify the browser route", [
         { title: "Add App.jsx route", text: "Import Projects and add <Route path=\"projects\" element={<Projects />} /> beneath /admin." },
@@ -2192,10 +2237,13 @@ function App() {
         "Framework and administration",
         ["Method and path", "Purpose"],
         [
-          ["POST /api/v1/bootstrap", "Return validated startup datasets"],
+          ["POST /api/v1/bootstrap", "Return the startup datasets of a registry profile"],
+          ["GET /api/v1/metadata/:table", "A described table's settings, the fields this user may see, and its lookups"],
+          ["GET /api/v1/lookups/:key?parent=", "Choices of one lookup (its own permission applies)"],
+          ["POST /api/v1/uploads/:table/:column", "Upload for a file or image field (needs create or update on the table)"],
           [
             "POST /api/v1/extra_meta_options",
-            "Return registered lookup values",
+            "Legacy lookup values for useGlobalSelect (code allowlist)",
           ],
           [
             "GET/POST /access/...",
@@ -2210,22 +2258,37 @@ function App() {
           ["POST /api/v1/system/backups", "Create a database backup"],
         ],
       ),
+      table(
+        "Metadata builder (manage:metadata)",
+        ["Method and path", "Purpose"],
+        [
+          ["GET /api/v1/metadata-admin/tables", "Every describable table and its status"],
+          ["GET /api/v1/metadata-admin/tables/:table/scaffold", "Fields guessed from the table's columns"],
+          ["GET | PUT /api/v1/metadata-admin/tables/:table", "Read or save a definition (saves a new version)"],
+          ["GET /api/v1/metadata-admin/tables/:table/versions", "Version history with changes"],
+          ["POST /api/v1/metadata-admin/tables/:table/versions/:version/restore", "Restore a version as a new one"],
+          ["GET /api/v1/metadata-admin/tables/:table/export", "Definition JSON plus a migration"],
+          ["GET /api/v1/metadata-admin/lookups · PUT …/lookups/:key · POST …/lookups/preview", "List, save and preview lookups"],
+          ["GET /api/v1/metadata-admin/permissions", "Permission names for field access"],
+          ["POST /api/v1/metadata-admin/new-table", "Write a migration for a new table"],
+          ["POST /api/v1/metadata-admin/import/:table/check · POST …/import/:table", "Check CSV rows, then import them"],
+        ],
+      ),
       code(
         "Bootstrap request",
         "json",
-        `{
-  "tables": [{
-    "table": "tables_metadata",
-    "storeName": "tables_metadata",
-    "fields": ["*"],
-    "limit": 2000
-  }]
-}`,
+        `{ "profile": "authenticated_startup" }
+
+// A body with "tables" is refused: the registry decides what loads.`,
       ),
       code(
         "Lookup request",
         "json",
-        `{
+        `GET /api/v1/lookups/roles
+GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another field
+
+// Legacy useGlobalSelect body for POST /api/v1/extra_meta_options:
+{
   "lookup": {
     "table": "admin_roles",
     "fields": ["role_name", "description"],
@@ -2376,13 +2439,13 @@ function App() {
           ],
           [
             "Services",
-            "authService.js, baseService.js, databaseBackupService.js, uploadServices.js, systemSettings.js",
+            "authService.js, baseService.js, metadataService.js, metadataSchema.js, metadataAdminService.js, metadataScaffold.js, bootstrapService.js, databaseBackupService.js, backupHistoryService.js, uploadServices.js, systemSettings.js",
             "Business and operational orchestration",
           ],
           [
             "Policy",
-            "authorizationPolicy.js, authorizationEvents.js",
-            "Privileged role behavior and live access-change publication",
+            "authorizationPolicy.js, authorityService.js, abacEngine.js, coreAbacPolicies.js, authorizationContext.js, authorizationEvents.js",
+            "Role and override resolution, ABAC policies, privileged roles, live access-change publication",
           ],
           [
             "Database",
@@ -2396,7 +2459,7 @@ function App() {
           ],
           [
             "Routes",
-            "authRoute.js, baseRoute.js, acessRoute.js, BackupRoute.js, LogRoute.js, UiSettingsRoute.js",
+            "authRoute.js, baseRoute.js, acessRoute.js, MetadataRoute.js, MetadataAdminRoute.js, UserDirectoryRoute.js, AdminStatisticsRoute.js, BackupRoute.js, LogRoute.js, UiSettingsRoute.js",
             "HTTP contracts grouped by capability",
           ],
           [
@@ -2426,7 +2489,7 @@ function App() {
           ],
           [
             "Tests",
-            "authorizationPolicy, authorizationMiddleware, lookupRegistry",
+            "authorization policy and middleware, ABAC, generic CRUD, metadata schema, service and scaffold, bootstrap, backups, lookup registry",
             "Security and regression checks",
           ],
           [
@@ -2462,8 +2525,8 @@ function App() {
           ],
           [
             "Metadata",
-            "core/metadata/fieldPolicy.js",
-            "Create/edit field visibility and write policy",
+            "core/metadata/fieldTypes.jsx, fieldRules.js, formLayouts.js, useTableMetadata.js, useMetadataAdmin.js; components/metadata/*",
+            "Field type registry, field rules, form layouts, metadata queries, MetadataForm/MetadataTable/StepsLayout",
           ],
           [
             "Navigation",
@@ -2477,7 +2540,7 @@ function App() {
           ],
           [
             "Stores",
-            "authStore.js, values-store.js, settings-store.js",
+            "authStore.js, values-store.js",
             "Identity, bootstrap, and UI state",
           ],
           [
@@ -2597,9 +2660,19 @@ function App() {
             "Default role, role permissions, authenticated-core policy, request user ID",
           ],
           [
-            "Lookup is not registered",
-            "Lookup boundary",
-            "Metadata table/fields against lookupRegistry exact allowlist",
+            "A lookup field shows no choices",
+            "Lookup",
+            "metadata_lookups row enabled, its required_permission, depends_on parent value, Lookups › Preview",
+          ],
+          [
+            "A field is missing from a form or list",
+            "Metadata",
+            "form_visible / list_visible, config.readPermission, visibleWhen condition, 60 s metadata cache (reload)",
+          ],
+          [
+            "Save fails with \"You can't change …\"",
+            "Field access",
+            "config.writePermission (or readPermission) and the user's permissions",
           ],
           [
             "useForm is not connected",

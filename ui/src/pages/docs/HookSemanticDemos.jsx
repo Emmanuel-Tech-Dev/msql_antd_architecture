@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -91,10 +91,6 @@ const ACCESS_ITEMS = [
   { permission: 'update:projects', description: 'Edit projects' },
   { permission: 'delete:projects', description: 'Delete projects' },
 ];
-
-useStore.setState({
-  docs_permissions: ACCESS_ITEMS,
-});
 
 const pause = (ms = 260) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -241,7 +237,7 @@ function RecordFormContent() {
       {recordForm.recordModal({
         createTitle: 'Create sandbox project',
         editTitle: 'Edit sandbox project',
-        onOk: () => recordForm.save({ notify: false, onSuccess: setSaved, invalidateResources: ['docs_projects'] }),
+        onOk: () => recordForm.save({ notify: false, onSuccess: setSaved }),
       })}
     </DemoPanel>
   );
@@ -280,7 +276,7 @@ function DeleteContent() {
   const columns = [
     { title: 'Project', dataIndex: 'name' },
     { title: 'Status', dataIndex: 'status', render: (value) => <Tag>{value}</Tag> },
-    { title: '', width: 80, render: (_, record) => remove.confirm(record.id, `Delete ${record.name}?`, <Button danger icon={<DeleteOutlined />} />, (success) => success && setRows((current) => current.filter((item) => item.id !== record.id))) },
+    { title: '', width: 80, render: (_, record) => remove.confirm(record.id, `Delete ${record.name}?`, <Button danger aria-label={`Delete ${record.name}`} icon={<DeleteOutlined />} />, (success) => success && setRows((current) => current.filter((item) => item.id !== record.id))) },
   ];
   return <DemoPanel note="The confirmation and deletion use the real compatibility hook against the isolated provider."><Table rowKey="id" size="small" pagination={false} columns={columns} dataSource={rows} /></DemoPanel>;
 }
@@ -288,6 +284,11 @@ function DeleteContent() {
 export function DeleteDemo() { return <SandboxProviders><DeleteContent /></SandboxProviders>; }
 
 function AccessControlContent() {
+  // The demo's permission list lives in the shared values store only while the demo is open.
+  useEffect(() => {
+    useStore.setState({ docs_permissions: ACCESS_ITEMS });
+    return () => useStore.setState({ docs_permissions: undefined });
+  }, []);
   const access = useAccessControl({
     role: 'Reviewer',
     fetchEndpoint: '/sandbox/access/Reviewer',
@@ -312,7 +313,7 @@ function ListContent() {
   const [status, setStatus] = useState(undefined);
   const query = useList({ resource: 'projects', filters: status ? { status } : {} });
   const columns = [{ title: 'Project', dataIndex: 'name' }, { title: 'Owner', dataIndex: 'owner' }, { title: 'Status', dataIndex: 'status', render: (value) => <Tag>{value}</Tag> }];
-  return <DemoPanel note="Changing the filter changes the query key and reruns the real useList hook."><Select allowClear placeholder="Filter by status" value={status} onChange={setStatus} options={['planning', 'active', 'archived'].map((value) => ({ value, label: value }))} /><Table rowKey="id" size="small" loading={query.isLoading} pagination={false} columns={columns} dataSource={query.data?.data ?? []} /></DemoPanel>;
+  return <DemoPanel note="Changing the filter changes the query key and reruns the real useList hook."><Select allowClear aria-label="Filter by status" placeholder="Filter by status" value={status} onChange={setStatus} options={['planning', 'active', 'archived'].map((value) => ({ value, label: value }))} /><Table rowKey="id" size="small" loading={query.isLoading} pagination={false} columns={columns} dataSource={query.data?.data ?? []} /></DemoPanel>;
 }
 
 export function ListDemo() { return <SandboxProviders><ListContent /></SandboxProviders>; }
@@ -321,7 +322,7 @@ function OneContent() {
   const [id, setId] = useState(1);
   const query = useOne({ resource: 'projects', id });
   const project = query.data?.data;
-  return <DemoPanel note="Select an ID to demonstrate the resource-plus-ID cache key."><Select value={id} onChange={setId} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: `${item.id} · ${item.name}` }))} />{project && <Card loading={query.isLoading} className="hook-semantic__record-card"><small>PROJECT #{project.id}</small><Title level={4}>{project.name}</Title><p>{project.owner}</p><Tag>{project.status}</Tag></Card>}</DemoPanel>;
+  return <DemoPanel note="Select an ID to demonstrate the resource-plus-ID cache key."><Select aria-label="Project" value={id} onChange={setId} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: `${item.id} · ${item.name}` }))} />{project && <Card loading={query.isLoading} className="hook-semantic__record-card"><small>PROJECT #{project.id}</small><Title level={4}>{project.name}</Title><p>{project.owner}</p><Tag>{project.status}</Tag></Card>}</DemoPanel>;
 }
 
 export function OneDemo() { return <SandboxProviders><OneContent /></SandboxProviders>; }
@@ -329,7 +330,7 @@ export function OneDemo() { return <SandboxProviders><OneContent /></SandboxProv
 function ManyContent() {
   const [ids, setIds] = useState([1, 3]);
   const query = useMany({ resource: 'projects', ids });
-  return <DemoPanel note="useMany resolves a known ID set and caches that set independently."><Select mode="multiple" value={ids} onChange={setIds} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: item.name }))} /><div className="hook-semantic__card-grid">{(query.data?.data ?? []).map((item) => <Card size="small" key={item.id} title={item.name}><Tag>{item.status}</Tag><p>{item.owner}</p></Card>)}</div></DemoPanel>;
+  return <DemoPanel note="useMany resolves a known ID set and caches that set independently."><Select mode="multiple" aria-label="Projects to load" value={ids} onChange={setIds} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: item.name }))} /><div className="hook-semantic__card-grid">{(query.data?.data ?? []).map((item) => <Card size="small" key={item.id} title={item.name}><Tag>{item.status}</Tag><p>{item.owner}</p></Card>)}</div></DemoPanel>;
 }
 
 export function ManyDemo() { return <SandboxProviders><ManyContent /></SandboxProviders>; }
@@ -338,7 +339,7 @@ function CreateContent() {
   const [name, setName] = useState('');
   const [created, setCreated] = useState(null);
   const create = useCreate({ resource: 'projects', mutationOptions: { onSuccess: (result) => { setCreated(result.data); setName(''); } } });
-  return <DemoPanel note="Submitting calls the real create mutation. The hook automatically invalidates project-list queries."><Space.Compact block><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="New project name" /><Button type="primary" loading={create.isPending} disabled={!name.trim()} onClick={() => create.mutate({ name, status: 'planning', owner: 'Demo owner' })}>Create</Button></Space.Compact><JsonResult value={created} /></DemoPanel>;
+  return <DemoPanel note="Submitting calls the real create mutation. The hook automatically invalidates project-list queries."><Space.Compact block><Input aria-label="New project name" value={name} onChange={(event) => setName(event.target.value)} placeholder="New project name…" /><Button type="primary" loading={create.isPending} disabled={!name.trim()} onClick={() => create.mutate({ name, status: 'planning', owner: 'Demo owner' })}>Create</Button></Space.Compact><JsonResult value={created} /></DemoPanel>;
 }
 
 export function CreateDemo() { return <SandboxProviders><CreateContent /></SandboxProviders>; }
@@ -356,7 +357,7 @@ export function UpdateDemo() { return <SandboxProviders><UpdateContent /></Sandb
 function DeleteOneContent() {
   const [rows, setRows] = useState(INITIAL_PROJECTS);
   const remove = useDeleteOne({ resource: 'projects', mutationOptions: { onSuccess: (_, id) => setRows((current) => current.filter((item) => item.id !== id)) } });
-  return <DemoPanel note="The core hook removes the detail query and invalidates every project list after deletion."><div className="hook-semantic__delete-list">{rows.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.owner}</small></span><Popconfirm title={`Delete ${item.name}?`} onConfirm={() => remove.mutate(item.id)}><Button danger loading={remove.isPending} icon={<DeleteOutlined />} /></Popconfirm></div>)}</div></DemoPanel>;
+  return <DemoPanel note="The core hook removes the detail query and invalidates every project list after deletion."><div className="hook-semantic__delete-list">{rows.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{item.owner}</small></span><Popconfirm title={`Delete ${item.name}?`} onConfirm={() => remove.mutate(item.id)}><Button danger aria-label={`Delete ${item.name}`} loading={remove.isPending} icon={<DeleteOutlined />} /></Popconfirm></div>)}</div></DemoPanel>;
 }
 
 export function DeleteOneDemo() { return <SandboxProviders><DeleteOneContent /></SandboxProviders>; }
@@ -373,7 +374,7 @@ function CustomMutationContent() {
   const [ids, setIds] = useState([1, 2]);
   const [result, setResult] = useState(null);
   const command = useCustomMutation({ mutationOptions: { onSuccess: (response) => setResult(response.data) } });
-  return <DemoPanel note="This models a domain command rather than CRUD: archive several selected projects in one request."><Select mode="multiple" value={ids} onChange={setIds} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: item.name }))} /><Button type="primary" loading={command.isPending} disabled={!ids.length} onClick={() => command.mutate({ url: '/sandbox/archive', method: 'post', payload: { ids } })}>Archive selected</Button><JsonResult value={result} /></DemoPanel>;
+  return <DemoPanel note="This models a domain command rather than CRUD: archive several selected projects in one request."><Select mode="multiple" aria-label="Projects to archive" value={ids} onChange={setIds} options={INITIAL_PROJECTS.map((item) => ({ value: item.id, label: item.name }))} /><Button type="primary" loading={command.isPending} disabled={!ids.length} onClick={() => command.mutate({ url: '/sandbox/archive', method: 'post', payload: { ids } })}>Archive selected</Button><JsonResult value={result} /></DemoPanel>;
 }
 
 export function CustomMutationDemo() { return <SandboxProviders><CustomMutationContent /></SandboxProviders>; }
@@ -443,7 +444,7 @@ export function RouteGuardDemo() {
   const [path, setPath] = useState('/admin');
   const [authenticated, setAuthenticated] = useState(true);
   const target = !authenticated ? '/login' : path === '/admin' ? routes[0] : routes.includes(path) ? null : '/admin/404';
-  return <DemoPanel note="This shows the route decisions implemented by useRouteGuard: login, first accessible route, assigned route, or protected 404."><div className="hook-semantic__route-map"><Switch checked={authenticated} onChange={setAuthenticated} checkedChildren="Authenticated" unCheckedChildren="Signed out" /><Input value={path} onChange={(event) => setPath(event.target.value)} /><div><span>Requested</span><strong>{path}</strong></div><div><span>Decision</span><strong>{target ? `Redirect → ${target}` : 'Render assigned route'}</strong></div></div></DemoPanel>;
+  return <DemoPanel note="This shows the route decisions implemented by useRouteGuard: login, first accessible route, assigned route, or protected 404."><div className="hook-semantic__route-map"><Switch checked={authenticated} onChange={setAuthenticated} checkedChildren="Authenticated" unCheckedChildren="Signed out" /><Input aria-label="Requested path" value={path} onChange={(event) => setPath(event.target.value)} /><div><span>Requested</span><strong>{path}</strong></div><div><span>Decision</span><strong>{target ? `Redirect → ${target}` : 'Render assigned route'}</strong></div></div></DemoPanel>;
 }
 
 export function FrameworkDemo() {

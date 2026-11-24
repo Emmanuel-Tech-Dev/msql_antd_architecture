@@ -255,18 +255,20 @@ return <roles.SelectJsx
   integrationEntry({
     key: 'useRecordForm', category: 'Forms',
     status: 'Live · isolated',
-    summary: 'Unifies metadata-driven record creation and editing, validation, files, transforms, and query invalidation.',
+    summary: 'Opens MetadataForm in a modal for create and edit from imperative pages; validation, files and cache refresh come from MetadataForm.',
     importPath: 'src/hooks/useRecordForm.jsx', method: 'POST / PUT', endpoint: '/api/{resource}',
     result: 'Metadata form saved and related resources invalidated',
-    example: `const recordForm = useRecordForm('tables_metadata', 'table_name');
+    example: `const recordForm = useRecordForm();
 
-<Button onClick={() => recordForm.openCreate('projects')}>Add project</Button>
+<Button onClick={() => recordForm.openCreate('projects', { status: 'active' })}>Add project</Button>
+<Button onClick={() => recordForm.openEdit('projects', row)}>Edit</Button>
 {recordForm.recordModal({
-  onOk: () => recordForm.save({
-    transform: (values) => ({ ...values, source: 'admin' }),
-    invalidateResources: ['projects', 'project_stats'],
-  }),
-})}`,
+  createTitle: 'Add project',
+  editTitle: 'Edit project',
+  onOk: () => recordForm.save({ onSuccess: (saved) => console.info(saved) }),
+})}
+
+// For a whole list page, <MetadataTable table="projects" /> needs no hook.`,
   }),
   integrationEntry({
     key: 'useDynamicForm', category: 'Forms', status: 'Live · isolated',

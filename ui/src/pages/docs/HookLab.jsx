@@ -198,7 +198,7 @@ function ChartDemo() {
           data: CHART_DATA,
           showLegend: true,
           series: [
-            { dataKey: 'planned', name: 'Planned', color: '#a89f94', chart: 'bar' },
+            { dataKey: 'planned', name: 'Planned', color: 'var(--color-text-secondary)', chart: 'bar' },
             { dataKey: 'actual', name: 'Actual', color: 'var(--color-accent)', chart: type === 'composed' ? 'line' : undefined },
           ],
         })}
@@ -262,7 +262,7 @@ function TableDemo() {
     <PreviewSurface note="This is the real offline mode. No provider request is sent.">
       <Space wrap className="hook-studio__controls">
         <Button type="primary" onClick={() => { table.setRecord(TABLE_ROWS); setLoaded(true); }}>Load sample records</Button>
-        <Input allowClear prefix={<SearchOutlined />} placeholder="Search offline rows" onChange={(event) => table.handleGlobalSearch(event.target.value)} />
+        <Input allowClear aria-label="Search sample records" prefix={<SearchOutlined />} placeholder="Search offline rows…" onChange={(event) => table.handleGlobalSearch(event.target.value)} />
         <Button icon={<ReloadOutlined />} onClick={table.resetParams}>Reset</Button>
       </Space>
       {!loaded ? <Empty description="Load sample records to enter offline mode" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : <Table {...table.tableProps} columns={columns} size="small" />}
@@ -292,7 +292,7 @@ function IconsDemo() {
     <PreviewSurface>
       <div className="hook-studio__icon-demo">
         <div>{icons.resolveIcon(name)}</div>
-        <Select showSearch value={name} onChange={setName} options={icons.iconNames.map((iconName) => ({ label: iconName, value: iconName }))} />
+        <Select showSearch aria-label="Icon name" value={name} onChange={setName} options={icons.iconNames.map((iconName) => ({ label: iconName, value: iconName }))} />
         <Text type="secondary">resolveIcon returns a React element ready for an icon prop.</Text>
       </div>
     </PreviewSurface>
@@ -311,7 +311,7 @@ function StorageDemo() {
   const remove = async () => { await storage.deleteItem('demo:draft'); setValue(null); };
   return (
     <PreviewSurface note="This writes only to the current browser's framework-docs IndexedDB store.">
-      <Space wrap><Button type="primary" loading={storage.loading} onClick={save}>Save local draft</Button><Button onClick={read}>Read</Button><Button danger icon={<DeleteOutlined />} onClick={remove}>Delete</Button></Space>
+      <Space wrap><Button type="primary" loading={storage.loading} onClick={save}>Save local draft</Button><Button onClick={read}>Read</Button><Button danger icon={<DeleteOutlined />} disabled={!value} onClick={remove}>Delete draft</Button></Space>
       <pre className="hook-studio__output">{JSON.stringify(value, null, 2)}</pre>
     </PreviewSurface>
   );
@@ -430,17 +430,18 @@ export default function HookLab() {
       </div>
 
       <div className="hook-studio__filters">
-        <Input allowClear prefix={<SearchOutlined />} placeholder="Find a hook or capability" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <Select value={category} onChange={setCategory} options={['All hooks', ...hookCategories].map((item) => ({ label: item, value: item }))} />
+        <Input allowClear aria-label="Find a hook" prefix={<SearchOutlined />} placeholder="Find a hook or capability…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Select aria-label="Hook category" value={category} onChange={setCategory} options={['All hooks', ...hookCategories].map((item) => ({ label: item, value: item }))} />
       </div>
 
       <div className="hook-studio__workspace">
         <nav className="hook-studio__catalog" aria-label="Hook playgrounds">
           {filtered.length ? filtered.map((entry) => (
-            <button className={entry.key === active.key ? 'is-active' : ''} key={entry.key} onClick={() => selectHook(entry.key)} type="button">
-              <span>{categoryIcons[entry.category] ?? <ApiOutlined />}</span>
+            <button aria-current={entry.key === active.key ? 'true' : undefined} className={entry.key === active.key ? 'is-active' : ''} key={entry.key} onClick={() => selectHook(entry.key)} type="button">
+              <span aria-hidden="true">{categoryIcons[entry.category] ?? <ApiOutlined />}</span>
               <span><strong>{entry.name}</strong><small>{entry.category}</small></span>
-              <i className={entry.status.includes('Live') ? 'is-live' : entry.status === 'Not implemented' ? 'is-planned' : ''} />
+              <i aria-hidden="true" className={entry.status.includes('Live') ? 'is-live' : entry.status === 'Not implemented' ? 'is-planned' : ''} />
+              <span className="docs-visually-hidden">{entry.status}</span>
             </button>
           )) : <Empty description="No hooks match this filter" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
         </nav>

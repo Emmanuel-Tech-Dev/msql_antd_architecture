@@ -936,3 +936,36 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Keyboard access: skip link, a visible focus ring on the page's own
+   controls, and text kept for screen readers only. */
+.docs-skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 14px;
+  color: var(--docs-elevated);
+  background: var(--docs-accent);
+  border-radius: 4px;
+  transform: translateY(-160%);
+}
+.docs-skip-link:focus-visible {
+  transform: none;
+}
+.docs-shell :is(button, a, kbd):focus-visible {
+  outline: 2px solid var(--docs-accent);
+  outline-offset: 2px;
+}
+.docs-main:focus {
+  outline: none;
+}
+.docs-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
