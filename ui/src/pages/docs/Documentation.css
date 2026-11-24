@@ -81,7 +81,7 @@
   margin-top: 3px;
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -90,7 +90,7 @@
   color: var(--docs-accent);
   background: color-mix(in srgb, var(--docs-accent) 9%, transparent);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .docs-search-trigger {
@@ -127,7 +127,7 @@ kbd {
   border-bottom-width: 2px;
   border-radius: 3px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
 }
 .docs-header__actions {
   justify-content: flex-end;
@@ -173,7 +173,7 @@ kbd {
   margin: 0 10px 8px;
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -219,7 +219,7 @@ kbd {
   flex: 0 0 auto;
   color: color-mix(in srgb, var(--docs-muted) 72%, transparent);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
 }
 .docs-sidebar__status {
   margin-top: 28px;
@@ -241,13 +241,13 @@ kbd {
   flex-direction: column;
 }
 .docs-sidebar__status strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 .docs-sidebar__status small {
   margin-top: 2px;
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .docs-main {
@@ -267,7 +267,7 @@ kbd {
   gap: 0;
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -318,7 +318,7 @@ kbd {
 .docs-article__rule span {
   color: var(--docs-accent);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .docs-article__rule i {
@@ -447,7 +447,7 @@ kbd {
 .docs-steps li > span {
   color: var(--docs-accent);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .docs-steps strong {
@@ -480,7 +480,7 @@ kbd {
   background: var(--docs-elevated);
   border-bottom: 1px solid var(--docs-rule);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-align: left;
   text-transform: uppercase;
@@ -526,7 +526,7 @@ kbd {
   color: #fff;
   background: var(--docs-accent);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
   place-items: center;
 }
 .docs-flow strong {
@@ -537,7 +537,7 @@ kbd {
 .docs-flow .anticon {
   margin-left: 2px;
   color: var(--docs-rule);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .docs-code {
@@ -557,7 +557,7 @@ kbd {
   color: #a69d93;
   border-bottom: 1px solid #302c27;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 .docs-code__bar > span {
@@ -621,7 +621,7 @@ kbd {
 .docs-pagination small {
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -647,7 +647,7 @@ kbd {
   margin-bottom: 13px;
   color: var(--docs-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -685,11 +685,11 @@ kbd {
 }
 .docs-toc__help strong {
   color: var(--docs-ink);
-  font-size: 10px;
+  font-size: 11px;
 }
 .docs-toc__help small {
   margin-top: 5px;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -766,7 +766,7 @@ kbd {
 .docs-search__results small {
   color: var(--docs-accent);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -778,14 +778,14 @@ kbd {
   margin-top: 3px;
   overflow: hidden;
   color: var(--docs-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .docs-search__results button > .anticon {
   color: var(--docs-rule);
-  font-size: 10px;
+  font-size: 11px;
 }
 .docs-search__footer {
   display: flex;
@@ -796,7 +796,7 @@ kbd {
   color: var(--docs-muted);
   background: var(--docs-elevated);
   border-top: 1px solid var(--docs-rule);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .docs-mobile-drawer .ant-drawer-body {

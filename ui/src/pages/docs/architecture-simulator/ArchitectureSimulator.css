@@ -37,7 +37,7 @@
   display: block;
   color: var(--docs-accent);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -51,8 +51,8 @@
 .architecture-sim__studio-bar > div { display: flex; align-items: center; gap: 10px; }
 .architecture-sim__studio-bar > div:first-child { align-items: flex-start; flex-direction: column; gap: 2px; }
 .architecture-sim__studio-bar strong { font-family: var(--font-display); font-size: 14px; }
-.architecture-sim__studio-bar small { color: var(--docs-muted); font-family: var(--font-mono); font-size: 10px; }
-.architecture-sim__studio-bar span { padding: 5px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.architecture-sim__studio-bar small { color: var(--docs-muted); font-family: var(--font-mono); font-size: 11px; }
+.architecture-sim__studio-bar span { padding: 5px 8px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .architecture-sim__studio-bar span.is-healthy { color: var(--sim-green); background: color-mix(in srgb, var(--sim-green) 10%, transparent); }
 .architecture-sim__studio-bar span.is-error { color: var(--sim-red); background: color-mix(in srgb, var(--sim-red) 10%, transparent); }
 .architecture-sim__studio-bar .ant-btn { border-radius: 2px; }
@@ -75,7 +75,7 @@
 .architecture-sim__component-list button:active { transform: scale(.98); }
 .architecture-sim__component-list button.is-installed { background: color-mix(in srgb, var(--sim-green) 7%, var(--docs-surface)); border-color: color-mix(in srgb, var(--sim-green) 48%, var(--docs-rule)); }
 .architecture-sim__component-list button > span { display: flex; min-width: 0; flex-direction: column; }
-.architecture-sim__component-list small { color: var(--docs-accent); font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.architecture-sim__component-list small { color: var(--docs-accent); font-family: var(--font-mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
 .architecture-sim__component-list strong { margin-top: 3px; font-size: 14px; line-height: 1.3; }
 .architecture-sim__component-list em { margin-top: 5px; color: var(--docs-muted); font-size: 12px; font-style: normal; line-height: 1.45; }
 .architecture-sim__component-list button > i { display: grid; width: 27px; height: 27px; color: var(--docs-accent); background: color-mix(in srgb, var(--docs-accent) 9%, transparent); font-style: normal; place-items: center; }
@@ -119,9 +119,9 @@
 .architecture-sim__health--error > .anticon { color: var(--sim-red); }
 .architecture-sim__health span { display: flex; flex-direction: column; }
 .architecture-sim__health strong { font-size: 12px; text-align: right; }
-.architecture-sim__health small { margin-top: 2px; color: var(--docs-muted); font-family: var(--font-mono); font-size: 10px; }
+.architecture-sim__health small { margin-top: 2px; color: var(--docs-muted); font-family: var(--font-mono); font-size: 11px; }
 .architecture-sim__selection { min-height: 42px; padding: 8px 17px; gap: 10px; background: var(--docs-elevated); border-bottom: 1px solid var(--docs-soft-rule); }
-.architecture-sim__selection span { color: var(--docs-muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+.architecture-sim__selection span { color: var(--docs-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
 .architecture-sim__selection strong { font-size: 12px; }
 .architecture-sim__selection small { overflow: hidden; color: var(--docs-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -140,8 +140,8 @@
 .architecture-node--error { background: color-mix(in srgb, var(--sim-red) 10%, var(--docs-surface)); border-color: var(--sim-red); animation: architecture-node-impact 220ms ease-out; }
 .architecture-node--blocked { opacity: .5; }
 .architecture-node__topline { justify-content: space-between; gap: 8px; }
-.architecture-node__order { color: var(--docs-muted); font-family: var(--font-mono); font-size: 10px; }
-.architecture-node__status { display: flex; align-items: center; gap: 6px; color: var(--docs-muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+.architecture-node__order { color: var(--docs-muted); font-family: var(--font-mono); font-size: 11px; }
+.architecture-node__status { display: flex; align-items: center; gap: 6px; color: var(--docs-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
 .architecture-node__status i { width: 7px; height: 7px; background: var(--sim-green); border-radius: 50%; }
 .architecture-node--error .architecture-node__status { color: var(--sim-red); }
 .architecture-node--error .architecture-node__status i { background: var(--sim-red); }
@@ -159,10 +159,10 @@
 .frontend-component-node__icon { display: grid; width: 38px; height: 38px; color: var(--docs-accent); background: color-mix(in srgb, var(--docs-accent) 11%, transparent); font-size: 17px; place-items: center; }
 .frontend-component-node--error .frontend-component-node__icon { color: var(--sim-red); background: color-mix(in srgb, var(--sim-red) 12%, transparent); }
 .frontend-component-node > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; }
-.frontend-component-node small { color: var(--docs-accent); font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.frontend-component-node small { color: var(--docs-accent); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .frontend-component-node strong { margin-top: 3px; font-size: 14px; }
 .frontend-component-node em { margin-top: 5px; color: var(--docs-muted); font-size: 12px; font-style: normal; line-height: 1.4; }
-.frontend-component-node__state { position: absolute; top: 8px; right: 9px; color: var(--sim-green); font-family: var(--font-mono); font-size: 10px; font-style: normal; text-transform: uppercase; }
+.frontend-component-node__state { position: absolute; top: 8px; right: 9px; color: var(--sim-green); font-family: var(--font-mono); font-size: 11px; font-style: normal; text-transform: uppercase; }
 .frontend-component-node--error .frontend-component-node__state { color: var(--sim-red); }
 
 .architecture-sim__flow .react-flow__edge-path { transition: stroke 180ms ease-out, stroke-width 180ms ease-out; }
@@ -171,7 +171,7 @@
 .architecture-sim__flow .react-flow__controls { overflow: hidden; border: 1px solid var(--docs-rule); border-radius: 2px; box-shadow: none; }
 .architecture-sim__flow .react-flow__controls-button { width: 31px; height: 31px; color: var(--docs-ink); background: var(--docs-surface); border-bottom-color: var(--docs-rule); transition: background 160ms ease-out, transform 120ms ease-out; }
 .architecture-sim__flow .react-flow__controls-button:hover { background: var(--docs-elevated); }
-.architecture-sim__flow .react-flow__attribution { color: var(--docs-muted); background: color-mix(in srgb, var(--docs-surface) 90%, transparent); font-size: 9px; }
+.architecture-sim__flow .react-flow__attribution { color: var(--docs-muted); background: color-mix(in srgb, var(--docs-surface) 90%, transparent); font-size: 11px; }
 .architecture-sim__graph-note { min-height: 42px; padding: 9px 15px; gap: 15px; color: var(--docs-muted); background: var(--docs-elevated); border-top: 1px solid var(--docs-soft-rule); font-size: 11px; }
 .architecture-sim__graph-note span { display: inline-flex; align-items: center; gap: 6px; }
 .architecture-sim__graph-note i.is-healthy,
@@ -195,7 +195,7 @@
 .architecture-sim__terminal { overflow: hidden; color: #d9ddd8; background: var(--sim-terminal); border-color: #2b302c; }
 .architecture-sim__terminal-bar { min-height: 44px; padding: 8px 14px; gap: 12px; color: #a9b0aa; border-bottom: 1px solid #2b302c; font-family: var(--font-mono); font-size: 11px; }
 .architecture-sim__terminal-bar > span:nth-child(2) { display: inline-flex; align-items: center; gap: 7px; }
-.architecture-sim__terminal-bar > small { margin-left: auto; color: #717972; font-size: 10px; }
+.architecture-sim__terminal-bar > small { margin-left: auto; color: #717972; font-size: 11px; }
 .architecture-sim__terminal-lights { display: inline-flex; gap: 5px; }
 .architecture-sim__terminal-lights i { width: 8px; height: 8px; background: #d55b4e; border-radius: 50%; }
 .architecture-sim__terminal-lights i:nth-child(2) { background: #d3a23d; }
@@ -208,7 +208,7 @@
 .architecture-sim__terminal-line.is-muted { color: #7f8980; }
 .architecture-sim__terminal-footer { min-height: 40px; padding: 8px 14px; justify-content: space-between; gap: 18px; color: #969e97; background: #171a17; border-top: 1px solid #2b302c; font-family: var(--font-mono); font-size: 11px; }
 .architecture-sim__terminal-footer > span { display: inline-flex; align-items: center; gap: 7px; }
-.architecture-sim__terminal-footer small { font-size: 10px; }
+.architecture-sim__terminal-footer small { font-size: 11px; }
 
 .architecture-sim__trigger .ant-btn:active,
 .architecture-sim__remediation .ant-btn:active,
