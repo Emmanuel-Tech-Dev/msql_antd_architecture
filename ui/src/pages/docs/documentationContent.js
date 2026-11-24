@@ -84,7 +84,7 @@ export const documentationSections = [
         "Code-controlled where a mistake would widen the trust boundary: authentication, authorization and ABAC policies, table validation, sensitive tables and columns, schema changes (migrations), and backup execution.",
         "One normalized data-provider contract between UI hooks and server endpoints.",
         "Friendly messages for end users; technical request details remain available to developers and operators.",
-        "SuperAdmin and dev are privileged system roles; all other roles are evaluated from explicit permissions and resource mappings.",
+        "SuperAdmin and dev are privileged system roles; all other roles are evaluated from explicit permissions and resource mappings. The names are decided in one place on each side: isPrivilegedSystemRole (server/core/lib/authorizationPolicy.js) and isPrivilegedRole (ui/src/core/provider/AccessProvider.js).",
       ]),
       steps("First local run", [
         {
@@ -221,7 +221,7 @@ export const documentationSections = [
       bullets("Runtime state model", [
         "React Query owns remote server state and invalidation.",
         "Zustand stores identity, roles, permissions, and the resource registry.",
-        "The ValuesStore holds bootstrap datasets such as admin_resources, permissions and ui_settings. Table metadata is fetched per table and cached by React Query under ['metadata', table].",
+        "The ValuesStore holds the bootstrap datasets: admin_resources, permissions, ui_settings and metadata_lookups. Table metadata is fetched per table and cached by React Query under ['metadata', table].",
         "LocalForage is an optional browser persistence layer for offline-oriented use cases; it is not authorization state.",
         "Ant Design ConfigProvider and CSS custom properties expose the resolved appearance consistently to Ant Design, Tailwind, and vanilla CSS.",
       ]),
@@ -297,7 +297,7 @@ export const documentationSections = [
         [
           [
             "core/config",
-            "MySQL pool, Cloudinary, Multer, Swagger definition, allowed origins, and the legacy lookup allowlist",
+            "MySQL pool, Cloudinary, Multer, allowed origins, the one list of sensitive tables and columns (sensitiveData.js), and the legacy lookup allowlist",
           ],
           [
             "core/lib",
@@ -2377,7 +2377,7 @@ GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another fie
         [
           [
             "HTTP platform",
-            "express, body-parser, cookie-parser, cors, helmet, express-rate-limit",
+            "express (JSON and form parsing built in), cookie-parser, cors, helmet, express-rate-limit",
             "API runtime and baseline request protection",
           ],
           [
@@ -2418,7 +2418,7 @@ GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another fie
           [
             "API and integrations",
             "swagger-jsdoc, swagger-ui-express, paystack",
-            "API description and optional payment integration",
+            "API description (core/config/swagger.js, not mounted) and optional payment integration",
           ],
           ["Development", "jest, nodemon", "Regression tests and live reload"],
         ],
@@ -2434,8 +2434,8 @@ GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another fie
           ],
           [
             "Configuration",
-            "conn.js, cloudinary.js, multer.js, swagger.js, lookupRegistry.js",
-            "External systems and code-level allowlists",
+            "conn.js, cloudinary.js, multer.js, origins.js, sensitiveData.js, lookupRegistry.js, swagger.js",
+            "External systems, sensitive tables and columns, allowed origins, legacy lookup allowlist",
           ],
           [
             "Services",
@@ -2605,14 +2605,14 @@ GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another fie
             "Architecture reference, live hook lab, policy simulation, and public onboarding",
           ],
           [
-            "Analytics/examples",
-            "pages/Analytics/*, Test.jsx, Test2.jsx",
-            "Dashboard examples and development surfaces",
+            "Development pages",
+            "pages/Test.jsx (shown at /admin/home until a framework home page exists), pages/admin/Test.jsx (/admin/testing)",
+            "Development surfaces; not part of the reusable framework",
           ],
           [
             "Specialized components",
-            "map/*, programmes/*, pageDrawer/*, userInfo/*",
-            "Domain/demo composition built on framework primitives",
+            "map/*, userInfo/*",
+            "Map provider layer (Google Maps, Mapbox) and user information blocks",
           ],
           [
             "Utilities",

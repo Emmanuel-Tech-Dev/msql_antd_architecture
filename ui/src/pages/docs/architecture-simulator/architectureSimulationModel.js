@@ -71,11 +71,11 @@ export const POLICY_GROUPS = [
         options: [{ value: 'assigned', label: 'Permission assigned' }, { value: 'missing', label: 'Permission missing' }],
       },
       {
-        key: 'bootstrapTarget', label: 'Bootstrap dataset', help: 'Requested tables pass the physical-table boundary.',
+        key: 'bootstrapTarget', label: 'Bootstrap dataset', help: 'The browser names only a profile; each registry dataset must point at a real, non-sensitive table.',
         options: [
-          { value: 'registered', label: 'Registered safe table' },
-          { value: 'unknown', label: 'Unknown table' },
-          { value: 'sensitive', label: 'Credential table' },
+          { value: 'registered', label: 'Dataset on a safe table' },
+          { value: 'unknown', label: 'Dataset on a missing table' },
+          { value: 'sensitive', label: 'Dataset on a credential table' },
         ],
       },
       {
@@ -83,8 +83,8 @@ export const POLICY_GROUPS = [
         options: [{ value: 'valid', label: 'Columns verified' }, { value: 'unknown-column', label: 'Unknown column' }],
       },
       {
-        key: 'lookupContract', label: 'Lookup registry', help: 'Lookup tables and fields match the exact allowlist.',
-        options: [{ value: 'registered', label: 'Lookup registered' }, { value: 'unregistered', label: 'Lookup not registered' }],
+        key: 'lookupContract', label: 'Lookup', help: 'A lookup field names a metadata_lookups key; the server picks the table and columns.',
+        options: [{ value: 'registered', label: 'Lookup exists' }, { value: 'unregistered', label: 'Lookup key missing' }],
       },
       {
         key: 'invalidation', label: 'Mutation invalidation', help: 'Every resource affected by a write is refreshed.',
@@ -146,10 +146,10 @@ const SCENARIOS = {
   weakUpload: scenario({ id: 'weak-upload', code: 'UPLOAD_SERVER_VALIDATION_REQUIRED', affectedComponent: 'upload-field', affectedNode: 'validation', title: 'Upload safety exists only in the browser', why: 'Browser accept rules are bypassable. The server must verify file signature, size, type, destination, and ownership.', fix: { uploadValidation: 'strict' } }),
   expiredSession: scenario({ id: 'expired-session', code: 'AUTH_TOKEN_EXPIRED', affectedNode: 'auth-access', blockedNodes: ['validation', 'service-query', 'mysql'], title: 'Authentication stopped the request', why: 'The bearer token expired before authorization could resolve the current user policy.', fix: { session: 'valid' } }),
   missingPermission: scenario({ id: 'missing-permission', code: 'AUTHZ_PERMISSION_REQUIRED', affectedNode: 'auth-access', blockedNodes: ['validation', 'service-query', 'mysql'], title: 'The role cannot reach this resource', why: 'A non-privileged role reached a protected endpoint without the required resource permission.', fix: { permission: 'assigned' } }),
-  sensitiveBootstrap: scenario({ id: 'sensitive-bootstrap', code: 'BOOTSTRAP_TABLE_BLOCKED', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'Bootstrap crossed a sensitive-table boundary', why: 'Credential and other sensitive tables cannot be exposed as startup datasets.', fix: { bootstrapTarget: 'registered' } }),
-  unknownBootstrap: scenario({ id: 'unknown-bootstrap', code: 'TABLE_NOT_FOUND', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'The requested bootstrap table does not exist', why: 'validateTable could not resolve the identifier to a physical table.', fix: { bootstrapTarget: 'registered' } }),
+  sensitiveBootstrap: scenario({ id: 'sensitive-bootstrap', code: 'BOOTSTRAP_TABLE_BLOCKED', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'A startup dataset points at a sensitive table', why: 'A framework_bootstrap_datasets row names a credential or other sensitive table. The server refuses to load it, so it never reaches the browser.', fix: { bootstrapTarget: 'registered' } }),
+  unknownBootstrap: scenario({ id: 'unknown-bootstrap', code: 'TABLE_NOT_FOUND', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'A startup dataset points at a missing table', why: 'The registry names a table that does not exist. The dataset is reported as unavailable, or start-up fails if the dataset is required.', fix: { bootstrapTarget: 'registered' } }),
   invalidMetadata: scenario({ id: 'invalid-metadata', code: 'METADATA_COLUMN_REJECTED', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'Metadata requested an invalid column', why: 'The form definition and physical schema diverged before query construction.', fix: { metadataContract: 'valid' } }),
-  missingLookup: scenario({ id: 'missing-lookup', code: 'LOOKUP_NOT_REGISTERED', affectedComponent: 'lookup-select', affectedNode: 'validation', title: 'The select lookup is not registered', why: 'The installed select references a table or field outside the exact server lookup allowlist.', fix: { lookupContract: 'registered' } }),
+  missingLookup: scenario({ id: 'missing-lookup', code: 'LOOKUP_NOT_REGISTERED', affectedComponent: 'lookup-select', affectedNode: 'validation', title: "The field's lookup doesn't exist", why: 'The field names a lookup key that is missing or disabled in metadata_lookups, so the server returns no choices and rejects submitted values. Create it in Settings › Data model › Lookups.', fix: { lookupContract: 'registered' } }),
   staleCache: scenario({ id: 'stale-cache', code: 'CACHE_INVALIDATION_INCOMPLETE', affectedNode: 'query-cache', blockedNodes: ['page-hooks'], title: 'The mutation succeeded but the UI is stale', why: 'Related query resources remain cached because only the primary table was invalidated.', fix: { invalidation: 'all-related' } }),
 };
 
