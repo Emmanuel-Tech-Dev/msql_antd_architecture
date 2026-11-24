@@ -4,28 +4,32 @@ title: Architecture simulator
 track: learn
 group: Deep dives
 order: 5
-eyebrow: Interactive policy lab
+eyebrow: Framework Load Lab
 audience: Developers and operators
 readTime: 12 min
-summary: Change framework policies, observe the first breaking architectural boundary, inspect a safe simulated trace, and apply the smallest remediation.
+summary: Trace any framework hook through the real files it touches, break one thing on purpose, and put the whole architecture under load with the limits from the code.
 ---
 
-The Architectural Simulation Flow turns the framework's trust boundaries into an executable mental model. It does not call the API or mutate application data. Instead, it stages configuration locally and demonstrates how frontend components, routes, providers, authentication, authorization, bootstrap validation, metadata, lookups, query construction, and cache invalidation cooperate during a request.
+The Framework Load Lab draws the framework as it is: every box is a real file in `ui/src/core` or `server/`, and every hook takes the path it takes in the code. Nothing calls the API or touches data; the paths, error codes and limits are copied from the source.
 
-::architecture-simulator Architectural Simulation Flow
+::architecture-simulator Framework Load Lab
 
-:::note How to use the lab
-Open the lab full screen for the largest canvas. Add or remove real framework component types from the left library, select a component or layer to inspect it, then stage frontend or server contracts in the right inspector. Trigger the policy change and follow the red trace to the first rejected boundary. Read Why it broke and the simulated stack trace before using Click to Fix. Component additions are evaluated immediately against the active policy, while inspector changes remain staged until triggered.
+:::note Trace one hook
+Click a hook on the left. One dot walks its path and only that path lights up; the trace panel lists each file with what it does there and how many queries it runs, then the response. Use ◀ and ▶ to step, or click any step. Compare useList (all the way to MySQL), useLogin (skips authMiddleWare), useCan (never leaves the browser) and useAuthorizationEvents (starts on the server and arrives over the socket).
 :::
 
-:::note Frontend scenarios
-The component library includes protected pages, useTableApi tables, MetadataForm and useRecordForm forms, lookup selects, upload fields, Tiptap rich-text editors, charts, and offline tables. Their simulations cover missing routes or providers, unsupported metadata renderers, unsafe HTML, browser-only upload validation, unresolved offline conflicts, invalid metadata, missing lookups, and incomplete cache invalidation.
+:::note Break something
+The toolbar changes every path: an expired access token is refreshed and retried by apiClient; signing everyone out bumps token_version so the refresh fails; a role without the resource stops at authorization; an ABAC rule stops at AbacEngine; a sensitive table stops at validateTable; an invalid field value stops writes at the metadata services; changing a role clears the permission cache and pushes access:changed.
 :::
 
-:::note Server scenarios
-The same graph continues through Axios, Express, identity and access control, validation registries, BaseService and QueryBuilder, and MySQL. Use the server inspector to test expired sessions, permission rejection and the dev or SuperAdmin bypass, sensitive bootstrap targets, invalid physical columns, and stale related resources.
+:::note Put it under load
+Switch hooks on, set the users and how often they call hooks, and press play. Every request follows its hook's real path. The model uses the limits in the code: 500 requests per 15 minutes per IP (try "All users behind one office IP"), a MySQL pool of 10 connections, a 5-minute permission cache, about 1 + 0–4 + 2 queries before the data query, and React Query refetching on every mount.
+:::
+
+:::note Explore the map
+Drag the canvas to pan, scroll to zoom, drag boxes to rearrange them and hover a file to see its connections. Click a file for what it does, the hooks that pass through it and the files it connects to. Focus canvas hides the side panels. Missions ask which file answers a question; click the box you think it is.
 :::
 
 :::warning Simulation boundary
-All traces are generated locally from documented framework contracts. They contain no production requests, tokens, credentials, database values, or real log records. File names and line numbers illustrate ownership and diagnostic shape; use a real request ID to locate an actual failure in server logs.
+Traffic, timings and counts are modelled, not measured. Use them to understand where work happens and what limits it, then measure the real system before changing a limit.
 :::

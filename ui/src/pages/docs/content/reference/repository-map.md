@@ -19,7 +19,7 @@ summary: A practical map of the server and UI folders so a new maintainer knows 
 | Server state and HTTP | @tanstack/react-query, axios, qs | Caching, invalidation, requests, query serialization |
 | Client state and persistence | zustand, react-tracked, localforage, react-detect-offline | Identity/runtime stores and optional offline data |
 | Forms and content | @tiptap/react, @tiptap/starter-kit, @tiptap/extensions, dayjs, crypto-random-string, ahooks | Self-hosted rich text, dates, identifiers, hook utilities |
-| Data presentation | recharts, @xyflow/react, react-countup, react-highlight-words, react-skeletonify | Charts, interactive architecture flows, metrics, highlighting, loading states |
+| Data presentation | recharts, react-countup, react-highlight-words, react-skeletonify | Charts, metrics, highlighting, loading states |
 | Export and print | file-saver, jspdf, react-csv, react-to-print | Client exports and printable views |
 | Interaction/support | react-draggable, react-confirm-alert | Drag behavior, confirmations, and development mocks |
 
@@ -84,7 +84,7 @@ summary: A practical map of the server and UI folders so a new maintainer knows 
 | Settings | AppearanceSettings, ProfileSettings, DatabaseBackup, SystemLogs | Runtime management surfaces |
 | Auth pages | Login, OTP, Forgot/Reset/ChangePassword | Public identity lifecycle |
 | Feedback | NotFound404, TopProgress, useNotification | Status, navigation progress, and user messages |
-| Public documentation | pages/docs/*, pages/docs/architecture-simulator/* | Architecture reference, live hook lab, policy simulation, and public onboarding |
+| Public documentation | pages/docs/*, pages/docs/architecture-simulator/* | Architecture reference, live hook lab, the Framework Load Lab, and public onboarding |
 | Development pages | pages/Test.jsx (shown at /admin/home until a framework home page exists), pages/admin/Test.jsx (/admin/testing) | Development surfaces; not part of the reusable framework |
 | Specialized components | map/*, userInfo/* | Map provider layer (Google Maps, Mapbox) and user information blocks |
 | Utilities | function_utils.js, common_functions.js, lookup_utils.js, Settings.js | Formatting, validation, lookup conversion, environment constants |

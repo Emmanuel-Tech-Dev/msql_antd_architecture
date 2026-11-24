@@ -201,7 +201,8 @@ const utils = {
         else if (character === quote) quote = null;
         continue;
       }
-      if (character === "'" || character === '"' || character === "`") quote = character;
+      if (character === "'" || character === '"' || character === "`")
+        quote = character;
       else if (character === "(") depth += 1;
       else if (character === ")") depth -= 1;
       else if (depth === 0 && (index === 0 || /[\s)]/.test(sql[index - 1]))) {
@@ -219,11 +220,16 @@ const utils = {
     const fromIndex = this.topLevelIndex(query, /FROM\s/);
     if (fromIndex === -1) return query;
 
-    const fromTable = /FROM\s+(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:AS\s+)?(?!INNER(?![A-Za-z0-9_])|LEFT(?![A-Za-z0-9_])|RIGHT(?![A-Za-z0-9_])|FULL(?![A-Za-z0-9_])|CROSS(?![A-Za-z0-9_])|JOIN(?![A-Za-z0-9_])|WHERE(?![A-Za-z0-9_])|GROUP(?![A-Za-z0-9_])|HAVING(?![A-Za-z0-9_])|ORDER(?![A-Za-z0-9_])|LIMIT(?![A-Za-z0-9_])|OFFSET(?![A-Za-z0-9_])|FOR(?![A-Za-z0-9_]))[A-Za-z_][A-Za-z0-9_]*)?/iy;
+    const fromTable =
+      /FROM\s+(?:`[^`]+`|[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:AS\s+)?(?!INNER(?![A-Za-z0-9_])|LEFT(?![A-Za-z0-9_])|RIGHT(?![A-Za-z0-9_])|FULL(?![A-Za-z0-9_])|CROSS(?![A-Za-z0-9_])|JOIN(?![A-Za-z0-9_])|WHERE(?![A-Za-z0-9_])|GROUP(?![A-Za-z0-9_])|HAVING(?![A-Za-z0-9_])|ORDER(?![A-Za-z0-9_])|LIMIT(?![A-Za-z0-9_])|OFFSET(?![A-Za-z0-9_])|FOR(?![A-Za-z0-9_]))[A-Za-z_][A-Za-z0-9_]*)?/iy;
     fromTable.lastIndex = fromIndex;
     const fromEnd = fromTable.test(query) ? fromTable.lastIndex : fromIndex;
 
-    let insertAt = this.topLevelIndex(query, /(?:WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|OFFSET|FOR\s+UPDATE)(?![A-Za-z0-9_])/, fromEnd);
+    let insertAt = this.topLevelIndex(
+      query,
+      /(?:WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|OFFSET|FOR\s+UPDATE)(?![A-Za-z0-9_])/,
+      fromEnd,
+    );
     if (insertAt === -1) insertAt = fromEnd;
     while (insertAt > fromEnd && /\s/.test(query[insertAt - 1])) insertAt -= 1;
 
@@ -235,11 +241,23 @@ const utils = {
   // derived table so each group counts once. ORDER BY is dropped.
   countQuery(query, countExpression = "COUNT(*)", alias = "total") {
     const fromIndex = this.topLevelIndex(query, /FROM\s/);
-    if (fromIndex === -1) throw new Error("A count needs a query with a FROM clause");
-    const orderIndex = this.topLevelIndex(query, /ORDER\s+BY(?![A-Za-z0-9_])/, fromIndex);
-    const body = (orderIndex === -1 ? query : query.slice(0, orderIndex)).trimEnd();
-    const grouped = /^SELECT\s+DISTINCT(?![A-Za-z0-9_])/i.test(body)
-      || this.topLevelIndex(body, /(?:GROUP\s+BY|HAVING)(?![A-Za-z0-9_])/, fromIndex) !== -1;
+    if (fromIndex === -1)
+      throw new Error("A count needs a query with a FROM clause");
+    const orderIndex = this.topLevelIndex(
+      query,
+      /ORDER\s+BY(?![A-Za-z0-9_])/,
+      fromIndex,
+    );
+    const body = (
+      orderIndex === -1 ? query : query.slice(0, orderIndex)
+    ).trimEnd();
+    const grouped =
+      /^SELECT\s+DISTINCT(?![A-Za-z0-9_])/i.test(body) ||
+      this.topLevelIndex(
+        body,
+        /(?:GROUP\s+BY|HAVING)(?![A-Za-z0-9_])/,
+        fromIndex,
+      ) !== -1;
     return grouped
       ? `SELECT COUNT(*) AS ${alias} FROM (${body}) AS counted_rows`
       : `SELECT ${countExpression} AS ${alias} ${body.slice(fromIndex)}`;

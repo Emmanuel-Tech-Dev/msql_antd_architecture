@@ -1,4 +1,5 @@
 const db = require("../core/config/conn");
+const Model = require("../core/model/model");
 
 const ACCESS_STATES = [
   "READY",
@@ -178,7 +179,8 @@ class UserDirectoryRoute {
       const cte = directoryCte();
       const select = directorySelect();
 
-      const [[countRows], [rows], [stateCountRows], [roles]] = await Promise.all([
+      // Raw SQL: the directory is a WITH (CTE) query, which the builder cannot express.
+      const [[countRows], [rows], [stateCountRows], roles] = await Promise.all([
         db.query(
           `${cte} SELECT COUNT(*) AS total FROM (${select}) directory ${where}`,
           params,
@@ -195,9 +197,10 @@ class UserDirectoryRoute {
             GROUP BY directory.access_state`,
           stateCountParams,
         ),
-        db.query(
-          "SELECT role_name AS value, role_name AS label, description FROM admin_roles ORDER BY role_name",
-        ),
+        new Model()
+          .select(["role_name AS value", "role_name AS label", "description"], "admin_roles")
+          .orderBy("role_name", "ASC")
+          .execute(),
       ]);
 
       const total = Number(countRows[0]?.total ?? 0);

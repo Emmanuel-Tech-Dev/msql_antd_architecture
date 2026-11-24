@@ -212,45 +212,42 @@ class AccessRoute {
         }
 
         await new Model().transaction(async (transaction) => {
-          await transaction.query(
-            "DELETE FROM admin_user_permission_overrides WHERE user_id = ?",
-            [userId],
-          );
-          await transaction.query(
-            "DELETE FROM admin_user_browser_route_overrides WHERE user_id = ?",
-            [userId],
-          );
+          await transaction.builder()
+            .delete("admin_user_permission_overrides")
+            .where("user_id", "=", userId)
+            .executeInTransaction();
+          await transaction.builder()
+            .delete("admin_user_browser_route_overrides")
+            .where("user_id", "=", userId)
+            .executeInTransaction();
 
+          const validFrom = new Date();
           if (permissionOverrides.length) {
-            await transaction.query(
-              `INSERT INTO admin_user_permission_overrides
-                (user_id, permission, effect, reason, granted_by, valid_from, valid_until)
-               VALUES ${permissionOverrides.map(() => "(?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)").join(", ")}`,
-              permissionOverrides.flatMap((row) => [
-                userId,
-                row.permission,
-                row.effect,
+            await transaction.builder()
+              .bulkInsert("admin_user_permission_overrides", permissionOverrides.map((row) => ({
+                user_id: userId,
+                permission: row.permission,
+                effect: row.effect,
                 reason,
-                grantorId,
-                validUntil,
-              ]),
-            );
+                granted_by: grantorId,
+                valid_from: validFrom,
+                valid_until: validUntil,
+              })))
+              .executeInTransaction();
           }
 
           if (routeOverrides.length) {
-            await transaction.query(
-              `INSERT INTO admin_user_browser_route_overrides
-                (user_id, resource, effect, reason, granted_by, valid_from, valid_until)
-               VALUES ${routeOverrides.map(() => "(?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)").join(", ")}`,
-              routeOverrides.flatMap((row) => [
-                userId,
-                row.resource,
-                row.effect,
+            await transaction.builder()
+              .bulkInsert("admin_user_browser_route_overrides", routeOverrides.map((row) => ({
+                user_id: userId,
+                resource: row.resource,
+                effect: row.effect,
                 reason,
-                grantorId,
-                validUntil,
-              ]),
-            );
+                granted_by: grantorId,
+                valid_from: validFrom,
+                valid_until: validUntil,
+              })))
+              .executeInTransaction();
           }
         });
 
@@ -502,19 +499,17 @@ class AccessRoute {
         // 3. Run both in parallel
         await Promise.all([
           toInsert.length > 0
-            ? new Model().raw(
-                `INSERT INTO admin_role_permissions (role_id, permission)
-                         VALUES ${toInsert.map(() => "(?, ?)").join(", ")}`,
-                toInsert.flatMap((p) => [role, p]),
-              )
+            ? new Model()
+                .bulkInsert("admin_role_permissions", toInsert.map((p) => ({ role_id: role, permission: p })))
+                .execute()
             : Promise.resolve(),
 
           toDelete.length > 0
-            ? new Model().raw(
-                `DELETE FROM admin_role_permissions
-                         WHERE role_id = ? AND permission IN (${toDelete.map(() => "?").join(", ")})`,
-                [role, ...toDelete],
-              )
+            ? new Model()
+                .delete("admin_role_permissions")
+                .where("role_id", "=", role)
+                .whereIn("permission", toDelete)
+                .execute()
             : Promise.resolve(),
         ]);
 
@@ -564,19 +559,17 @@ class AccessRoute {
         // 3. Run both in parallel
         await Promise.all([
           toInsert.length > 0
-            ? new Model().raw(
-                `INSERT INTO admin_role_browser_routes (role_id, resource)
-                         VALUES ${toInsert.map(() => "(?, ?)").join(", ")}`,
-                toInsert.flatMap((r) => [role, r]),
-              )
+            ? new Model()
+                .bulkInsert("admin_role_browser_routes", toInsert.map((r) => ({ role_id: role, resource: r })))
+                .execute()
             : Promise.resolve(),
 
           toDelete.length > 0
-            ? new Model().raw(
-                `DELETE FROM admin_role_browser_routes
-                         WHERE role_id = ? AND resource IN (${toDelete.map(() => "?").join(", ")})`,
-                [role, ...toDelete],
-              )
+            ? new Model()
+                .delete("admin_role_browser_routes")
+                .where("role_id", "=", role)
+                .whereIn("resource", toDelete)
+                .execute()
             : Promise.resolve(),
         ]);
 

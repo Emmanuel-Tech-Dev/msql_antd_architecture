@@ -391,6 +391,8 @@ export default function Documentation() {
   }, []);
 
   const wide = activeSection && ['architecture-simulator', 'live-hook-lab'].includes(activeSection.id);
+  // The load lab needs the width more than a one-entry "On this page".
+  const fullWidth = activeSection?.id === 'architecture-simulator';
   const pagination = (
     <footer className="docs-pagination">
       {previous ? (
@@ -431,7 +433,7 @@ export default function Documentation() {
         </div>
       </header>
 
-      <div className="docs-layout">
+      <div className={`docs-layout${fullWidth ? ' docs-layout--full' : ''}`}>
         <aside className="docs-sidebar">
           <NavContent activeId={activeSection?.id ?? null} onSelect={selectSection} />
           <div className="docs-sidebar__status"><i /><span><strong>Public reference</strong><small>Updated {documentationMeta.updated}</small></span></div>
@@ -467,7 +469,7 @@ export default function Documentation() {
 
         </main>
 
-        <aside className="docs-toc" aria-label="On this page">
+        {!fullWidth && <aside className="docs-toc" aria-label="On this page">
           <strong>On this page</strong>
           {toc.map((item) => (
             <button
@@ -482,7 +484,7 @@ export default function Documentation() {
           ))}
           {!toc.length && <span className="docs-toc__empty">{activeSection ? 'This page has no sections.' : 'Pick a task or a page to begin.'}</span>}
           <div className="docs-toc__help"><InfoCircleOutlined /><span><strong>Edit this page</strong><small>{activeSection ? `ui/src/pages/docs/content/${activeSection.track}/${activeSection.id}.md` : 'ui/src/pages/docs/content/'}</small></span></div>
-        </aside>
+        </aside>}
       </div>
 
       <Drawer

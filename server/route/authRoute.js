@@ -9,7 +9,6 @@ const log = require("../shared/helpers/logger");
 const utils = require("../shared/utils/functions");
 const AppError = require("../shared/helpers/AppError");
 const authorizationEvents = require("../core/lib/authorizationEvents");
-const conn = require("../core/config/conn");
 const { z } = require("zod");
 const { profileImageUpload } = require("../core/config/multer");
 const uploadServices = require("../core/lib/uploadServices");
@@ -172,19 +171,16 @@ class AuthRoute {
 
       const userId = req.user.sub;
       const { name, phoneNo = null } = parsed.data;
-      await conn.execute(
-        `UPDATE admin
-         SET name = ?, phone_no = ?, updatedAt = CURRENT_TIMESTAMP
-         WHERE custom_id = ?`,
-        [name, phoneNo || null, userId],
-      );
+      await new Model()
+        .update("admin", { name, phone_no: phoneNo || null, updatedAt: new Date() })
+        .where("custom_id", "=", userId)
+        .execute();
 
-      const [rows] = await conn.execute(
-        `SELECT custom_id, name, email, phone_no, avatar, profile_picture, status, last_login, last_logout, createdAt
-         FROM admin WHERE custom_id = ? LIMIT 1`,
-        [userId],
-      );
-      if (!rows[0]) throw new AppError("ERR_USER_NOT_FOUND");
+      const profile = await new Model()
+        .select(["custom_id", "name", "email", "phone_no", "avatar", "profile_picture", "status", "last_login", "last_logout", "createdAt"], "admin")
+        .where("custom_id", "=", userId)
+        .first();
+      if (!profile) throw new AppError("ERR_USER_NOT_FOUND");
 
       log.security("User profile updated", {
         requestId: req.requestId,
@@ -196,7 +192,7 @@ class AuthRoute {
       res.status(200).json({
         status: "ok",
         message: "Profile updated",
-        data: rows[0],
+        data: profile,
       });
     });
   }
@@ -213,10 +209,10 @@ class AuthRoute {
 
         const userId = req.user.sub;
         const uploaded = await uploadServices.uploadProfileAvatar(req.file, userId);
-        await conn.execute(
-          `UPDATE admin SET avatar = ?, updatedAt = CURRENT_TIMESTAMP WHERE custom_id = ?`,
-          [uploaded.url, userId],
-        );
+        await new Model()
+          .update("admin", { avatar: uploaded.url, updatedAt: new Date() })
+          .where("custom_id", "=", userId)
+          .execute();
 
         log.security("User profile avatar updated", {
           requestId: req.requestId,

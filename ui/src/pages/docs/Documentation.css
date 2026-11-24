@@ -263,6 +263,12 @@ kbd {
   width: min(100%, 1320px);
   padding-inline: clamp(24px, 4vw, 52px);
 }
+.docs-layout.docs-layout--full {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+.docs-layout--full .docs-article--wide {
+  width: min(100%, 1480px);
+}
 .docs-article__meta {
   gap: 0;
   color: var(--docs-muted);

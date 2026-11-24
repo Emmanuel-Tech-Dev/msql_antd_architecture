@@ -1,212 +1,349 @@
-export const HEALTHY_POLICY = Object.freeze({
-  routeRegistry: 'registered',
-  providerContract: 'connected',
-  componentContract: 'compatible',
-  offlineConflict: 'resolved',
-  htmlSanitization: 'enabled',
-  uploadValidation: 'strict',
-  session: 'valid',
-  role: 'Admin',
-  permission: 'assigned',
-  bootstrapTarget: 'registered',
-  metadataContract: 'valid',
-  lookupContract: 'registered',
-  invalidation: 'all-related',
-});
+// The Framework Load Lab's model: the framework's real files, the path each
+// hook takes through them, and a load model driven by the limits in the code
+// (500 requests / 15 min / IP, a MySQL pool of 10, a 5-minute permission
+// cache). Pure data and functions; the components only draw it.
 
-export const POLICY_GROUPS = [
-  {
-    id: 'frontend',
-    label: 'Frontend runtime',
-    description: 'Routes, providers, renderers, and offline state.',
-    fields: [
-      {
-        key: 'routeRegistry', label: 'Route registry', help: 'Protected pages require a registered browser route.',
-        options: [{ value: 'registered', label: 'Route registered' }, { value: 'missing', label: 'Route missing' }],
-      },
-      {
-        key: 'providerContract', label: 'Provider contract', help: 'Data-bound components require FrameworkProvider services.',
-        options: [{ value: 'connected', label: 'Providers connected' }, { value: 'missing', label: 'Provider missing' }],
-      },
-      {
-        key: 'componentContract', label: 'Component renderer', help: 'Metadata input types must have compatible renderers.',
-        options: [{ value: 'compatible', label: 'Renderer compatible' }, { value: 'unsupported', label: 'Unsupported input type' }],
-      },
-      {
-        key: 'offlineConflict', label: 'Offline conflict policy', help: 'Offline writes need a deterministic merge strategy.',
-        options: [{ value: 'resolved', label: 'Conflict strategy configured' }, { value: 'unresolved', label: 'No conflict strategy' }],
-      },
-    ],
-  },
-  {
-    id: 'content',
-    label: 'Content boundaries',
-    description: 'Upload and rich-content security.',
-    fields: [
-      {
-        key: 'htmlSanitization', label: 'HTML sanitization', help: 'Rich HTML must be allowlisted before display.',
-        options: [{ value: 'enabled', label: 'Server allowlist enabled' }, { value: 'disabled', label: 'Sanitization disabled' }],
-      },
-      {
-        key: 'uploadValidation', label: 'Upload validation', help: 'The server verifies signature, size, type, and ownership.',
-        options: [{ value: 'strict', label: 'Strict validation' }, { value: 'browser-only', label: 'Browser validation only' }],
-      },
-    ],
-  },
-  {
-    id: 'server',
-    label: 'Server policies',
-    description: 'Identity, access, validation, and cache consistency.',
-    fields: [
-      {
-        key: 'session', label: 'Session token', help: 'Authentication resolves an active token version.',
-        options: [{ value: 'valid', label: 'Valid and active' }, { value: 'expired', label: 'Expired token' }],
-      },
-      {
-        key: 'role', label: 'Role profile', help: 'SuperAdmin and dev are privileged framework roles.',
-        options: ['User', 'Admin', 'dev', 'SuperAdmin'].map((value) => ({ value, label: value })),
-      },
-      {
-        key: 'permission', label: 'Resource permission', help: 'Non-privileged roles require endpoint permission.',
-        options: [{ value: 'assigned', label: 'Permission assigned' }, { value: 'missing', label: 'Permission missing' }],
-      },
-      {
-        key: 'bootstrapTarget', label: 'Bootstrap dataset', help: 'The browser names only a profile; each registry dataset must point at a real, non-sensitive table.',
-        options: [
-          { value: 'registered', label: 'Dataset on a safe table' },
-          { value: 'unknown', label: 'Dataset on a missing table' },
-          { value: 'sensitive', label: 'Dataset on a credential table' },
-        ],
-      },
-      {
-        key: 'metadataContract', label: 'Metadata schema', help: 'Fields resolve to allowed physical columns.',
-        options: [{ value: 'valid', label: 'Columns verified' }, { value: 'unknown-column', label: 'Unknown column' }],
-      },
-      {
-        key: 'lookupContract', label: 'Lookup', help: 'A lookup field names a metadata_lookups key; the server picks the table and columns.',
-        options: [{ value: 'registered', label: 'Lookup exists' }, { value: 'unregistered', label: 'Lookup key missing' }],
-      },
-      {
-        key: 'invalidation', label: 'Mutation invalidation', help: 'Every resource affected by a write is refreshed.',
-        options: [{ value: 'all-related', label: 'All affected resources' }, { value: 'primary-only', label: 'Primary table only' }],
-      },
-    ],
-  },
+export const NODE_WIDTH = 186;
+export const NODE_HEIGHT = 80;
+const GAP_X = 206;
+const GAP_Y = 112;
+const BAND_X = { browser: 50, express: 520, mysql: 520 + 3 * GAP_X };
+
+export const BANDS = [
+  { id: 'browser', label: 'BROWSER · ui/src/core' },
+  { id: 'express', label: 'EXPRESS · server/' },
+  { id: 'mysql', label: 'MYSQL' },
 ];
 
-export const FRONTEND_COMPONENTS = [
-  { id: 'protected-page', category: 'Page', icon: 'page', label: 'Protected page', detail: 'Route guard + PageHeader' },
-  { id: 'data-table', category: 'Data', icon: 'table', label: 'Data table', detail: 'useTableApi + CustomTable' },
-  { id: 'metadata-form', category: 'Form', icon: 'form', label: 'Metadata form', detail: 'useRecordForm renderer' },
-  { id: 'lookup-select', category: 'Form', icon: 'select', label: 'Lookup select', detail: 'Registered relational options' },
-  { id: 'upload-field', category: 'Content', icon: 'upload', label: 'Upload field', detail: 'File validation pipeline' },
-  { id: 'rich-text-editor', category: 'Content', icon: 'editor', label: 'Rich-text editor', detail: 'Tiptap HTML content' },
-  { id: 'chart-widget', category: 'Data', icon: 'chart', label: 'Chart widget', detail: 'Query-backed visualization' },
-  { id: 'offline-table', category: 'Offline', icon: 'offline', label: 'Offline table', detail: 'LocalForage synchronization' },
-];
+export const NODES = {
+  hook: { c: 0, r: 0, band: 'browser', title: 'Hook', file: 'ui/src/core/hooks/', does: 'The hook a screen calls. It shows the name of the hook you trace.' },
+  rq: { c: 1, r: 0, band: 'browser', title: 'React Query', file: 'core/queryClient.js · queryKeys.js', does: 'Owns caching: staleTime 0 (refetch on mount), gcTime 5 min, retry off. Mutations invalidate queryKeys.lists(resource).' },
+  access: { c: 0, r: 1, band: 'browser', title: 'AccessProvider', file: 'provider/AccessProvider.js', does: 'Answers useCan and route guards in the browser, from the permissions and resources start-up loaded. No request.' },
+  dp: { c: 1, r: 1, band: 'browser', title: 'DataProvider', file: 'provider/mysqlOrmProvider.js', does: 'Turns hook calls into REST: getList → GET api/:resource, create → POST, update → PUT api/:resource/:id, custom → any URL.' },
+  ap: { c: 0, r: 2, band: 'browser', title: 'AuthProvider', file: 'provider/mysqlOrmAuthProvider.js', does: 'Sign-in, refresh, logout and password flows: POST /auth/login, /auth/refresh, /auth/logout…' },
+  api: { c: 1, r: 2, band: 'browser', title: 'apiClient', file: 'ui/src/services/apiClient.js', does: 'Axios with the Bearer token. A 401 triggers one /auth/refresh that other requests queue behind (10 s), then they retry.' },
+  socket: { c: 0, r: 3, band: 'browser', title: 'SocketProvider', file: 'core/realtime/SocketProvider.jsx', does: 'Socket.IO connection. useAuthorizationEvents listens for access:changed and refetches bootstrap.' },
 
-export const DEFAULT_COMPONENT_IDS = ['protected-page', 'data-table', 'metadata-form'];
-
-export const ARCHITECTURE_LAYERS = [
-  { id: 'page-hooks', position: { x: 0, y: 110 }, data: { order: '01', kind: 'ui', label: 'Pages & hooks', detail: 'Components / forms / tables' } },
-  { id: 'framework-runtime', position: { x: 270, y: 110 }, data: { order: '02', kind: 'runtime', label: 'Framework runtime', detail: 'Bootstrap / routes / stores' } },
-  { id: 'query-cache', position: { x: 540, y: 110 }, data: { order: '03', kind: 'cache', label: 'Query cache', detail: 'Server state / invalidation' } },
-  { id: 'data-providers', position: { x: 810, y: 110 }, data: { order: '04', kind: 'provider', label: 'Data & auth providers', detail: 'Normalized client contracts' } },
-  { id: 'axios-transport', position: { x: 1080, y: 110 }, data: { order: '05', kind: 'transport', label: 'Axios transport', detail: 'Bearer token / request ID' } },
-  { id: 'express-boundary', position: { x: 1080, y: 370 }, data: { order: '06', kind: 'server', label: 'Express boundary', detail: 'Routes / middleware / controllers' } },
-  { id: 'auth-access', position: { x: 810, y: 370 }, data: { order: '07', kind: 'security', label: 'Identity & access', detail: 'Token / roles / permissions' } },
-  { id: 'validation', position: { x: 540, y: 370 }, data: { order: '08', kind: 'guard', label: 'Validation registries', detail: 'Tables / columns / lookups' } },
-  { id: 'service-query', position: { x: 270, y: 370 }, data: { order: '09', kind: 'service', label: 'Service & query', detail: 'BaseService / QueryBuilder' } },
-  { id: 'mysql', position: { x: 0, y: 370 }, data: { order: '10', kind: 'database', label: 'MySQL', detail: 'Records / ACL / metadata' } },
-];
-
-export const ARCHITECTURE_EDGES = [
-  { id: 'e-01', source: 'page-hooks', target: 'framework-runtime', sourceHandle: 'source-right', targetHandle: 'target-left', label: 'invoke' },
-  { id: 'e-02', source: 'framework-runtime', target: 'query-cache', sourceHandle: 'source-right', targetHandle: 'target-left', label: 'bootstrap' },
-  { id: 'e-03', source: 'query-cache', target: 'data-providers', sourceHandle: 'source-right', targetHandle: 'target-left', label: 'query' },
-  { id: 'e-04', source: 'data-providers', target: 'axios-transport', sourceHandle: 'source-right', targetHandle: 'target-left', label: 'normalize' },
-  { id: 'e-05', source: 'axios-transport', target: 'express-boundary', sourceHandle: 'source-bottom', targetHandle: 'target-top', label: 'HTTP' },
-  { id: 'e-06', source: 'express-boundary', target: 'auth-access', sourceHandle: 'source-left', targetHandle: 'target-right', label: 'authenticate' },
-  { id: 'e-07', source: 'auth-access', target: 'validation', sourceHandle: 'source-left', targetHandle: 'target-right', label: 'authorize' },
-  { id: 'e-08', source: 'validation', target: 'service-query', sourceHandle: 'source-left', targetHandle: 'target-right', label: 'allowlist' },
-  { id: 'e-09', source: 'service-query', target: 'mysql', sourceHandle: 'source-left', targetHandle: 'target-right', label: 'parameterize' },
-];
-
-const scenario = (definition) => ({ healthy: false, blockedNodes: [], affectedNode: null, affectedComponent: null, ...definition });
-
-const SCENARIOS = {
-  healthy: scenario({ healthy: true, id: 'healthy', code: 'POLICY_OK', title: 'All framework contracts hold', why: 'Installed UI components, client providers, server policies, validation registries, and cache behavior agree on one safe request path.', fix: {} }),
-  privilegedBypass: scenario({ healthy: true, id: 'privileged-bypass', code: 'ACL_PRIVILEGED_BYPASS', title: 'Privileged role bypass applied', why: 'dev and SuperAdmin intentionally bypass explicit resource permissions while frontend and server validation boundaries remain active.', fix: {} }),
-  missingRoute: scenario({ id: 'missing-route', code: 'UI_ROUTE_NOT_REGISTERED', affectedComponent: 'protected-page', blockedNodes: ['page-hooks'], title: 'The protected page cannot enter the route tree', why: 'The component was added, but its browser route is absent from the merged resource registry.', fix: { routeRegistry: 'registered' } }),
-  missingProvider: scenario({ id: 'missing-provider', code: 'UI_PROVIDER_UNAVAILABLE', affectedNode: 'data-providers', blockedNodes: ['axios-transport', 'express-boundary'], title: 'A data component rendered outside its provider', why: 'The installed table or chart requested framework data services without an active DataProvider contract.', fix: { providerContract: 'connected' } }),
-  unsupportedComponent: scenario({ id: 'unsupported-component', code: 'UI_RENDERER_UNSUPPORTED', affectedComponent: 'metadata-form', blockedNodes: ['page-hooks'], title: 'The frontend renderer cannot mount this field', why: 'The metadata form contains an input type that has no compatible component renderer.', fix: { componentContract: 'compatible' } }),
-  unsupportedEditor: scenario({ id: 'unsupported-editor', code: 'UI_EDITOR_ADAPTER_INVALID', affectedComponent: 'rich-text-editor', blockedNodes: ['page-hooks'], title: 'The rich-text component contract is incompatible', why: 'The editor component was installed with an unsupported renderer contract, so React cannot safely mount it.', fix: { componentContract: 'compatible' } }),
-  offlineConflict: scenario({ id: 'offline-conflict', code: 'UI_OFFLINE_CONFLICT_UNRESOLVED', affectedComponent: 'offline-table', affectedNode: 'query-cache', title: 'Offline and server records diverged', why: 'The offline table attempted to synchronize concurrent changes without a configured merge strategy.', fix: { offlineConflict: 'resolved' } }),
-  unsafeHtml: scenario({ id: 'unsafe-html', code: 'CONTENT_HTML_UNSANITIZED', affectedComponent: 'rich-text-editor', blockedNodes: ['page-hooks'], title: 'Rich HTML reached an unsafe render boundary', why: 'The editor is installed, but saved HTML is not protected by a server allowlist before display.', fix: { htmlSanitization: 'enabled' } }),
-  weakUpload: scenario({ id: 'weak-upload', code: 'UPLOAD_SERVER_VALIDATION_REQUIRED', affectedComponent: 'upload-field', affectedNode: 'validation', title: 'Upload safety exists only in the browser', why: 'Browser accept rules are bypassable. The server must verify file signature, size, type, destination, and ownership.', fix: { uploadValidation: 'strict' } }),
-  expiredSession: scenario({ id: 'expired-session', code: 'AUTH_TOKEN_EXPIRED', affectedNode: 'auth-access', blockedNodes: ['validation', 'service-query', 'mysql'], title: 'Authentication stopped the request', why: 'The bearer token expired before authorization could resolve the current user policy.', fix: { session: 'valid' } }),
-  missingPermission: scenario({ id: 'missing-permission', code: 'AUTHZ_PERMISSION_REQUIRED', affectedNode: 'auth-access', blockedNodes: ['validation', 'service-query', 'mysql'], title: 'The role cannot reach this resource', why: 'A non-privileged role reached a protected endpoint without the required resource permission.', fix: { permission: 'assigned' } }),
-  sensitiveBootstrap: scenario({ id: 'sensitive-bootstrap', code: 'BOOTSTRAP_TABLE_BLOCKED', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'A startup dataset points at a sensitive table', why: 'A framework_bootstrap_datasets row names a credential or other sensitive table. The server refuses to load it, so it never reaches the browser.', fix: { bootstrapTarget: 'registered' } }),
-  unknownBootstrap: scenario({ id: 'unknown-bootstrap', code: 'TABLE_NOT_FOUND', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'A startup dataset points at a missing table', why: 'The registry names a table that does not exist. The dataset is reported as unavailable, or start-up fails if the dataset is required.', fix: { bootstrapTarget: 'registered' } }),
-  invalidMetadata: scenario({ id: 'invalid-metadata', code: 'METADATA_COLUMN_REJECTED', affectedNode: 'validation', blockedNodes: ['service-query', 'mysql'], title: 'Metadata requested an invalid column', why: 'The form definition and physical schema diverged before query construction.', fix: { metadataContract: 'valid' } }),
-  missingLookup: scenario({ id: 'missing-lookup', code: 'LOOKUP_NOT_REGISTERED', affectedComponent: 'lookup-select', affectedNode: 'validation', title: "The field's lookup doesn't exist", why: 'The field names a lookup key that is missing or disabled in metadata_lookups, so the server returns no choices and rejects submitted values. Create it in Settings › Data model › Lookups.', fix: { lookupContract: 'registered' } }),
-  staleCache: scenario({ id: 'stale-cache', code: 'CACHE_INVALIDATION_INCOMPLETE', affectedNode: 'query-cache', blockedNodes: ['page-hooks'], title: 'The mutation succeeded but the UI is stale', why: 'Related query resources remain cached because only the primary table was invalidated.', fix: { invalidation: 'all-related' } }),
+  authz: { c: 0, r: 0, band: 'express', title: 'authorization', file: 'middleware/authorization.js', does: 'RBAC: the role needs a resource matching method + path (superadmin / dev bypass). Result cached per user for 5 minutes.' },
+  authority: { c: 1, r: 0, band: 'express', title: 'authorityService', file: 'core/lib/authorityService.js', does: "On a permission-cache miss loads the user's roles, permissions, resources and overrides (about 4 queries)." },
+  routes: { c: 2, r: 0, band: 'express', title: 'Route classes', file: 'baseRoute · MetadataRoute · acessRoute', does: 'baseRoute serves /api/:resources and /api/v1/bootstrap; MetadataRoute serves metadata, lookups and uploads; acessRoute saves roles.' },
+  boot: { c: 3, r: 0, band: 'express', title: 'bootstrapService', file: 'core/lib/bootstrapService.js', does: 'Loads the datasets registered for the authenticated_startup profile: lookups, resources, permissions, ui_settings.' },
+  authn: { c: 0, r: 1, band: 'express', title: 'authMiddleWare', file: 'middleware/authMiddleWare.js', does: 'Verifies the JWT and issuer, then one query: token_version and forced_password_change from admin_credentials JOIN admin.' },
+  abac: { c: 1, r: 1, band: 'express', title: 'AbacEngine', file: 'abacEngine.js · coreAbacPolicies.js', does: 'Deny-only rules evaluated after RBAC. It can refuse what RBAC allowed, never allow what RBAC refused.' },
+  vtable: { c: 2, r: 1, band: 'express', title: 'validateTable', file: 'middleware/validateTable.js', does: 'Table must exist (information_schema) and not be sensitive; DESCRIBE gives columns, minus sensitive ones and those the user may not read.' },
+  meta: { c: 3, r: 1, band: 'express', title: 'Metadata services', file: 'metadataService · metadataSchema', does: 'Field metadata per table (filtered by read permission), lookup options by key through lookupRegistry, and server-side rules for writes.' },
+  index: { c: 0, r: 2, band: 'express', title: 'index.js pipeline', file: 'logger · rateLimit · cors · helmet', does: 'requestLogger → cookies/json → rate limit (500 / 15 min / IP) → cors → helmet → public auth routes → authMiddleWare → authorization → routes → errorHandler.' },
+  errors: { c: 1, r: 2, band: 'express', title: 'errorHandler', file: 'middleware/errorHandler.js', does: 'Turns AppError into { status, errorCode, message, details } with its HTTP status. Logs only unexpected errors.' },
+  base: { c: 2, r: 2, band: 'express', title: 'BaseService', file: 'core/lib/baseService.js', does: 'Generic list / one / create / update / delete. Writes go through validateRecordAgainstMetadata first.' },
+  upload: { c: 3, r: 2, band: 'express', title: 'uploadServices', file: 'config/multer.js · uploadServices', does: 'multer receives the file; uploadServices checks signature, size and type for the field, then stores it.' },
+  authroute: { c: 0, r: 3, band: 'express', title: 'authRoute', file: 'route/authRoute.js', does: 'Public routes answered before the token check: login, refresh, OTP, password reset, Google sign-in.' },
+  authsvc: { c: 1, r: 3, band: 'express', title: 'AuthService', file: 'core/lib/authService.js', does: 'Checks credentials, lockout and login options; issues access and refresh tokens carrying token_version.' },
+  events: { c: 2, r: 3, band: 'express', title: 'authorizationEvents', file: 'authorizationEvents · socketServer', does: 'After a role, permission or override change: clearPermissionCache and emit access:changed to the affected users.' },
+  model: { c: 3, r: 3, band: 'express', title: 'Model + QueryBuilder', file: 'model/model.js · queryBuilder.js', does: 'Every query is built here and parameterised. Raw SQL only where the builder cannot express it (CTEs).' },
+  mysql: { c: 0, r: 4, band: 'mysql', title: 'MySQL pool', file: 'core/config/conn.js', does: 'mysql2 pool: connectionLimit 10, unbounded queue. More than 10 queries in flight wait their turn.' },
 };
 
-const hasAny = (componentIds, ids) => ids.some((id) => componentIds.includes(id));
-
-/** Evaluates frontend mount-time contracts before network and server policies. */
-export function evaluatePolicy(policy, componentIds = DEFAULT_COMPONENT_IDS) {
-  if (componentIds.includes('protected-page') && policy.routeRegistry === 'missing') return SCENARIOS.missingRoute;
-  if (componentIds.includes('metadata-form') && policy.componentContract === 'unsupported') return SCENARIOS.unsupportedComponent;
-  if (componentIds.includes('rich-text-editor') && policy.componentContract === 'unsupported') return SCENARIOS.unsupportedEditor;
-  if (hasAny(componentIds, ['data-table', 'chart-widget', 'offline-table']) && policy.providerContract === 'missing') return SCENARIOS.missingProvider;
-  if (componentIds.includes('offline-table') && policy.offlineConflict === 'unresolved') return SCENARIOS.offlineConflict;
-  if (componentIds.includes('rich-text-editor') && policy.htmlSanitization === 'disabled') return SCENARIOS.unsafeHtml;
-  if (componentIds.includes('upload-field') && policy.uploadValidation === 'browser-only') return SCENARIOS.weakUpload;
-
-  if (policy.session === 'expired') return SCENARIOS.expiredSession;
-  const privileged = ['dev', 'superadmin'].includes(policy.role.toLowerCase());
-  if (!privileged && policy.permission === 'missing') return SCENARIOS.missingPermission;
-  if (policy.bootstrapTarget === 'sensitive') return SCENARIOS.sensitiveBootstrap;
-  if (policy.bootstrapTarget === 'unknown') return SCENARIOS.unknownBootstrap;
-  if (hasAny(componentIds, ['metadata-form', 'data-table']) && policy.metadataContract === 'unknown-column') return SCENARIOS.invalidMetadata;
-  if (componentIds.includes('lookup-select') && policy.lookupContract === 'unregistered') return SCENARIOS.missingLookup;
-  if (hasAny(componentIds, ['data-table', 'chart-widget']) && policy.invalidation === 'primary-only') return SCENARIOS.staleCache;
-  if (privileged && policy.permission === 'missing') return SCENARIOS.privilegedBypass;
-  return SCENARIOS.healthy;
+export function defaultLayout() {
+  return Object.fromEntries(Object.entries(NODES).map(([id, node]) => [id, {
+    x: BAND_X[node.band] + node.c * GAP_X,
+    y: 74 + node.r * GAP_Y + (node.band === 'mysql' ? 44 : 0),
+  }]));
 }
 
-export function buildSimulationTrace(current, policy, runId, componentIds) {
-  const requestId = `SIM-${String(runId).padStart(4, '0')}`;
-  const context = `requestId=${requestId} role=${policy.role} components=${componentIds.length}`;
-  if (current.healthy) return [
-    `[19:42:08.102] INFO  ui.components.mounted count=${componentIds.length}`,
-    `[19:42:08.118] INFO  framework.providers.ready routes=resolved cache=connected`,
-    `[19:42:08.141] INFO  authorization.granted strategy=${current.id === 'privileged-bypass' ? 'privileged-role' : 'explicit-permission'}`,
-    `[19:42:08.176] INFO  query.executed parameterized=true durationMs=18`,
-    `[19:42:08.184] INFO  cache.invalidated scope=${policy.invalidation}`,
-    `[19:42:08.187] OK    framework.simulation.complete ${context} code=${current.code}`,
-  ];
+// A step: [node, what happens there, queries it runs]
+const protectedSteps = (endpoint) => [
+  ['api', `${endpoint} · Authorization: Bearer …`],
+  ['index', 'logged, under the rate limit'],
+  ['authn', 'JWT valid, token_version matches', 1],
+  ['authz', 'permission cache hit → RBAC: resource matches'],
+  ['abac', 'no deny rule matched'],
+];
 
-  const owner = current.code.startsWith('UI_') || current.code.startsWith('CONTENT_') ? 'ui' : 'server';
-  return [
-    `[19:42:08.102] INFO  simulation.component-tree count=${componentIds.length} ${context}`,
-    `[19:42:08.128] ERROR ${owner}.boundary.rejected code=${current.code}`,
-    `${current.title}: ${current.why}`,
-    `    at evaluatePolicy (ui/src/pages/docs/architecture-simulator/architectureSimulationModel.js)`,
-    `    at triggerSimulation (ui/src/pages/docs/architecture-simulator/useArchitectureSimulation.js)`,
-    `    context: ${context}`,
-    `[19:42:08.136] FAIL  framework.simulation.complete status=conflict`,
-  ];
+export const HOOKS = [
+  {
+    id: 'useList', group: 'Data', endpoint: 'GET /api/:resources', inLoad: true, weight: 1,
+    steps: [['hook', "useList('resource', { pagination })"], ['rq', 'queryKeys.list(resource, params) · stale → fetch'], ['dp', 'getList → GET api/resource?page=1&limit=20'], ...protectedSteps('GET /api/resource'),
+      ['routes', 'baseRoute GET /api/:resources'], ['vtable', 'exists · not sensitive · DESCRIBE', 2], ['base', 'BaseService.list · readable columns only'], ['model', 'SELECT … LIMIT ? OFFSET ? + COUNT(*)'], ['mysql', 'data + count', 2], ['rq', 'cached under the list key']],
+    result: '200 { data: [...], pagination: { page, limit, total } }',
+  },
+  {
+    id: 'useOne', group: 'Data', endpoint: 'GET /api/:resources/:id', weight: 0.5,
+    steps: [['hook', "useOne('resource', id)"], ['rq', 'queryKeys.one(resource, id)'], ['dp', 'getOne → GET api/resource/42'], ...protectedSteps('GET /api/resource/42'),
+      ['routes', 'baseRoute GET /api/:resources/:id'], ['vtable', 'exists · DESCRIBE', 2], ['base', 'BaseService.one'], ['model', 'SELECT … WHERE id = ?'], ['mysql', 'one row', 1], ['rq', 'cached']],
+    result: '200 { data: { id: 42, … } }',
+  },
+  {
+    id: 'useCreate', group: 'Data', endpoint: 'POST /api/:resources', weight: 0.3, write: true,
+    steps: [['hook', "useCreate('resource').mutate(values)"], ['rq', 'mutation'], ['dp', 'create → POST api/resource'], ...protectedSteps('POST /api/resource'),
+      ['routes', 'baseRoute POST /api/:resources'], ['vtable', 'writable columns', 2], ['base', 'BaseService.create'], ['meta', 'validateRecordAgainstMetadata: required · types · lookups · write access', 2], ['model', 'INSERT INTO … VALUES (?, ?, …)'], ['mysql', 'insert', 1],
+      ['rq', 'onSuccess → invalidateQueries(queryKeys.lists(resource))'], ['hook', 'every open list of this resource refetches']],
+    result: '201 { data: { id: 418, … } } → lists refetch',
+  },
+  {
+    id: 'useUpdate', group: 'Data', endpoint: 'PUT /api/:resources/:id', weight: 0.3, write: true,
+    steps: [['hook', "useUpdate('resource').mutate({ id, values })"], ['rq', 'mutation'], ['dp', 'update → PUT api/resource/42'], ...protectedSteps('PUT /api/resource/42'),
+      ['routes', 'baseRoute PUT /api/:resources/:id'], ['vtable', 'writable columns', 2], ['base', 'BaseService.update'], ['meta', 'not editable / hidden fields rejected', 2], ['model', 'UPDATE … WHERE id = ?'], ['mysql', 'update', 1], ['rq', 'invalidate lists + one']],
+    result: '200 { data: { id: 42, … } } → list and record refetch',
+  },
+  {
+    id: 'useDelete', group: 'Data', endpoint: 'DELETE /api/:resources/:id', weight: 0.1, write: true,
+    steps: [['hook', "useDelete('resource').mutate(id)"], ['rq', 'mutation'], ['dp', 'deleteOne → DELETE api/resource/42'], ...protectedSteps('DELETE /api/resource/42'),
+      ['routes', 'baseRoute DELETE /api/:resources/:id'], ['vtable', 'exists', 2], ['base', 'BaseService.delete'], ['model', 'DELETE … WHERE id = ?'], ['mysql', 'delete', 1], ['rq', 'invalidate lists']],
+    result: '200 → lists refetch',
+  },
+  {
+    id: 'useTableMetadata', group: 'Metadata', endpoint: 'GET /api/v1/metadata/:table', inLoad: true, weight: 0.4,
+    steps: [['hook', "useTableMetadata('resource')"], ['rq', "['metadata', table]"], ['dp', 'custom → GET api/v1/metadata/resource'], ...protectedSteps('GET /api/v1/metadata/resource'),
+      ['routes', 'MetadataRoute GET /api/v1/metadata/:table'], ['meta', 'getTableMetadata(table, access): drop unreadable fields, mark unwritable disabled'], ['model', 'metadata_tables + tables_metadata'], ['mysql', 'table + fields', 2], ['rq', 'MetadataForm / MetadataTable render from it']],
+    result: '200 { table, settings, fields: [...] }',
+  },
+  {
+    id: 'useLookup', group: 'Metadata', endpoint: 'GET /api/v1/lookups/:key', inLoad: true, weight: 0.5,
+    steps: [['hook', 'LookupSelect → lookup query (useTableMetadata.js)'], ['rq', "['lookup', key, parent]"], ['dp', 'custom → GET api/v1/lookups/regions'], ...protectedSteps('GET /api/v1/lookups/regions'),
+      ['routes', 'MetadataRoute GET /api/v1/lookups/:key'], ['meta', 'lookupRegistry: key → table, value and label columns (never sensitive)', 1], ['model', 'SELECT value, label FROM …'], ['mysql', 'options', 1], ['rq', 'options cached per key and parent']],
+    result: '200 [{ value, label }, …]',
+  },
+  {
+    id: 'UploadField', group: 'Metadata', endpoint: 'POST /api/v1/uploads/:table/:column', weight: 0.05, write: true,
+    steps: [['hook', 'UploadField (useUpload)'], ['dp', 'multipart POST api/v1/uploads/resource/photo'], ...protectedSteps('POST /api/v1/uploads/resource/photo'),
+      ['routes', 'MetadataRoute POST /api/v1/uploads/:table/:column'], ['upload', 'multer → signature, size and type checked for this field'], ['meta', 'field must be an image/file the user may write', 1], ['hook', 'form field receives the stored URL']],
+    result: '200 { url }',
+  },
+  {
+    id: 'FrameworkProvider', group: 'Start-up', endpoint: 'POST /api/v1/bootstrap', weight: 0.05,
+    steps: [['hook', 'FrameworkProvider useQuery(queryKeys.bootstrap())'], ['rq', "['bootstrap']"], ['dp', "custom → POST api/v1/bootstrap { profile: 'authenticated_startup' }"], ...protectedSteps('POST /api/v1/bootstrap'),
+      ['routes', 'baseRoute POST /api/v1/bootstrap'], ['boot', 'registry: lookups · resources · permissions · ui_settings', 2], ['model', 'one SELECT per enabled dataset'], ['mysql', 'one per dataset', 4], ['access', 'permissions + resources stored for useCan and the sidebar'], ['rq', 'sidebar, routes and theme render']],
+    result: '200 { datasets: { metadata_lookups, admin_resources, permissions, ui_settings } }',
+  },
+  {
+    id: 'useLogin', group: 'Auth', endpoint: 'POST /auth/login (public)', weight: 0.02,
+    steps: [['hook', 'useLogin().mutate({ identifier, password })'], ['ap', 'login → POST /auth/login'], ['api', 'no token needed'], ['index', 'rate limit applies, then public auth routes'], ['authroute', 'POST /auth/login'], ['authsvc', 'login options · lockout · bcrypt compare · issue tokens'], ['model', 'admin JOIN admin_credentials'], ['mysql', 'user + credentials', 3], ['rq', "invalidateQueries(['bootstrap']) → start-up reloads as this user"]],
+    result: '200 { token, user } + refresh cookie',
+  },
+  {
+    id: 'useCan', group: 'Auth', endpoint: 'no request', weight: 0, browserOnly: true,
+    steps: [['hook', "useCan('customers.create')"], ['access', 'answered from bootstrap permissions · superadmin/dev → true']],
+    result: 'true / false, instantly. The server still enforces it on the request.',
+  },
+  {
+    id: 'useAuthorizationEvents', group: 'Auth', endpoint: 'socket · access:changed', weight: 0, browserOnly: true,
+    steps: [['routes', "acessRoute saves a role's permissions"], ['events', 'clearPermissionCache(user) · publish(userIds, "permissions-changed")'], ['socket', 'Socket.IO emits access:changed to those users'], ['hook', 'useAuthorizationEvents receives it'], ['rq', "refetchQueries(['bootstrap'])"], ['access', 'sidebar and useCan update without a reload']],
+    result: 'Affected users see their new access within a second.',
+  },
+];
+
+export const FAILURES = [
+  { id: 'expired', label: 'Access token expired' },
+  { id: 'revoke', label: 'Sign everyone out' },
+  { id: 'norole', label: 'Role lacks resource' },
+  { id: 'abac', label: 'ABAC rule denies' },
+  { id: 'sensitive', label: 'Sensitive table' },
+  { id: 'invalid', label: 'Invalid field value' },
+  { id: 'rolechange', label: 'Change a role' },
+  { id: 'slowdb', label: 'Slow database' },
+];
+
+export const MISSIONS = [
+  { id: 'save', title: 'Trace a save', goal: 'Trace useCreate until the list refreshes. Which file decides the field values are valid?', answer: 'meta', trace: 'useCreate' },
+  { id: 'nocall', title: 'The call that never leaves', goal: 'Trace useCan. Which file answers it?', answer: 'access', trace: 'useCan' },
+  { id: 'live', title: 'Access changes live', goal: 'Trace useAuthorizationEvents. Which server file tells the browser?', answer: 'events', trace: 'useAuthorizationEvents' },
+  { id: 'office', title: 'One office, one IP', goal: '30 staff behind one router start getting 429. Click the file that stops them.', answer: 'index', load: { users: 30, pace: 4, office: true } },
+  { id: 'bottleneck', title: 'Find the bottleneck', goal: '300 users on lists, metadata and lookups. Which box turns red first?', answer: 'mysql', load: { users: 300, pace: 6, office: false } },
+];
+
+export const DEFAULT_LOAD_HOOKS = HOOKS.filter((hook) => hook.inLoad).map((hook) => hook.id);
+export const findHook = (id) => HOOKS.find((hook) => hook.id === id);
+
+const toStep = ([node, note, queries = 0], kind = 'ok') => ({ node, note, queries, kind });
+
+// The path one call of `hook` takes with the chosen failures switched on.
+export function traceHook(hook, failures) {
+  const steps = hook.steps.map((step) => toStep(step));
+  if (hook.browserOnly) return { steps, result: hook.result, ok: true };
+
+  const at = (node) => steps.findIndex((step) => step.node === node);
+  const stopAt = (index, note, result) => {
+    steps[index] = { ...steps[index], note, kind: 'bad' };
+    const [status, code] = result.split(' ');
+    return {
+      steps: [
+        ...steps.slice(0, index + 1),
+        toStep(['errors', `${status} ${code} → { status: "fail", errorCode, message }`], 'bad'),
+        toStep(['api', status === '401' ? 'refresh fails → clearAuth → sign-in page' : "toDataProviderError → the hook's error state"], 'bad'),
+      ],
+      result,
+      ok: false,
+    };
+  };
+
+  if (failures.has('revoke') && at('authn') >= 0) return stopAt(at('authn'), 'token_version 7 ≠ 8 → 401', '401 ERR_TOKEN_EXPIRED');
+  if (failures.has('expired') && at('authn') >= 0) {
+    steps.splice(at('authn'), 1,
+      toStep(['authn', 'JWT expired → 401'], 'retry'),
+      toStep(['api', 'POST /auth/refresh → new token → retry'], 'retry'),
+      toStep(['index', 'retried request']),
+      toStep(['authn', 'new JWT valid', 1]));
+  }
+  if (failures.has('norole') && at('authz') >= 0) return stopAt(at('authz'), 'no resource matches this method + path → 403', '403 ERR_ACCESS_DENIED');
+  if (failures.has('abac') && at('abac') >= 0) return stopAt(at('abac'), 'rule "branch-only" denies → 403', '403 ERR_ACCESS_DENIED deniedBy=branch-only');
+  if (failures.has('sensitive') && at('vtable') >= 0) return stopAt(at('vtable'), 'admin_credentials is in SENSITIVE_TABLES → 403', '403 ERR_ACCESS_DENIED');
+  if (failures.has('invalid') && hook.write && at('meta') >= 0) return stopAt(at('meta'), 'phone is required · "Mars" not in lookup → 400', '400 ERR_VALIDATION_FAILED');
+  if (failures.has('rolechange') && at('authz') >= 0) {
+    const index = at('authz');
+    steps[index] = { ...steps[index], note: 'permission cache cleared → loadUserAuthority' };
+    steps.splice(index + 1, 0, toStep(['authority', 'roles · permissions · resources · overrides', 4]));
+  }
+  return { steps, result: hook.result, ok: true };
 }
 
-export function getLayerStatus(layerId, current) {
-  if (layerId === current.affectedNode && !current.affectedComponent) return 'error';
-  if (layerId === current.affectedNode || current.blockedNodes.includes(layerId)) return 'blocked';
-  return 'healthy';
+// The hooks that pass through a file, and the files it connects to.
+export function nodeUsage(nodeId) {
+  const hooks = HOOKS.filter((hook) => hook.steps.some(([node]) => node === nodeId)).map((hook) => hook.id);
+  const links = new Set();
+  for (const hook of HOOKS) {
+    hook.steps.forEach(([node], index) => {
+      const next = hook.steps[index + 1]?.[0];
+      if (!next || node === next) return;
+      if (node === nodeId) links.add(next);
+      if (next === nodeId) links.add(node);
+    });
+  }
+  return { hooks, links: [...links] };
 }
 
-export function getComponentStatus(componentId, current) {
-  return componentId === current.affectedComponent ? 'error' : 'healthy';
+// Edges to draw: the traced path, or every edge the hooks under load use.
+export function routeEdges(steps, reachedIndex) {
+  const edges = [];
+  steps.forEach((step, index) => {
+    const next = steps[index + 1];
+    if (!next || next.node === step.node) return;
+    const kind = next.kind === 'bad' ? 'bad' : next.kind === 'retry' || step.kind === 'retry' ? 'retry' : '';
+    edges.push({ from: step.node, to: next.node, kind, reached: index < reachedIndex });
+  });
+  return edges;
 }
+
+export function loadEdges(hookIds, failures) {
+  const edges = new Map();
+  for (const hook of HOOKS.filter((item) => hookIds.has(item.id) && item.weight > 0)) {
+    const { steps } = traceHook(hook, failures);
+    steps.forEach((step, index) => {
+      const next = steps[index + 1];
+      if (!next || next.node === step.node) return;
+      const key = `${step.node}>${next.node}`;
+      edges.set(key, { from: step.node, to: next.node, kind: next.kind === 'bad' ? 'bad' : '', weight: (edges.get(key)?.weight ?? 0) + hook.weight });
+    });
+  }
+  return [...edges.values()];
+}
+
+const RATE_LIMIT_PER_SECOND = 500 / (15 * 60);
+const POOL_SIZE = 10;
+
+// One simulated second of load. cacheWarm: share of permission-cache hits;
+// revokeWave: share of requests still carrying a revoked token.
+export function computeLoad({ users, pace, office, hookIds, failures, cacheWarm, revokeWave }) {
+  const active = HOOKS.filter((hook) => hookIds.has(hook.id) && hook.weight > 0);
+  const totalWeight = active.reduce((sum, hook) => sum + hook.weight, 0) || 1;
+  const rps = active.length ? (users * pace) / 60 : 0;
+  const dataQueries = active.reduce((sum, hook) => sum + (hook.weight / totalWeight) * hook.steps.reduce((total, step) => total + (step[2] ?? 0), 0), 0);
+  const miss = 1 - cacheWarm;
+  const queriesPerRequest = active.length ? dataQueries + miss * 4 : 0;
+
+  // A single user's short bursts fit the window; an office shares one budget.
+  const ips = office ? 1 : Math.max(1, users);
+  const limited = Math.max(0, rps - ips * RATE_LIMIT_PER_SECOND * (office ? 1 : 2.2));
+  const admitted = rps - limited;
+  const authFailed = failures.has('revoke') ? admitted * revokeWave : 0;
+  const refreshes = failures.has('expired') ? admitted * 0.08 : 0;
+  const passed = admitted - authFailed;
+  const denied = failures.has('norole') || failures.has('sensitive') ? passed : failures.has('abac') ? passed * 0.1 : 0;
+  const invalid = failures.has('invalid') ? active.filter((hook) => hook.write).reduce((sum, hook) => sum + (hook.weight / totalWeight) * passed, 0) : 0;
+
+  const queriesPerSecond = admitted + passed * miss * 4 + (passed - denied) * Math.max(0, queriesPerRequest - 1);
+  const queryMs = failures.has('slowdb') ? 45 : 4;
+  const busy = (queriesPerSecond * queryMs) / 1000;
+  const poolUse = busy / POOL_SIZE;
+  const wait = poolUse < 0.95 ? 1 / (1 - poolUse) : 20 + (poolUse - 0.95) * 200;
+  const p95 = Math.round((12 + queriesPerRequest * queryMs * Math.min(wait, 60)) * 1.9 + refreshes * 6);
+  const overload = poolUse > 1.6 ? admitted * Math.min(0.5, (poolUse - 1.6) * 0.3) : 0;
+  const errors = limited + authFailed * 0.2 + denied + invalid + overload;
+  const errorRate = rps ? (errors / rps) * 100 : 0;
+  const perIpWindow = (rps / ips) * 900;
+
+  const heat = {
+    hook: rps / 60, rq: rps / 60, dp: rps / 60, api: (rps + refreshes * 4) / 60, ap: refreshes / 5, access: 0.05, socket: failures.has('rolechange') ? 0.4 : 0.05,
+    index: office ? perIpWindow / 500 / 3 : perIpWindow / 500 / 6, authroute: refreshes / 5, authsvc: refreshes / 5,
+    authn: admitted / 80 + (authFailed > 0.05 ? 0.7 : 0), authz: miss * 3 + (denied ? 0.9 : 0), authority: miss * 3, abac: failures.has('abac') ? 0.7 : passed / 120,
+    routes: passed / 90, vtable: passed / 70 + (failures.has('sensitive') ? 0.9 : 0), base: passed / 90, meta: passed / 90 + (invalid ? 0.7 : 0), boot: 0.05, upload: 0.05,
+    events: failures.has('rolechange') ? 0.5 : 0, model: queriesPerSecond / 400, errors: errorRate / 10, mysql: poolUse,
+  };
+  const fixed = (value) => value.toFixed(1);
+  const stat = {
+    hook: `${fixed(rps)} calls/s`, rq: 'staleTime 0', dp: `${fixed(rps)} req/s`, api: refreshes ? `${fixed(refreshes)} refresh/s` : `${fixed(rps)} req/s`, ap: refreshes ? `${fixed(refreshes)} refresh/s` : 'idle',
+    access: 'no network', socket: failures.has('rolechange') ? 'access:changed' : 'connected', index: limited > 0.05 ? `${fixed(limited)} × 429/s` : `${perIpWindow.toFixed(0)}/500 per IP`,
+    authroute: refreshes ? `${fixed(refreshes)} /refresh/s` : 'idle', authsvc: refreshes ? 'issuing tokens' : 'idle', authn: authFailed > 0.05 ? `${fixed(authFailed)} × 401/s` : `${fixed(admitted)} q/s`,
+    authz: denied ? `${fixed(denied)} × 403/s` : `cache hit ${(cacheWarm * 100).toFixed(0)}%`, authority: `${fixed(passed * miss * 4)} q/s`, abac: failures.has('abac') ? `${fixed(denied)} denied/s` : 'no denies',
+    routes: `${fixed(passed)} req/s`, vtable: `${fixed(passed * 2)} q/s`, base: `${fixed(passed)} req/s`, meta: invalid ? `${fixed(invalid)} × 400/s` : `${fixed(passed)} req/s`, boot: 'on sign-in', upload: 'idle',
+    events: failures.has('rolechange') ? 'publishing' : 'idle', model: `${queriesPerSecond.toFixed(0)} q/s`, errors: `${fixed(errors)}/s`, mysql: `${fixed(Math.min(POOL_SIZE, busy))}/10 busy${poolUse > 1 ? ' · queue' : ''}`,
+  };
+
+  return {
+    rps, throughput: Math.max(0, rps - errors), p95, errorRate, queriesPerRequest, queriesPerSecond, poolUse,
+    limited, authFailed, denied, invalid, refreshes, heat, stat,
+  };
+}
+
+export function healthOf(load, running) {
+  if (!running) return { tone: 'ok', label: 'Idle' };
+  if (load.errorRate > 5 || load.p95 > 800) return { tone: 'bad', label: 'Failing' };
+  if (load.errorRate > 1 || load.p95 > 400) return { tone: 'warn', label: 'Degraded' };
+  return { tone: 'ok', label: 'Healthy' };
+}
+
+// Server log lines for the current second under load.
+export function loadLogLines(load, cacheWarm) {
+  const lines = [];
+  if (load.limited > 0.05) lines.push(['bad', `429 ERR_TOO_MANY_REQUESTS ${load.limited.toFixed(1)}/s · rate limit is keyed by IP`]);
+  if (load.authFailed > 0.5) lines.push(['warn', '401 ERR_TOKEN_EXPIRED token_version changed · /auth/refresh fails → sign-in']);
+  if (load.refreshes > 0.05) lines.push(['warn', `apiClient: ${load.refreshes.toFixed(1)} refresh/s, other 401s queue behind it`]);
+  if (load.denied > 0.05) lines.push(['bad', `403 ERR_ACCESS_DENIED ${load.denied.toFixed(1)}/s`]);
+  if (load.invalid > 0.05) lines.push(['bad', `400 ERR_VALIDATION_FAILED ${load.invalid.toFixed(1)}/s from metadataSchema`]);
+  if (cacheWarm < 0.9) lines.push(['warn', `permission cache ${(cacheWarm * 100).toFixed(0)}% warm → authorityService reloads`]);
+  if (load.poolUse > 1) lines.push(['bad', `mysql2 pool: ${Math.round(load.poolUse * 10)} queries want 10 connections → queued`]);
+  return lines;
+}
+
+// Curves between box edges, and a point along one.
+export function edgeCurve(positions, from, to) {
+  const a = positions[from];
+  const b = positions[to];
+  const ac = { x: a.x + NODE_WIDTH / 2, y: a.y + NODE_HEIGHT / 2 };
+  const bc = { x: b.x + NODE_WIDTH / 2, y: b.y + NODE_HEIGHT / 2 };
+  const dx = bc.x - ac.x;
+  const dy = bc.y - ac.y;
+  if (Math.abs(dx) > Math.abs(dy) * 0.9) {
+    const sign = Math.sign(dx) || 1;
+    const start = { x: ac.x + (sign * NODE_WIDTH) / 2, y: ac.y };
+    const end = { x: bc.x - (sign * NODE_WIDTH) / 2, y: bc.y };
+    const pull = Math.max(40, Math.abs(end.x - start.x) / 2);
+    return [start, { x: start.x + sign * pull, y: start.y }, { x: end.x - sign * pull, y: end.y }, end];
+  }
+  const sign = Math.sign(dy) || 1;
+  const start = { x: ac.x, y: ac.y + (sign * NODE_HEIGHT) / 2 };
+  const end = { x: bc.x, y: bc.y - (sign * NODE_HEIGHT) / 2 };
+  const pull = Math.max(30, Math.abs(end.y - start.y) / 2);
+  return [start, { x: start.x, y: start.y + sign * pull }, { x: end.x, y: end.y - sign * pull }, end];
+}
+
+export const curvePath = ([p0, p1, p2, p3]) => `M${p0.x},${p0.y} C${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`;
+
+export function pointOnCurve([p0, p1, p2, p3], t) {
+  const u = 1 - t;
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+  };
+}
+
+export const nodeCenter = (positions, id) => ({ x: positions[id].x + NODE_WIDTH / 2, y: positions[id].y + NODE_HEIGHT / 2 });

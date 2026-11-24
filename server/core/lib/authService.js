@@ -930,12 +930,23 @@ class AuthService {
     const temporaryPassword = generateTemporaryPassword();
     const passwordHash = await this.hashedPassword(temporaryPassword);
     await this.model.transaction(async (tx) => {
-      // Raw SQL: token_version + 1 signs out every session in the same
-      // statement; the builder only sets literal values.
-      await tx.query(
-        "UPDATE admin_credentials SET password = ?, password_login_enabled = 1, token_version = token_version + 1 WHERE admin_custom_id = ?",
-        [passwordHash, user.custom_id],
-      );
+      // The row is locked so a sign-out elsewhere cannot raise token_version
+      // between the read and the write; the new version signs out every session.
+      const [credentials] = await tx.builder()
+        .select(["token_version"], "admin_credentials")
+        .where("admin_custom_id", "=", user.custom_id)
+        .forUpdate()
+        .executeInTransaction();
+      if (credentials) {
+        await tx.builder()
+          .update("admin_credentials", {
+            password: passwordHash,
+            password_login_enabled: 1,
+            token_version: Number(credentials.token_version ?? 0) + 1,
+          })
+          .where("admin_custom_id", "=", user.custom_id)
+          .executeInTransaction();
+      }
       await tx.builder()
         .update("admin", { forced_password_change: 1 })
         .where("custom_id", "=", user.custom_id)

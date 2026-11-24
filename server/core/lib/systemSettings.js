@@ -1,7 +1,7 @@
 const CacheManager = require("../../shared/helpers/cacheManager");
 const logger = require("../../shared/helpers/logger");
 
-const conn = require("../config/conn");
+const Model = require("../model/model");
 
 class SettingsManager {
   constructor() {
@@ -45,25 +45,23 @@ class SettingsManager {
     }
   }
 
+  // A row for this environment, a global one, or one for every environment.
+  appliesHere(row) {
+    return row.env === this.environment || row.env === null || row.scope === "global";
+  }
+
+  // This environment's row wins over a global one, which wins over the rest.
   async fetchFromDB(key) {
-    const [data] = await conn.query(
-      `SELECT value, type, scope
-       FROM system_settings 
-       WHERE \`key\` = ?
-       AND (env = ? OR env IS NULL OR scope = 'global')
-       ORDER BY 
-         CASE 
-           WHEN env = ? THEN 0
-           WHEN scope = 'global' THEN 1
-           ELSE 2
-         END
-       LIMIT 1`,
-      [key, this.environment, this.environment],
-    );
+    const rows = await new Model()
+      .select(["value", "type", "scope", "env"], "system_settings")
+      .where("key", "=", key)
+      .execute();
+    const rank = (row) => (row.env === this.environment ? 0 : row.scope === "global" ? 1 : 2);
+    const [setting] = rows.filter((row) => this.appliesHere(row)).sort((a, b) => rank(a) - rank(b));
 
-    if (data.length === 0) return null;
+    if (!setting) return null;
 
-    return this.convertType(data[0].value, data[0].type);
+    return this.convertType(setting.value, setting.type);
   }
 
   convertType(value, dataType) {
@@ -95,33 +93,27 @@ class SettingsManager {
   }
 
   async set(key, value, changedBy = "dev") {
-    const connection = await conn.getConnection();
     try {
-      await connection.beginTransaction();
-
-      const [current] = await connection.query(
-        "SELECT * FROM system_settings WHERE `key` = ?",
-        [key],
-      );
-
-      if (current.length === 0) {
-        throw new Error(`Setting ${key} not found`);
-      }
-
-      const oldValue = current[0].value;
       const newValue = String(value);
+      const current = await new Model().transaction(async (tx) => {
+        const [setting] = await tx.builder()
+          .select(["value", "type"], "system_settings")
+          .where("key", "=", key)
+          .executeInTransaction();
+        if (!setting) {
+          throw new Error(`Setting ${key} not found`);
+        }
 
-      // Update database
-      await connection.query(
-        "UPDATE system_settings SET value = ?, updated_at = NOW() WHERE `key` = ?",
-        [newValue, key],
-      );
-
-      await connection.commit();
+        await tx.builder()
+          .update("system_settings", { value: newValue, updated_at: new Date() })
+          .where("key", "=", key)
+          .executeInTransaction();
+        return setting;
+      });
 
       // Update cache immediately
       const cacheKey = `${this.cachePrefix}${key}`;
-      const typedValue = this.convertType(newValue, current[0].type);
+      const typedValue = this.convertType(newValue, current.type);
       this.cache.set(cacheKey, typedValue, 0);
 
       logger.security("System setting updated", {
@@ -132,26 +124,20 @@ class SettingsManager {
       return {
         success: true,
         key,
-        oldValue,
+        oldValue: current.value,
         newValue: typedValue,
       };
-    } catch (err) {
-      await connection.rollback();
+    } catch {
       throw new Error("connection failed try again");
-    } finally {
-      connection.release();
     }
   }
 
   async preloadAll() {
     logger.app("Preloading system settings");
     try {
-      const [rows] = await conn.query(
-        `SELECT \`key\`, value, type
-         FROM system_settings
-         WHERE env = ? OR env IS NULL OR scope = 'global'`,
-        [this.environment],
-      );
+      const rows = (await new Model()
+        .select(["key", "value", "type", "env", "scope"], "system_settings")
+        .execute()).filter((row) => this.appliesHere(row));
 
       // return;
 

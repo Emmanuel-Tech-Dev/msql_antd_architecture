@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const conn = require("../core/config/conn");
+const Model = require("../core/model/model");
 const authorizationEvents = require("../core/lib/authorizationEvents");
 const AppError = require("../shared/helpers/AppError");
 const logger = require("../shared/helpers/logger");
@@ -133,12 +133,13 @@ class UiSettingsRoute {
         }
 
         const { settingValue, expectedVersion } = parsed.data;
-        const [result] = await conn.execute(
-          `UPDATE ui_settings
-           SET setting_value = ?, version = version + 1, updated_by = ?
-           WHERE id = ? AND setting_key = 'layout.sider' AND version = ? AND is_active = 1`,
-          [JSON.stringify(settingValue), req.user.sub, id, expectedVersion],
-        );
+        const result = await new Model()
+          .update("ui_settings", { setting_value: JSON.stringify(settingValue), version: expectedVersion + 1, updated_by: req.user.sub })
+          .where("id", "=", id)
+          .where("setting_key", "=", "layout.sider")
+          .where("version", "=", expectedVersion)
+          .where("is_active", "=", 1)
+          .execute();
 
         if (result.affectedRows !== 1) {
           throw new AppError(

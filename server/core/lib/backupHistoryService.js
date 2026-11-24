@@ -4,7 +4,7 @@
 
 const path = require("path");
 const { z } = require("zod");
-const db = require("../config/conn");
+const Model = require("../model/model");
 const AppError = require("../../shared/helpers/AppError");
 const logger = require("../../shared/helpers/logger");
 const backupService = require("./databaseBackupService");
@@ -15,12 +15,14 @@ const INTERVAL_DAYS = { daily: 1, every3days: 3, weekly: 7 };
 const RETRY_AFTER_FAILURE_MS = 60 * 60 * 1000;
 const HISTORY_PAGE_SIZE = 50;
 
-const scheduleSchema = z.object({
-  enabled: z.boolean(),
-  frequency: z.enum(Object.keys(INTERVAL_DAYS)),
-  hour: z.number().int().min(0).max(23),
-  keep: z.number().int().min(1).max(60),
-}).strict();
+const scheduleSchema = z
+  .object({
+    enabled: z.boolean(),
+    frequency: z.enum(Object.keys(INTERVAL_DAYS)),
+    hour: z.number().int().min(0).max(23),
+    keep: z.number().int().min(1).max(60),
+  })
+  .strict();
 
 function parseStored(value) {
   return typeof value === "string" ? JSON.parse(value) : value;
@@ -29,34 +31,61 @@ function parseStored(value) {
 // Keeps the database's message short and free of connection details.
 function failureReason(error) {
   const cause = error?.cause?.message ?? error?.message ?? "Backup failed";
-  return cause.includes("timed out") ? "mysqldump timed out" : cause.split(":")[0].slice(0, 500);
+  return cause.includes("timed out")
+    ? "mysqldump timed out"
+    : cause.split(":")[0].slice(0, 500);
+}
+
+// A copy that is still on the server and can be downloaded or restored.
+function keptOnServer(query) {
+  return query
+    .where("database_backups.destination", "=", "SERVER")
+    .where("database_backups.status", "=", "DONE")
+    .whereNull("database_backups.deletedAt");
 }
 
 async function recordBackup({ backup, destination, trigger, actorId }) {
-  const [result] = await db.execute(
-    `INSERT INTO database_backups
-       (file_name, destination, trigger_type, status, size_bytes, sha256, created_by)
-     VALUES (?, ?, ?, 'DONE', ?, ?, ?)`,
-    [backup.fileName, destination, trigger, backup.sizeBytes, backup.sha256, actorId ?? null],
-  );
+  const result = await new Model()
+    .insert("database_backups", {
+      file_name: backup.fileName,
+      destination,
+      trigger_type: trigger,
+      status: "DONE",
+      size_bytes: backup.sizeBytes,
+      sha256: backup.sha256,
+      created_by: actorId ?? null,
+    })
+    .execute();
   return result.insertId;
 }
 
 async function recordFailure({ error, destination, trigger, actorId }) {
-  await db.execute(
-    `INSERT INTO database_backups (destination, trigger_type, status, error_message, created_by)
-     VALUES (?, ?, 'FAILED', ?, ?)`,
-    [destination, trigger, failureReason(error), actorId ?? null],
-  );
+  await new Model()
+    .insert("database_backups", {
+      destination,
+      trigger_type: trigger,
+      status: "FAILED",
+      error_message: failureReason(error),
+      created_by: actorId ?? null,
+    })
+    .execute();
 }
 
 async function getSchedule() {
-  const [rows] = await db.query(
-    "SELECT setting_value, version FROM ui_settings WHERE setting_key = ? AND is_active = 1 LIMIT 1",
-    [SCHEDULE_KEY],
-  );
-  if (!rows[0]) throw new AppError("ERR_RECORD_NOT_FOUND", "The backup schedule is not set up. Run the database migrations.");
-  return { value: parseStored(rows[0].setting_value), version: rows[0].version };
+  const setting = await new Model()
+    .select(["setting_value", "version"], "ui_settings")
+    .where("setting_key", "=", SCHEDULE_KEY)
+    .where("is_active", "=", 1)
+    .first();
+  if (!setting)
+    throw new AppError(
+      "ERR_RECORD_NOT_FOUND",
+      "The backup schedule is not set up. Run the database migrations.",
+    );
+  return {
+    value: parseStored(setting.setting_value),
+    version: setting.version,
+  };
 }
 
 // startedAt marks when the current schedule began, so the first automatic
@@ -66,36 +95,52 @@ async function updateSchedule(input, expectedVersion, actorId) {
   const parsed = scheduleSchema.safeParse(input);
   if (!parsed.success) {
     throw new AppError("ERR_VALIDATION_FAILED", "Validation failed", {
-      errors: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })),
+      errors: parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
     });
   }
   const current = (await getSchedule()).value;
   const schedule = parsed.data;
-  const timingChanged = schedule.enabled !== current.enabled
-    || schedule.frequency !== current.frequency
-    || schedule.hour !== current.hour;
+  const timingChanged =
+    schedule.enabled !== current.enabled ||
+    schedule.frequency !== current.frequency ||
+    schedule.hour !== current.hour;
   const value = {
     ...schedule,
-    startedAt: schedule.enabled && (timingChanged || !current.startedAt) ? new Date().toISOString() : current.startedAt ?? null,
+    startedAt:
+      schedule.enabled && (timingChanged || !current.startedAt)
+        ? new Date().toISOString()
+        : (current.startedAt ?? null),
   };
 
-  const [result] = await db.execute(
-    `UPDATE ui_settings SET setting_value = ?, version = version + 1, updated_by = ?
-      WHERE setting_key = ? AND version = ? AND is_active = 1`,
-    [JSON.stringify(value), actorId, SCHEDULE_KEY, expectedVersion],
-  );
+  const result = await new Model()
+    .update("ui_settings", {
+      setting_value: JSON.stringify(value),
+      version: expectedVersion + 1,
+      updated_by: actorId,
+    })
+    .where("setting_key", "=", SCHEDULE_KEY)
+    .where("version", "=", expectedVersion)
+    .where("is_active", "=", 1)
+    .execute();
   if (result.affectedRows !== 1) {
-    throw new AppError("ERR_CONFLICT", "The schedule changed elsewhere. Reload and try again.");
+    throw new AppError(
+      "ERR_CONFLICT",
+      "The schedule changed elsewhere. Reload and try again.",
+    );
   }
   return { value, version: expectedVersion + 1 };
 }
 
 async function lastAutomaticAttempt() {
-  const [rows] = await db.query(
-    `SELECT status, createdAt FROM database_backups
-      WHERE trigger_type = 'AUTOMATIC' ORDER BY createdAt DESC, id DESC LIMIT 1`,
-  );
-  return rows[0] ?? null;
+  return new Model()
+    .select(["status", "createdAt"], "database_backups")
+    .where("trigger_type", "=", "AUTOMATIC")
+    .orderBy("createdAt", "DESC")
+    .orderBy("id", "DESC")
+    .first();
 }
 
 function atHour(date, hour) {
@@ -110,7 +155,9 @@ function atHour(date, hour) {
 function nextAutomaticRun(schedule, lastAttempt) {
   if (!schedule.enabled || !schedule.startedAt) return null;
   if (lastAttempt?.status === "FAILED") {
-    return new Date(new Date(lastAttempt.createdAt).getTime() + RETRY_AFTER_FAILURE_MS);
+    return new Date(
+      new Date(lastAttempt.createdAt).getTime() + RETRY_AFTER_FAILURE_MS,
+    );
   }
   if (lastAttempt) {
     const next = atHour(lastAttempt.createdAt, schedule.hour);
@@ -126,12 +173,15 @@ function nextAutomaticRun(schedule, lastAttempt) {
 // Automatic copies beyond the number to keep are deleted, oldest first.
 // Copies made by people are never removed here.
 async function pruneAutomaticCopies(keep) {
-  const [rows] = await db.query(
-    `SELECT id, file_name FROM database_backups
-      WHERE trigger_type = 'AUTOMATIC' AND destination = 'SERVER' AND status = 'DONE' AND deletedAt IS NULL
-      ORDER BY createdAt DESC, id DESC LIMIT 1000 OFFSET ?`,
-    [keep],
-  );
+  const rows = await keptOnServer(
+    new Model().select(["id", "file_name"], "database_backups"),
+  )
+    .where("trigger_type", "=", "AUTOMATIC")
+    .orderBy("createdAt", "DESC")
+    .orderBy("id", "DESC")
+    .limit(1000)
+    .offset(keep)
+    .execute();
   for (const row of rows) {
     await removeServerCopy(row);
   }
@@ -139,8 +189,14 @@ async function pruneAutomaticCopies(keep) {
 }
 
 async function removeServerCopy(row) {
-  await backupService.removeBackup(path.join(backupService.backupPath, row.file_name));
-  await db.execute("UPDATE database_backups SET deletedAt = CURRENT_TIMESTAMP WHERE id = ? AND deletedAt IS NULL", [row.id]);
+  await backupService.removeBackup(
+    path.join(backupService.backupPath, row.file_name),
+  );
+  await new Model()
+    .update("database_backups", { deletedAt: new Date() })
+    .where("id", "=", row.id)
+    .whereNull("deletedAt")
+    .execute();
 }
 
 async function runDueAutomaticBackup(now = new Date()) {
@@ -160,89 +216,142 @@ async function runDueAutomaticBackup(now = new Date()) {
   }
   await recordBackup({ backup, destination: "SERVER", trigger: "AUTOMATIC" });
   const removed = await pruneAutomaticCopies(schedule.keep);
-  logger.security("Automatic database backup created", { fileName: backup.fileName, sizeBytes: backup.sizeBytes, removed });
+  logger.security("Automatic database backup created", {
+    fileName: backup.fileName,
+    sizeBytes: backup.sizeBytes,
+    removed,
+  });
   return backup;
 }
 
 function healthOf(lastGood, lastAttempt, schedule) {
   if (!lastGood) return "NONE";
-  if (lastAttempt?.status === "FAILED" && new Date(lastAttempt.createdAt) > new Date(lastGood.createdAt)) return "FAILED";
-  const allowedDays = schedule.enabled ? INTERVAL_DAYS[schedule.frequency] + 1 : 7;
-  const ageDays = (Date.now() - new Date(lastGood.createdAt).getTime()) / (24 * 60 * 60 * 1000);
+  if (
+    lastAttempt?.status === "FAILED" &&
+    new Date(lastAttempt.createdAt) > new Date(lastGood.createdAt)
+  )
+    return "FAILED";
+  const allowedDays = schedule.enabled
+    ? INTERVAL_DAYS[schedule.frequency] + 1
+    : 7;
+  const ageDays =
+    (Date.now() - new Date(lastGood.createdAt).getTime()) /
+    (24 * 60 * 60 * 1000);
   return ageDays > allowedDays ? "OVERDUE" : "OK";
 }
 
-const HISTORY_COLUMNS = `backup.id, backup.file_name, backup.destination, backup.trigger_type, backup.status,
-  backup.size_bytes, backup.sha256, backup.error_message, backup.createdAt, backup.deletedAt,
-  person.name AS created_by_name`;
+const HISTORY_FILTERS = {
+  all: (query) => query,
+  server: keptOnServer,
+  downloaded: (query) =>
+    query
+      .where("database_backups.destination", "=", "DOWNLOAD")
+      .where("database_backups.status", "=", "DONE"),
+};
+
+// Backup rows with the name of the person who made them.
+function historyQuery() {
+  return new Model()
+    .select(
+      [
+        "database_backups.id",
+        "database_backups.file_name",
+        "database_backups.destination",
+        "database_backups.trigger_type",
+        "database_backups.status",
+        "database_backups.size_bytes",
+        "database_backups.sha256",
+        "database_backups.error_message",
+        "database_backups.createdAt",
+        "database_backups.deletedAt",
+        "admin.name AS created_by_name",
+      ],
+      "database_backups",
+    )
+    .join("LEFT", "admin", "admin.custom_id", "database_backups.created_by");
+}
 
 async function listHistory({ where = "all", limit = 10 } = {}) {
-  const filters = {
-    all: "",
-    server: "WHERE backup.destination = 'SERVER' AND backup.status = 'DONE' AND backup.deletedAt IS NULL",
-    downloaded: "WHERE backup.destination = 'DOWNLOAD' AND backup.status = 'DONE'",
-  };
-  const condition = filters[where] ?? filters.all;
-  const rowLimit = Math.min(Math.max(Number(limit) || 10, 1), HISTORY_PAGE_SIZE);
+  const applyFilter = HISTORY_FILTERS[where] ?? HISTORY_FILTERS.all;
+  const rowLimit = Math.min(
+    Math.max(Number(limit) || 10, 1),
+    HISTORY_PAGE_SIZE,
+  );
 
-  const [rows] = await db.query(
-    `SELECT ${HISTORY_COLUMNS}
-       FROM database_backups backup
-       LEFT JOIN admin person ON person.custom_id = backup.created_by
-       ${condition}
-      ORDER BY backup.createdAt DESC, backup.id DESC
-      LIMIT ?`,
-    [rowLimit],
-  );
-  const [[counts]] = await db.query(
-    `SELECT COUNT(*) AS total,
-            COALESCE(SUM(destination = 'SERVER' AND status = 'DONE' AND deletedAt IS NULL), 0) AS kept_count,
-            COALESCE(SUM(CASE WHEN destination = 'SERVER' AND status = 'DONE' AND deletedAt IS NULL THEN size_bytes END), 0) AS kept_bytes
-       FROM database_backups`,
-  );
-  const [filtered] = condition
-    ? (await db.query(`SELECT COUNT(*) AS total FROM database_backups backup ${condition}`))[0]
-    : [counts];
-  return { rows, total: Number(filtered.total), counts };
+  const rows = await applyFilter(historyQuery())
+    .orderBy("database_backups.createdAt", "DESC")
+    .orderBy("database_backups.id", "DESC")
+    .limit(rowLimit)
+    .execute();
+  const total = await applyFilter(
+    new Model().select("id", "database_backups"),
+  ).count();
+  const keptCount = await keptOnServer(
+    new Model().select("id", "database_backups"),
+  ).count();
+  const [kept] = await keptOnServer(
+    new Model()
+      .aggregate("SUM", "size_bytes", "kept_bytes")
+      .from("database_backups"),
+  ).execute();
+  return {
+    rows,
+    total: Number(total),
+    keptCount: Number(keptCount),
+    keptBytes: Number(kept.kept_bytes ?? 0),
+  };
 }
 
 // Everything the page needs in one response: health, last good backup,
 // schedule with its next run, and the first page of history.
 async function getOverview(query) {
   const schedule = await getSchedule();
-  const [[lastGood]] = await db.query(
-    `SELECT ${HISTORY_COLUMNS}
-       FROM database_backups backup
-       LEFT JOIN admin person ON person.custom_id = backup.created_by
-      WHERE backup.status = 'DONE'
-      ORDER BY backup.createdAt DESC, backup.id DESC LIMIT 1`,
-  );
-  const [[lastAttempt]] = await db.query(
-    "SELECT status, error_message, createdAt FROM database_backups ORDER BY createdAt DESC, id DESC LIMIT 1",
-  );
+  const lastGood = await historyQuery()
+    .where("database_backups.status", "=", "DONE")
+    .orderBy("database_backups.createdAt", "DESC")
+    .orderBy("database_backups.id", "DESC")
+    .first();
+  const lastAttempt = await new Model()
+    .select(["status", "error_message", "createdAt"], "database_backups")
+    .orderBy("createdAt", "DESC")
+    .orderBy("id", "DESC")
+    .first();
   const history = await listHistory(query);
-  const nextRun = nextAutomaticRun(schedule.value, await lastAutomaticAttempt());
+  const nextRun = nextAutomaticRun(
+    schedule.value,
+    await lastAutomaticAttempt(),
+  );
 
   return {
     health: healthOf(lastGood, lastAttempt, schedule.value),
     lastBackup: lastGood ?? null,
     lastFailure: lastAttempt?.status === "FAILED" ? lastAttempt : null,
-    schedule: { ...schedule, nextRunAt: nextRun ? nextRun.toISOString() : null },
+    schedule: {
+      ...schedule,
+      nextRunAt: nextRun ? nextRun.toISOString() : null,
+    },
     history: history.rows,
     total: history.total,
-    keptCount: Number(history.counts.kept_count),
-    keptBytes: Number(history.counts.kept_bytes),
+    keptCount: history.keptCount,
+    keptBytes: history.keptBytes,
   };
 }
 
 async function findServerCopy(backupId) {
-  const [rows] = await db.query(
-    `SELECT id, file_name, sha256 FROM database_backups
-      WHERE id = ? AND destination = 'SERVER' AND status = 'DONE' AND deletedAt IS NULL LIMIT 1`,
-    [backupId],
-  );
-  if (!rows[0]) throw new AppError("ERR_RECORD_NOT_FOUND", "This backup is no longer kept on the server.");
-  return { ...rows[0], filePath: path.join(backupService.backupPath, rows[0].file_name) };
+  const copy = await keptOnServer(
+    new Model().select(["id", "file_name", "sha256"], "database_backups"),
+  )
+    .where("database_backups.id", "=", backupId)
+    .first();
+  if (!copy)
+    throw new AppError(
+      "ERR_RECORD_NOT_FOUND",
+      "This backup is no longer kept on the server.",
+    );
+  return {
+    ...copy,
+    filePath: path.join(backupService.backupPath, copy.file_name),
+  };
 }
 
 async function deleteServerCopy(backupId) {
