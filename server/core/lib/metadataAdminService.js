@@ -1,8 +1,7 @@
 const AppError = require("../../shared/helpers/AppError");
 const logger = require("../../shared/helpers/logger");
 const Model = require("../model/model");
-const { SENSITIVE_COLUMNS } = require("../middleware/validateTable");
-const { SENSITIVE_GENERIC_TABLES } = require("../config/lookupRegistry");
+const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData");
 const { previewLookup } = require("./metadataService");
 const { validateRecordAgainstMetadata } = require("./metadataSchema");
 const {
@@ -16,7 +15,7 @@ const {
 // Tables the builder never lists or describes: credentials, logs, and the
 // framework's own registries.
 const HIDDEN_TABLES = new Set([
-  ...SENSITIVE_GENERIC_TABLES, "user_activity_logs", "tables_metadata", "metadata_tables", "metadata_lookups",
+  ...SENSITIVE_TABLES, "user_activity_logs", "tables_metadata", "metadata_tables", "metadata_lookups",
   "metadata_versions", "framework_schema_migrations",
 ]);
 const isHidden = (table) => HIDDEN_TABLES.has(table) || table.startsWith("framework_");

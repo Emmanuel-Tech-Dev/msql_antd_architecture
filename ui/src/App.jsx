@@ -8,10 +8,6 @@ import TestFramework from "./pages/admin/Test";
 
 const AppLayout = lazy(() => import("./components/Layout/AppLayout"));
 const Test = lazy(() => import("./pages/Test"));
-const Analytics = lazy(() => import("./pages/Analytics/Analytics").then((module) => ({ default: module.Analytics })));
-const AnalyticsHospital = lazy(() => import("./pages/Analytics/AnalyticsHospital").then((module) => ({ default: module.AnalyticsHospital })));
-const AnalyticsSchool = lazy(() => import("./pages/Analytics/AnalyticsSchool").then((module) => ({ default: module.AnalyticsSchool })));
-const AnalyticsEcommerce = lazy(() => import("./pages/Analytics/AnalyticsEcommerce").then((module) => ({ default: module.AnalyticsEcommerce })));
 const Login = lazy(() => import("./pages/auth/Login"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
@@ -73,10 +69,6 @@ export default function App() {
               <Route index element={<Test />} />
               <Route path="home" element={<Test />} />
               <Route path="testing" element={<TestFramework />} />
-              <Route path="test" element={<Analytics />} />
-              <Route path="test1" element={<AnalyticsHospital />} />
-              <Route path="test2" element={<AnalyticsSchool />} />
-              <Route path="test3" element={<AnalyticsEcommerce />} />
               <Route path="management/users" element={<Users />} />
               <Route path="management/user-statistics" element={<UserStatistics />} />
               <Route path="management/roles&permissions" element={<Roles />} />

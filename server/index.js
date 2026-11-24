@@ -1,150 +1,74 @@
 require("dotenv").config();
 
 const express = require("express");
-require("express-async-errors"); // This handles async errors automatically!
+require("express-async-errors"); // errors thrown in async handlers reach errorHandler
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const rateLimiter = require("express-rate-limit");
-const bodyPaser = require("body-parser");
 const helmet = require("helmet");
 const http = require("http");
 
-const fs = require("fs");
-const path = require("path");
 const AppError = require("./shared/helpers/AppError");
 const logger = require("./shared/helpers/logger");
-const BaseRoute = require("./route/baseRoute");
-const authMiddleWare = require("./core/middleware/authMiddleWare");
 const SettingsManager = require("./core/lib/systemSettings");
+const backupHistoryService = require("./core/lib/backupHistoryService");
+const authMiddleWare = require("./core/middleware/authMiddleWare");
+const { authorization, clearPermissionCache } = require("./core/middleware/authorization");
 const errorHandler = require("./core/middleware/errorHandler");
 const requestLogger = require("./core/middleware/requestLogger");
+const { validateOrigin } = require("./core/config/origins");
+const { initRealtime } = require("./core/realtime/socketServer");
 const AuthRoute = require("./route/authRoute");
-const {
-  authorization,
-  clearPermissionCache,
-} = require("./core/middleware/authorization");
-
-const app = express();
-const server = http.createServer(app);
-const settings = new SettingsManager();
-// const server = http.createServer(app);
-
-const swaggerUi = require("swagger-ui-express");
-const swaggerJsdoc = require("swagger-jsdoc");
-const specs = require("./core/config/swagger");
 const LogRoute = require("./route/LogRoute");
-const AccessRoute = require("./route/acessRoute");
 const BackupRoute = require("./route/BackupRoute");
 const UiSettingsRoute = require("./route/UiSettingsRoute");
 const AdminStatisticsRoute = require("./route/AdminStatisticsRoute");
 const UserDirectoryRoute = require("./route/UserDirectoryRoute");
 const MetadataRoute = require("./route/MetadataRoute");
 const MetadataAdminRoute = require("./route/MetadataAdminRoute");
-const backupHistoryService = require("./core/lib/backupHistoryService");
-const { validateOrigin } = require("./core/config/origins");
-const { initRealtime } = require("./core/realtime/socketServer");
+const AccessRoute = require("./route/acessRoute");
+const BaseRoute = require("./route/baseRoute");
 
 const PORT = process.env.PORT || 3000;
+const app = express();
+const server = http.createServer(app);
+const settings = new SettingsManager();
 
 app.disable("x-powered-by");
 app.use(requestLogger(logger));
-
-const limiter = rateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: "error",
-    message: "Too many login attempts, please try again later.",
-  },
-});
-
-// const io = socket(server, {
-//   cors: {
-//     origin: "*",
-//     methods: ["GET", "POST"],
-//     credentials: true,
-//   },
-// });
-
-// console.log(bodyPaser.json());
-
 app.use(cookieParser());
 // A CSV import sends up to 5,000 rows; every other request keeps the default
 // 100 kB limit.
 app.use("/api/v1/metadata-admin/import", express.json({ limit: "10mb" }));
 app.use(express.json());
-app.use(limiter);
-app.use(bodyPaser.json());
-
-app.use(bodyPaser.urlencoded({ extended: true }));
-// app.use((err, req, res, next) => {
-//   logger.error(err.message);
-//   res.status(err.status || 500).json({ error: err.message });
-// });
-
-app.use(
-  cors({
-    origin: validateOrigin,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "x-table-config",
-    ],
-    exposedHeaders: ["Content-Disposition", "X-Backup-SHA256"],
-    optionsSuccessStatus: 200,
-  }),
-);
-
-// app.use((req, res, next) => {
-//   res.setHeader("Access-Control-Allow-Origin", "*");
-//   res.setHeader(
-//     "Access-Control-Allow-Methods",
-//     "GET, POST, PUT, DELETE , PATCH"
-//   );
-//   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-//   next();
-// });
+app.use(rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: "error", message: "Too many requests, please try again in a few minutes." },
+}));
+app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: validateOrigin,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-table-config"],
+  exposedHeaders: ["Content-Disposition", "X-Backup-SHA256"],
+  optionsSuccessStatus: 200,
+}));
 app.use(helmet());
 app.get("/favicon.ico", (req, res) => res.status(204));
 app.get("/ws", (req, res) => res.status(426).send("WebSocket only"));
-// app.use(express.static("../frontend/build"));
-// const publicPath = path.resolve(__dirname, "resources/adphotos");
-// const voiceNotePath = path.resolve(__dirname, "resources/voicenotes");
-// const msgImgPath = path.resolve(__dirname, "resources/msgimages");
-// const sysImgPath = path.resolve(__dirname, "resources/sysimg");
-// const usersImgPath = path.resolve(__dirname, "resources/users");
-// const pdfsFilePath = path.resolve(__dirname, "resources/pdfs");
+app.use((req, res, next) => (req.method === "OPTIONS" ? res.sendStatus(200) : next()));
 
-// const staticFilesOptions = {};
-// app.get("/:pic", express.static(publicPath, staticFilesOptions));
-// app.get("/:voice", express.static(voiceNotePath, staticFilesOptions));
-// app.get("/:img", express.static(msgImgPath, staticFilesOptions));
-// app.get("/:img", express.static(sysImgPath, staticFilesOptions));
-// app.get("/:img", express.static(usersImgPath, staticFilesOptions));
-// app.get("/:pdf", express.static(pdfsFilePath, staticFilesOptions));
+// Permissions may have changed while the server was down.
+clearPermissionCache();
 
-// app.get("*", (req, res) => {
-//   res.sendFile(path.resolve("../frontend/build/index.html"));
-// });
-// app.use(authMiddleware);
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
-
-// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
-// console.log("swagger paths:", Object.keys(specs.paths || {}));
+// Sign-in, refresh and password recovery work without a token, so they are
+// registered before the auth check. Everything after it needs a valid token
+// and passes authorization.
 new AuthRoute(app);
-
 app.use(authMiddleWare);
 app.use(authorization);
 new LogRoute(app);
@@ -157,32 +81,18 @@ new MetadataAdminRoute(app);
 new AccessRoute(app);
 new BaseRoute(app);
 
-// clearPermissionCache(); // Clear cache on server start to avoid stale permissions after deployments
-
 app.all("*", (req, res, next) => {
-  next(
-    new AppError(
-      "ERR_ENDPOINT_NOT_FOUND",
-      `Route ${req.originalUrl} not found`,
-    ),
-  );
+  next(new AppError("ERR_ENDPOINT_NOT_FOUND", `Route ${req.originalUrl} not found`));
 });
-
 app.use(errorHandler(logger));
 
-// GRACEFUL SHUTDOWN
-
-process.on("SIGTERM", async () => {
-  logger.app("SIGTERM received; shutting down");
+async function shutDown(signal) {
+  logger.app(`${signal} received; shutting down`);
   await logger.close();
   process.exit(0);
-});
-
-process.on("SIGINT", async () => {
-  logger.app("SIGINT received; shutting down");
-  await logger.close();
-  process.exit(0);
-});
+}
+process.on("SIGTERM", () => shutDown("SIGTERM"));
+process.on("SIGINT", () => shutDown("SIGINT"));
 
 // Automatic database backups: checked often so the chosen hour is kept, and
 // a backup missed while the server was off is made soon after it starts.
@@ -199,12 +109,8 @@ async function startServer() {
     await logger.initialize();
     initRealtime(server);
     await settings.preloadAll();
-    // console.log(settings);
-
     app.locals.settings = settings;
-
     scheduleAutomaticBackups();
-
     server.listen(PORT, () => {
       logger.app("Server started", { port: Number(PORT) });
     });

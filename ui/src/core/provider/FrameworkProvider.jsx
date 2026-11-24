@@ -4,7 +4,7 @@ import { useMemo, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { DataProviderContext, validateProvider } from './DataProvider';
 import { AuthProviderContext, validateAuthProvider } from './AuthProvider';
-import { AccessProviderContext, createAccessProvider } from './AccessProvider';
+import { AccessProviderContext, createAccessProvider, isPrivilegedRole } from './AccessProvider';
 import { ResourceProviderContext, useResourceStore, mergeResources } from './ResourceProvider';
 import { FrameworkContext } from './FrameworkContext';
 import { useStore as useValuesStore } from '../../store/values-store';
@@ -40,12 +40,6 @@ function isPublicBrowserRoute(route) {
     return false;
 }
 
-function hasPrivilegedRole(roles = []) {
-    return (roles ?? []).some((role) => {
-        const normalized = String(role?.role_id ?? role).trim().toLowerCase();
-        return normalized === "superadmin" || normalized === "dev";
-    });
-}
 
 function FrameworkBootstrap({ dataProvider, authProvider, resources, children }) {
     const setRegistry = useResourceStore((s) => s.setRegistry);
@@ -161,7 +155,7 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
 
         const browserRoutes = !isAuthenticated
             ? publicRoutes
-            : hasPrivilegedRole(roles)
+            : isPrivilegedRole(roles)
                 ? allBrowserRoutes
                 : [...publicRoutes, ...allowedPrivateRoutes];
 

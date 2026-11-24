@@ -4,17 +4,7 @@ const Model = require("../model/model");
 const { throwFieldErrors, validateRecordAgainstMetadata } = require("./metadataSchema");
 const { getLookupColumns } = require("../config/lookupRegistry");
 
-const SENSITIVE_COLUMNS = new Set([
-  "password",
-  "password_hash",
-  "access_token",
-  "refresh_token",
-  "reset_token",
-  "otp_secret",
-  "secret",
-  "api_key",
-  "private_key",
-]);
+const { isSensitiveColumn } = require("../config/sensitiveData");
 
 class BaseService {
   constructor(request, response) {
@@ -132,7 +122,7 @@ class BaseService {
     const readableColumns = this.request.validatedResource?.fields ?? [];
     if (
       !readableColumns.includes(column) ||
-      SENSITIVE_COLUMNS.has(column.toLowerCase())
+      isSensitiveColumn(column)
     ) {
       throw new AppError("ERR_ACCESS_DENIED", "Filter column is not available");
     }

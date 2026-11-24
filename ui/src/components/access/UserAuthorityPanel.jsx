@@ -23,6 +23,7 @@ import {
 import dayjs from 'dayjs';
 import useApi from '../../hooks/useApi';
 import useAuthStore from '../../store/authStore';
+import { isPrivilegedRole } from '../../core/provider/AccessProvider';
 
 const INHERIT = 'INHERIT';
 const MANAGE_AUTHORITY = 'manage:user_authority';
@@ -60,11 +61,6 @@ const TONE_STYLES = {
   },
 };
 
-function hasPrivilegedRole(roles = []) {
-  return roles.some((role) => ['superadmin', 'dev'].includes(
-    String(role?.role_id ?? role).trim().toLowerCase(),
-  ));
-}
 
 function overrideMap(rows, key) {
   return Object.fromEntries((rows ?? []).map((row) => [row[key], row.effect]));
@@ -150,7 +146,7 @@ function ReadonlyPermissions({ permissions }) {
 export default function UserAuthorityPanel({ userId, fallbackPermissions = [] }) {
   const actorRoles = useAuthStore((state) => state.roles) ?? [];
   const actorPermissions = useAuthStore((state) => state.permissions) ?? [];
-  const canManage = hasPrivilegedRole(actorRoles) || actorPermissions.includes(MANAGE_AUTHORITY);
+  const canManage = isPrivilegedRole(actorRoles) || actorPermissions.includes(MANAGE_AUTHORITY);
   const [permissionDraft, setPermissionDraft] = useState(null);
   const [routeDraft, setRouteDraft] = useState(null);
   const [reason, setReason] = useState('');

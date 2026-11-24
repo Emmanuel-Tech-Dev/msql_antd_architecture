@@ -247,8 +247,9 @@ Two channels push from the server to the browser:
 
 Be honest about these when explaining the framework. They are also on the clean-up list in the packaging plan (`docs/plans/framework-packaging.md`).
 
-- `server/index.js` carries commented-out code, registers body parsers twice, and its rate-limit message says "login attempts" for every route.
-- Leftover business code still sits in the UI (`components/programmes/`, `components/pageDrawer/BeneficiaryInfo.jsx`, `pages/Analytics/`, test pages).
-- Two separate `SENSITIVE_COLUMNS` lists exist (`validateTable.js`, `baseService.js`).
-- The privileged role names (`superadmin`, `dev`) are hard-coded in two places (server and UI).
+- The "Dashboard" page (`/admin/home`) still shows a legacy playground (`pages/Test.jsx`); the framework has no real home page yet.
+- The browser route `/admin/settings/api` is registered but has no page.
+- The privileged role names (`superadmin`, `dev`) live in one place on each side (`authorizationPolicy.js`, `AccessProvider.js`); both must change together.
 - The permission cache is per process (see section 9).
+
+Fixed in packaging phase 1 (2026-11-24): leftover business code removed, `server/index.js` tidied, one list of sensitive tables and columns (`core/config/sensitiveData.js`), start-up no longer loads every field of every table.

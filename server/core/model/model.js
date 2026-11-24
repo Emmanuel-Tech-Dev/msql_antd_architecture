@@ -2,6 +2,7 @@ const conn = require("../config/conn");
 const QueryBuilder = require("../lib/queryBuilder");
 const utils = require("../../shared/utils/functions");
 const logger = require("../../shared/helpers/logger");
+const { SENSITIVE_COLUMNS } = require("../config/sensitiveData");
 
 class Model extends QueryBuilder {
   constructor() {
@@ -92,26 +93,7 @@ class Model extends QueryBuilder {
     // ── Built-in sensitive column blacklist ────────────────────────────────
     // These are stripped from allowedColumns regardless of what DESCRIBE returns.
     // Add your own via exclude: ["ssn", "card_number", "dob"]
-    const SENSITIVE = new Set([
-      "password",
-      "password_hash",
-      "passwd",
-      "token",
-      "access_token",
-      "refresh_token",
-      "reset_token",
-      "secret",
-      "client_secret",
-      "api_key",
-      "private_key",
-      "otp",
-      "otp_secret",
-      "two_factor_secret",
-      "totp_secret",
-      "salt",
-      "encryption_key",
-      ...exclude,
-    ]);
+    const SENSITIVE = new Set([...SENSITIVE_COLUMNS, ...exclude]);
 
     // ── 1. Get columns (from cache or DESCRIBE) ────────────────────────────
     let columns;

@@ -21,18 +21,7 @@ const LOOKUP_REGISTRY = Object.freeze({
   tables_metadata: ["id", "table_name", "column_name", "col_real_name", "type"],
 });
 
-const SENSITIVE_GENERIC_TABLES = new Set([
-  "admin_credentials",
-  "admin_settings",
-  "framework_bootstrap_datasets",
-  "framework_bootstrap_profile_datasets",
-  "framework_bootstrap_profiles",
-  "system_settings",
-  "tables",
-  "token_blacklist",
-  "ui_settings",
-  "user_activity_logs",
-]);
+const { SENSITIVE_TABLES: SENSITIVE_GENERIC_TABLES } = require("./sensitiveData");
 
 function getLookupColumns(table) {
   return LOOKUP_REGISTRY[table] ?? null;

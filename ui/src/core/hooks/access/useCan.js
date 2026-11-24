@@ -1,5 +1,5 @@
 import useAuthStore from "../../../store/authStore";
-import { checkAccess } from "../../provider/AccessProvider";
+import { checkAccess, isPrivilegedRole } from "../../provider/AccessProvider";
 import { useResourceStore } from "../../provider/ResourceProvider";
 
 const useCan = (request) => {
@@ -10,11 +10,7 @@ const useCan = (request) => {
   const isReady = useResourceStore((state) => state.isReady);
 
   if (typeof request === "string") {
-    const privileged = roles.some((role) => {
-      const normalized = String(role?.role_id ?? role).trim().toLowerCase();
-      return normalized === "superadmin" || normalized === "dev";
-    });
-    return isReady && (privileged || permissions.includes(request));
+    return isReady && (isPrivilegedRole(roles) || permissions.includes(request));
   }
 
   return checkAccess({

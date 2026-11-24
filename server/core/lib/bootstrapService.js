@@ -2,7 +2,7 @@ const AppError = require("../../shared/helpers/AppError");
 const logger = require("../../shared/helpers/logger");
 const utils = require("../../shared/utils/functions");
 const Model = require("../model/model");
-const { SENSITIVE_COLUMNS } = require("../middleware/validateTable");
+const { SENSITIVE_COLUMNS } = require("../config/sensitiveData");
 
 // What the UI loads after sign-in is decided here, from the
 // framework_bootstrap_* registry (migration 001). The browser only names a

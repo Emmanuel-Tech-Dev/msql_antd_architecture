@@ -2631,7 +2631,7 @@ GET /api/v1/lookups/cities?parent=GH     // a lookup that depends on another fie
       ]),
       callout(
         "Legacy and example code",
-        "The repository contains legacy utilities, saved API collections, demo analytics pages, archives, and commented alternatives. Treat them as migration context—not automatically as the preferred production pattern. New work should use provider contracts, core hooks, PageHeader, normalized errors, validated metadata, and migration-backed schema.",
+        "The repository contains legacy utilities, saved API collections, archives, and commented alternatives. Treat them as migration context—not automatically as the preferred production pattern. New work should use provider contracts, core hooks, PageHeader, normalized errors, validated metadata, and migration-backed schema.",
       ),
     ],
   },

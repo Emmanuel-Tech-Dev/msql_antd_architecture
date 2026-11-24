@@ -59,7 +59,10 @@ Proposal:
 
 Each phase ends with the server tests, UI tests and build passing, and a commit.
 
-### Phase 1: Clean-up (no behaviour change)
+### Phase 1: Clean-up (no behaviour change) (done 2026-11-24)
+Done: removed `components/programmes/`, `components/pageDrawer/`, `pages/Analytics/`, `Test2.jsx` and the `/admin/test`–`test3` routes; tidied `server/index.js` (same middleware order, verified against the running server); one `server/core/config/sensitiveData.js` for sensitive tables and columns; one `isPrivilegedRole` in the UI (`AccessProvider.js`); migration 026 stops loading `tables_metadata` at start-up.
+Kept on purpose: `/admin/home` ("Dashboard") still renders the legacy playground `pages/Test.jsx` until a real framework home page is designed; the owner's `/admin/testing` page stays. Found: the browser route `/admin/settings/api` has no page in `App.jsx`.
+
 - Move leftover business code out of the framework: `components/programmes/`, `components/pageDrawer/BeneficiaryInfo.jsx`, `pages/Analytics/`, test pages (`Test.jsx`, `Test2.jsx`, `pages/admin/Test.jsx`, `/admin/test*` routes). The `/admin/testing` route is the owner's work in progress: ask before moving it.
 - Tidy `server/index.js`: remove commented-out code, the duplicate body parsers and the misleading rate-limit message.
 - One `SENSITIVE_COLUMNS` list; one place for the privileged role names.

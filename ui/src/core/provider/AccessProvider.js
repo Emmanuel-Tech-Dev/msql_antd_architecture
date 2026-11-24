@@ -14,8 +14,10 @@ export function useAccessProvider() {
   return context;
 }
 
-function isPrivilegedRole(roles = []) {
-  return roles.some((role) => {
+// superadmin and dev pass every permission check, as on the server
+// (server/core/lib/authorizationPolicy.js). The one place the UI decides it.
+export function isPrivilegedRole(roles = []) {
+  return (roles ?? []).some((role) => {
     const normalized = String(role?.role_id ?? role).trim().toLowerCase();
     return normalized === "superadmin" || normalized === "dev";
   });

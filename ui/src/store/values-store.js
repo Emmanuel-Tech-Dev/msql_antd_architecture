@@ -7,7 +7,6 @@ const store = (set, get) => ({
   loggedInUser: "", //user email @ chat
   phoneWidthBreakPoint: 700,
   routes: [], //admin/home.js,
-  tables_metadata: [], //@bootstrap @ app.js
 
   setArray: (key, value) => {
     set((state) => ({

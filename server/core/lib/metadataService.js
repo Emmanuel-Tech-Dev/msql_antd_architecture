@@ -1,14 +1,13 @@
 const AppError = require("../../shared/helpers/AppError");
 const utils = require("../../shared/utils/functions");
 const Model = require("../model/model");
-const { SENSITIVE_COLUMNS } = require("../middleware/validateTable");
-const { SENSITIVE_GENERIC_TABLES } = require("../config/lookupRegistry");
+const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData");
 const { v4: uuidv4 } = require("uuid");
 const uploadServices = require("./uploadServices");
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // Never a lookup source, whatever a lookup row says.
-const BLOCKED_SOURCES = new Set([...SENSITIVE_GENERIC_TABLES, "user_activity_logs"]);
+const BLOCKED_SOURCES = new Set([...SENSITIVE_TABLES, "user_activity_logs"]);
 
 function requireIdentifier(value, label) {
   if (!IDENTIFIER.test(value ?? "")) {
