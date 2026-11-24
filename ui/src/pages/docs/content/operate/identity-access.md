@@ -1,0 +1,153 @@
+---
+id: identity-access
+title: Identity and access control
+track: operate
+group: Run the system
+order: 2
+eyebrow: Authentication + hybrid RBAC
+audience: All technical roles
+readTime: 28 min
+summary: Session lifecycle, role inheritance, user-specific ALLOW/DENY authority, permission mappings, route overrides, cache invalidation, and delegation safety.
+---
+
+## Sign-in and authorization
+
+:::flow
+- Login finds the account by any sign-in column allowed in the auth.login_identifiers setting, then checks status and password hash
+- Server issues a short-lived access token and refresh cookie
+- UI stores the access token in sessionStorage and user state in Zustand
+- auth_user resolves roles, permissions, resources, and current profile
+- Every protected API request repeats token and endpoint authorization
+- The route guard permits or redirects the browser route
+:::
+
+## Role semantics
+
+| Role | Behavior | Intended use |
+| --- | --- | --- |
+| SuperAdmin | Privileged bypass of endpoint mappings; all registered browser routes | System owner and emergency administration |
+| dev | Same privileged policy class as SuperAdmin | Trusted framework developers only |
+| User | Default role for newly created accounts; explicit permissions apply | Safe baseline identity |
+| Custom roles | Union of assigned role permissions and mapped resources | Business responsibilities |
+
+## ACL tables
+
+| Table | Purpose |
+| --- | --- |
+| admin_roles | Role definitions and system-role marker |
+| admin_permissions | Named actions such as read:admin or update:admin_roles |
+| admin_resources | API endpoints and browser routes, with public/nav/display metadata |
+| admin_user_roles | Many-to-many user-to-role assignments |
+| admin_role_permissions | Many-to-many role-to-permission assignments |
+| admin_permission_resources | Permission-to-endpoint or route mappings |
+| admin_user_permission_overrides | Audited user-specific ALLOW or DENY exceptions for named permissions |
+| admin_user_browser_route_overrides | Audited user-specific navigation exceptions, kept separate from API authority |
+
+:::note Why this is hybrid RBAC
+Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. After the role check passes, the ABAC engine runs policies over the subject, resource and environment; policies can only deny.
+:::
+
+## ABAC policies
+
+| Rule | Detail |
+| --- | --- |
+| Order | RBAC baseline first. If it fails, the request is denied without running policies. |
+| Effect | A policy returns ALLOW or DENY. Policies cannot grant access the baseline refused. |
+| Failure | A policy that throws is treated as a denial (POLICY_ERROR). |
+| Built-in | core.authenticated-subject and core.active-account deny unauthenticated subjects and inactive accounts. |
+| Projects | Register more policies (ownership, branch, time of day) in the AbacPolicyRegistry; each sees the subject, resource and environment context. |
+
+## Field-level access (metadata)
+
+| Setting | Without it the user… |
+| --- | --- |
+| In the form switched off | can't set the field through a user request; server code still can |
+| config.readPermission | doesn't get the field in records, filters, search, the form or the list |
+| config.writePermission (falls back to readPermission) | sees the field read-only; sending it fails with "You can't change …" |
+| Privileged roles | superadmin and dev see and change every field |
+
+```text Effective authority precedence
+Normal user:
+  effective permissions = (role permissions + direct ALLOW) - direct DENY
+  effective routes      = ((role routes + direct ALLOW) - direct DENY) + public routes
+
+System role:
+  SuperAdmin or dev -> privileged bypass
+  Direct overrides cannot create, expand, or restrict that bypass
+
+Default:
+  Anything not explicitly effective is denied
+```
+
+## Managing one user's authority
+
+:::flow
+- Open Administration > Users and choose Manage user
+- Locate Direct user exceptions in the user drawer
+- Use Inherit to follow the role, Allow to add authority, or Deny to remove inherited authority
+- Review Permissions and Navigation separately because a visible page is not API authority
+- Optionally choose an expiration and provide the required audit reason
+- Save authority; the server validates targets, delegation ceiling, and privileged-role rules in one transaction
+- The permission cache is cleared and access-changed immediately refreshes the affected user's auth_user context
+:::
+
+## Override states
+
+| State | Meaning | Typical use |
+| --- | --- | --- |
+| Inherit | No direct row; the current role/public-route result applies | Normal access that should evolve with the role |
+| ALLOW | Adds one permission or browser route for this user | Temporary reporting, operational, or support responsibility |
+| DENY | Removes inherited authority for this user; deny wins | Separation of duties or individual restriction |
+
+```http Authority management API
+GET /access/user_authority/REG20260224004
+
+POST /access/user_authority/save
+Content-Type: application/json
+
+{
+  "user_id": "REG20260224004",
+  "permissionOverrides": [
+    { "permission": "read:system_logs", "effect": "ALLOW" },
+    { "permission": "delete:admin", "effect": "DENY" }
+  ],
+  "routeOverrides": [
+    { "resource": "System Logs", "effect": "ALLOW" }
+  ],
+  "reason": "Temporary incident-response responsibility",
+  "valid_until": "2026-07-21T18:00:00.000Z"
+}
+```
+
+## Delegation and audit safeguards
+
+- Only SuperAdmin and dev receive manage:user_authority during migration; it can later be delegated deliberately.
+- A non-privileged authority manager can ALLOW only permissions and routes they already possess.
+- A non-privileged manager cannot delegate manage:user_authority, modify their own direct authority, or manage a privileged target.
+- Permission names and browser resources are validated against their registries; arbitrary attributes or paths are rejected.
+- Authenticated-public routes cannot be overridden for one user; their public policy remains system-wide and predictable.
+- Every save requires a reason, records the grantor and optional expiration, writes both override collections transactionally, and creates a structured security log.
+- Expired and not-yet-active rows do not enter effective authority. The server evaluates validity; the browser never supplies trusted access attributes.
+
+## Session protections
+
+- Access tokens are verified on every protected request and checked against token version/revocation state.
+- Refresh tokens use an HttpOnly cookie; secure cookie behavior is enabled in production.
+- Password changes rotate the token version and force a new sign-in.
+- OTP challenges are separately signed, expire quickly, and can be resent within controlled limits.
+- Suspended users are rejected before protected work is performed.
+
+:::warning Permissions are server decisions
+Hiding a button with useCan improves usability, but it is not a security control. The server authorization middleware must allow the matching HTTP method and route before the action succeeds.
+:::
+
+## Immediate access changes
+
+- ACL mutations clear the server permission cache for affected users.
+- Authorization events notify active clients.
+- The UI invalidates auth_user and bootstrap state, then recomputes the route registry.
+- A user whose current route is removed is redirected to the first route they can access, not blindly to /admin/404.
+
+:::danger Public documentation
+The /docs route is a browser-public route. It does not expose private application records or call protected bootstrap endpoints. Documentation must never include real credentials, secrets, customer data, internal hostnames, or unredacted log samples.
+:::

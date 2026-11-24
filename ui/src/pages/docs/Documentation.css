@@ -969,3 +969,291 @@ kbd {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ── Tracks in the sidebar (Direction B) ─────────────────────────────── */
+.docs-nav__track {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--docs-soft-rule);
+}
+.docs-nav__track-label {
+  display: block;
+  margin: 0 10px 10px;
+  color: var(--docs-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+.docs-nav__group + .docs-nav__group {
+  margin-top: 14px;
+}
+.docs-nav__label {
+  display: flex;
+  justify-content: space-between;
+}
+.docs-nav__label small {
+  color: color-mix(in srgb, var(--docs-muted) 72%, transparent);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.docs-nav button span {
+  font-size: 13px;
+}
+.docs-nav button span .anticon {
+  margin-right: 6px;
+}
+
+/* ── "On this page" scroll-spy ───────────────────────────────────────── */
+.docs-toc > button {
+  position: relative;
+  padding: 6px 0 6px 12px;
+  font-size: 12.5px;
+  border-left: 2px solid transparent;
+}
+.docs-toc > button.is-active {
+  color: var(--docs-accent);
+  font-weight: 600;
+  border-left-color: var(--docs-accent);
+}
+.docs-toc__empty {
+  display: block;
+  color: var(--docs-muted);
+  font-size: 12.5px;
+}
+
+/* ── Home: tasks and tracks ──────────────────────────────────────────── */
+.docs-home h1 {
+  margin: 10px 0 10px;
+}
+.docs-home__lede {
+  max-width: 62ch;
+  margin: 0 0 26px;
+  color: var(--docs-muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.docs-home__tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.docs-home__task {
+  position: relative;
+  display: flex;
+  min-height: 96px;
+  padding: 16px 40px 16px 16px;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--docs-ink);
+  background: var(--docs-surface);
+  border: 1px solid var(--docs-rule);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.docs-home__task:hover {
+  border-color: var(--docs-accent);
+  transform: translateY(-1px);
+}
+.docs-home__task strong {
+  font-size: 15px;
+}
+.docs-home__task span {
+  color: var(--docs-muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.docs-home__task .anticon {
+  position: absolute;
+  top: 18px;
+  right: 16px;
+  color: var(--docs-accent);
+}
+.docs-home__heading {
+  margin: 38px 0 14px;
+  font-size: 20px;
+}
+.docs-home__tracks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.docs-home__track {
+  padding: 16px;
+  background: var(--docs-elevated);
+  border: 1px solid var(--docs-soft-rule);
+  border-radius: 6px;
+}
+.docs-home__track h3 {
+  margin: 0 0 4px;
+  color: var(--docs-accent);
+  font-size: 15px;
+}
+.docs-home__track p {
+  margin: 0 0 10px;
+  color: var(--docs-muted);
+  font-size: 13px;
+}
+.docs-home__track ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+}
+.docs-home__track button {
+  padding: 3px 0;
+  color: var(--docs-ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+}
+.docs-home__track button:hover {
+  color: var(--docs-accent);
+  text-decoration: underline;
+}
+
+/* ── Request walkthrough ─────────────────────────────────────────────── */
+.docs-walkthrough__frame {
+  overflow: hidden;
+  background: var(--docs-surface);
+  border: 1px solid var(--docs-rule);
+  border-radius: 8px;
+}
+.docs-walkthrough__head {
+  display: flex;
+  padding: 12px 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--docs-elevated);
+  border-bottom: 1px solid var(--docs-rule);
+}
+.docs-walkthrough__head code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.docs-walkthrough__head code b {
+  color: var(--docs-accent);
+}
+.docs-walkthrough__count {
+  margin-left: auto;
+  color: var(--docs-muted);
+  font-size: 12.5px;
+}
+.docs-walkthrough__rail {
+  display: flex;
+  margin: 0;
+  padding: 12px 16px;
+  gap: 6px;
+  overflow-x: auto;
+  list-style: none;
+  border-bottom: 1px solid var(--docs-soft-rule);
+}
+.docs-walkthrough__rail button {
+  display: flex;
+  padding: 4px 10px 4px 4px;
+  align-items: center;
+  gap: 6px;
+  color: var(--docs-muted);
+  white-space: nowrap;
+  background: var(--docs-paper);
+  border: 1px solid var(--docs-rule);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+}
+.docs-walkthrough__rail button span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border: 1px solid var(--docs-rule);
+  border-radius: 50%;
+}
+.docs-walkthrough__rail button.is-done {
+  color: var(--docs-accent);
+  border-color: color-mix(in srgb, var(--docs-accent) 50%, transparent);
+}
+.docs-walkthrough__rail button.is-current {
+  color: var(--docs-surface);
+  background: var(--docs-accent);
+  border-color: var(--docs-accent);
+}
+.docs-walkthrough__rail button.is-current span {
+  border-color: currentColor;
+}
+.docs-walkthrough__stage {
+  display: flex;
+  padding: 18px 20px 20px;
+  flex-direction: column;
+  gap: 8px;
+}
+.docs-walkthrough__question {
+  color: var(--docs-accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+.docs-walkthrough__stage h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.docs-walkthrough__file {
+  color: var(--docs-muted);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.docs-walkthrough__stage p {
+  margin: 0;
+  line-height: 1.6;
+}
+.docs-walkthrough__outcomes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.docs-walkthrough__outcomes > div {
+  display: flex;
+  padding: 10px 12px;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13.5px;
+  border: 1px solid var(--docs-soft-rule);
+  border-radius: 6px;
+}
+.docs-walkthrough__outcomes span {
+  width: fit-content;
+  padding: 1px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-radius: 999px;
+}
+.docs-walkthrough__outcomes .is-pass {
+  color: var(--docs-accent);
+  background: color-mix(in srgb, var(--docs-accent) 12%, transparent);
+}
+.docs-walkthrough__outcomes .is-stop {
+  color: var(--color-error, #c0392b);
+  background: color-mix(in srgb, var(--color-error, #c0392b) 14%, transparent);
+}
+.docs-walkthrough__why {
+  padding: 10px 12px;
+  color: var(--docs-muted);
+  font-size: 13.5px;
+  background: var(--docs-elevated);
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .docs-home__task:hover {
+    transform: none;
+  }
+}

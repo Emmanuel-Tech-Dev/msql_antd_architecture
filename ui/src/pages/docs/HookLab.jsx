@@ -31,9 +31,11 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Typography,
 } from 'antd';
+import { useLocation, useNavigate } from 'react-router-dom';
 import useCalendar from '../../hooks/useCalender';
 import useChart from '../../hooks/useChart';
 import useDraggable from '../../hooks/useDraggable';
@@ -393,68 +395,146 @@ function CodeWorkbench({ entry }) {
 }
 
 function ContractPanel({ entry }) {
+  const kind = statusKind(entry.status);
   return (
     <div className="hook-studio__contract">
       <div><small>SOURCE</small><strong>{entry.importPath}</strong></div>
       <div><small>RUNTIME</small><strong>{entry.status}</strong></div>
       <div><small>CATEGORY</small><strong>{entry.category}</strong></div>
-      <Alert showIcon type={entry.status.includes('Live') ? 'success' : entry.status === 'Not implemented' ? 'warning' : 'info'} title={entry.status.includes('Live') ? 'Executed by this documentation page' : 'Isolated from protected application state'} description={entry.status.includes('Live') ? 'Use the Preview tab controls to exercise the real hook implementation.' : 'The Preview tab models inputs, loading, success, failure, and normalized output without affecting a live session or database.'} />
+      <Alert
+        showIcon
+        type={kind === 'live' ? 'success' : kind === 'attention' ? 'warning' : 'info'}
+        title={kind === 'live' ? 'Executed by this documentation page' : kind === 'attention' ? 'Not ready to use as is' : 'Isolated from protected application state'}
+        description={kind === 'live'
+          ? 'Use the Preview tab to exercise the real hook implementation.'
+          : kind === 'attention'
+            ? 'Read the Preview tab for what is missing before using this hook in a screen.'
+            : 'The Preview tab runs the hook inside a sandbox provider, without touching a live session or database.'}
+      />
     </div>
   );
 }
 
+// Live: runs as is. Sandbox: runs inside an isolated provider. Attention: deprecated, unwired or empty.
+function statusKind(status) {
+  if (/isolated|sandbox/i.test(status)) return 'sandbox';
+  if (status.startsWith('Live')) return 'live';
+  return 'attention';
+}
+const STATUS_LABELS = { live: 'Live', sandbox: 'Sandbox', attention: 'Needs work' };
+const VIEWS = ['preview', 'code', 'contract'];
+
 export default function HookLab() {
-  const [activeKey, setActiveKey] = useState('useSider');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = new URLSearchParams(location.search);
+  const activeKey = params.get('hook') ?? 'useSider';
+  const view = VIEWS.includes(params.get('tab')) ? params.get('tab') : 'preview';
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('All hooks');
-  const [view, setView] = useState('Preview');
+  const [copied, setCopied] = useState(false);
+
+  // The selected hook and tab live in the URL, so a link opens the same demo.
+  const setUrl = (hook, tab) => {
+    const next = new URLSearchParams(location.search);
+    next.set('hook', hook);
+    next.set('tab', tab);
+    navigate({ pathname: location.pathname, search: `?${next}`, hash: location.hash }, { replace: true });
+  };
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return hookPlaygroundCatalog.filter((entry) => {
-      const matchesCategory = category === 'All hooks' || entry.category === category;
-      const matchesSearch = !needle || `${entry.name} ${entry.summary} ${entry.category}`.toLowerCase().includes(needle);
-      return matchesCategory && matchesSearch;
-    });
-  }, [category, query]);
+    return hookPlaygroundCatalog.filter((entry) => !needle || `${entry.name} ${entry.summary} ${entry.category}`.toLowerCase().includes(needle));
+  }, [query]);
+  const grouped = hookCategories
+    .map((category) => ({ category, entries: filtered.filter((entry) => entry.category === category) }))
+    .filter((group) => group.entries.length);
 
-  const active = hookPlaygroundCatalog.find((entry) => entry.key === activeKey) ?? hookPlaygroundCatalog[0];
+  // ?hook= takes a catalog key (core-useList) or, for hand-written links, a hook name (useList).
+  const active = hookPlaygroundCatalog.find((entry) => entry.key === activeKey)
+    ?? hookPlaygroundCatalog.find((entry) => entry.name === activeKey)
+    ?? hookPlaygroundCatalog[0];
   const Demo = semanticDemoComponents[active.name] ?? demoComponents[active.demo] ?? StatisticsDemo;
-  const selectHook = (key) => { setActiveKey(key); setView('Preview'); };
+  const activeKind = statusKind(active.status);
+
+  // Up and down arrows move through the visible hooks.
+  const moveSelection = (event) => {
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    event.preventDefault();
+    const list = event.currentTarget;
+    const at = filtered.findIndex((entry) => entry.key === active.key);
+    const next = filtered[Math.min(filtered.length - 1, Math.max(0, at + (event.key === 'ArrowDown' ? 1 : -1)))];
+    if (!next) return;
+    setUrl(next.key, 'preview');
+    window.requestAnimationFrame(() => list.querySelector(`[data-hook="${next.key}"]`)?.focus());
+  };
+
+  const copySource = async () => {
+    try {
+      await navigator.clipboard.writeText(active.importPath);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // The clipboard was refused; the path stays visible to copy by hand.
+    }
+  };
 
   return (
     <div className="hook-studio">
       <div className="hook-studio__intro">
-        <div><span>Interactive developer reference</span><Title level={3}>Hook Studio</Title><Text type="secondary">One isolated demo for every application and core framework hook, with editable scenarios and copy-ready source.</Text></div>
+        <div><span>Interactive developer reference</span><Title level={3}>Hook Studio</Title><Text type="secondary">One isolated demo for every application and core framework hook, with copy-ready source and the hook&apos;s contract.</Text></div>
         <div className="hook-studio__count"><strong>{hookPlaygroundCatalog.length}</strong><small>documented hooks</small></div>
       </div>
 
-      <div className="hook-studio__filters">
-        <Input allowClear aria-label="Find a hook" prefix={<SearchOutlined />} placeholder="Find a hook or capability…" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <Select aria-label="Hook category" value={category} onChange={setCategory} options={['All hooks', ...hookCategories].map((item) => ({ label: item, value: item }))} />
-      </div>
-
       <div className="hook-studio__workspace">
-        <nav className="hook-studio__catalog" aria-label="Hook playgrounds">
-          {filtered.length ? filtered.map((entry) => (
-            <button aria-current={entry.key === active.key ? 'true' : undefined} className={entry.key === active.key ? 'is-active' : ''} key={entry.key} onClick={() => selectHook(entry.key)} type="button">
-              <span aria-hidden="true">{categoryIcons[entry.category] ?? <ApiOutlined />}</span>
-              <span><strong>{entry.name}</strong><small>{entry.category}</small></span>
-              <i aria-hidden="true" className={entry.status.includes('Live') ? 'is-live' : entry.status === 'Not implemented' ? 'is-planned' : ''} />
-              <span className="docs-visually-hidden">{entry.status}</span>
-            </button>
-          )) : <Empty description="No hooks match this filter" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-        </nav>
+        <div className="hook-studio__catalog">
+          <div className="hook-studio__catalog-top">
+            <Input allowClear aria-label="Find a hook" prefix={<SearchOutlined />} placeholder="Find a hook or capability…" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <div className="hook-studio__legend" aria-hidden="true">
+              {Object.entries(STATUS_LABELS).map(([kind, label]) => <span key={kind}><i className={`is-${kind}`} />{label}</span>)}
+            </div>
+          </div>
+          <nav aria-label="Hook playgrounds" onKeyDown={moveSelection}>
+            {grouped.length ? grouped.map((group) => (
+              <div className="hook-studio__catalog-group" key={group.category}>
+                <span className="hook-studio__catalog-label">{categoryIcons[group.category] ?? <ApiOutlined />}{group.category}<small>{group.entries.length}</small></span>
+                {group.entries.map((entry) => {
+                  const kind = statusKind(entry.status);
+                  return (
+                    <button aria-current={entry.key === active.key ? 'true' : undefined} className={entry.key === active.key ? 'is-active' : ''} data-hook={entry.key} key={entry.key} onClick={() => setUrl(entry.key, 'preview')} type="button">
+                      <i aria-hidden="true" className={`is-${kind}`} />
+                      <strong>{entry.name}</strong>
+                      <small>{STATUS_LABELS[kind]}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )) : <Empty description="No hooks match this search" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+          </nav>
+        </div>
 
-        <section className="hook-studio__workbench">
+        <section className="hook-studio__workbench" aria-label={`${active.name} playground`}>
           <header className="hook-studio__workbench-head">
-            <div><span>{active.category}</span><Title level={4}>{active.name}</Title><p>{active.summary}</p></div>
-            <Tag bordered={false} color={active.status.includes('Live') ? 'success' : active.status === 'Not implemented' ? 'warning' : 'processing'}>{active.status}</Tag>
+            <div>
+              <span>{active.category}</span>
+              <Title level={4}>{active.name}</Title>
+              <p>{active.summary}</p>
+              <div className="hook-studio__source">
+                <code>{active.importPath}</code>
+                <Button size="small" type="text" icon={copied ? <CheckCircleOutlined /> : <CopyOutlined />} onClick={copySource}>{copied ? 'Copied' : 'Copy path'}</Button>
+              </div>
+            </div>
+            <Tag bordered={false} color={activeKind === 'live' ? 'success' : activeKind === 'attention' ? 'warning' : 'processing'}>{active.status}</Tag>
           </header>
-          <div className="hook-studio__tabs"><Segmented value={view} onChange={setView} options={[{ label: 'Preview', value: 'Preview', icon: <PlayCircleOutlined /> }, { label: 'Code', value: 'Code', icon: <CodeOutlined /> }, { label: 'Contract', value: 'Contract', icon: <SafetyCertificateOutlined /> }]} /></div>
-          {view === 'Preview' && <Demo key={active.key} entry={active} />}
-          {view === 'Code' && <CodeWorkbench key={active.key} entry={active} />}
-          {view === 'Contract' && <ContractPanel entry={active} />}
+          <Tabs
+            className="hook-studio__tabs"
+            activeKey={view}
+            onChange={(tab) => setUrl(active.key, tab)}
+            items={[
+              { key: 'preview', label: <span><PlayCircleOutlined /> Preview</span>, children: <Demo key={active.key} entry={active} /> },
+              { key: 'code', label: <span><CodeOutlined /> Code</span>, children: <CodeWorkbench key={active.key} entry={active} /> },
+              { key: 'contract', label: <span><SafetyCertificateOutlined /> Contract</span>, children: <ContractPanel entry={active} /> },
+            ]}
+          />
         </section>
       </div>
     </div>
