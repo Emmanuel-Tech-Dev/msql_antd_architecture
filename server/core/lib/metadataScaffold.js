@@ -9,7 +9,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const FIELD_TYPES = new Set([
   "text", "textarea", "richText", "email", "phone", "url", "password", "integer", "number", "money",
   "percent", "duration", "date", "dateTime", "time", "switch", "select", "multiSelect", "radio",
-  "checkboxGroup", "lookup", "multiLookup", "file", "image", "color", "primaryKey", "generatedId",
+  "checkboxGroup", "lookup", "multiLookup", "file", "image", "color", "icon", "primaryKey", "generatedId",
 ]);
 const TIMESTAMP_COLUMNS = new Set(["createdAt", "updatedAt", "deletedAt", "created_at", "updated_at", "deleted_at"]);
 

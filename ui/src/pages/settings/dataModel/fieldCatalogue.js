@@ -7,7 +7,7 @@ export const FIELD_TYPE_GROUPS = [
     { label: 'Dates', options: [['date', 'Date'], ['dateTime', 'Date and time'], ['time', 'Time']] },
     { label: 'Choices', options: [['switch', 'Yes / no'], ['select', 'Select'], ['multiSelect', 'Several choices'], ['radio', 'Radio'], ['checkboxGroup', 'Checkboxes']] },
     { label: 'From another table', options: [['lookup', 'Lookup'], ['multiLookup', 'Several from lookup']] },
-    { label: 'Files', options: [['image', 'Image'], ['file', 'File']] },
+    { label: 'Files', options: [['image', 'Image'], ['file', 'File'], ['icon', 'Icon']] },
     { label: 'System', options: [['primaryKey', 'Primary key'], ['generatedId', 'Generated ID']] },
 ].map((group) => ({ label: group.label, options: group.options.map(([value, label]) => ({ value, label })) }));
 

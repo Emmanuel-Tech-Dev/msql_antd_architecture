@@ -8,6 +8,7 @@ import {
     BarsOutlined,
     AppstoreAddOutlined,
     LayoutOutlined,
+    ApartmentOutlined,
 
     // People / identity
     UserOutlined,
@@ -128,6 +129,7 @@ const ICON_MAP = {
     BarsOutlined,
     AppstoreAddOutlined,
     LayoutOutlined,
+    ApartmentOutlined,
 
     // People / identity
     UserOutlined,

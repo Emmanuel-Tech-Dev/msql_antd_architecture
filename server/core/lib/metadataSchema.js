@@ -8,7 +8,7 @@ const { canReadField, canWriteField, findMissingLookupValues } = require("./meta
 // it; generic writes to it are checked here, and other tables behave as
 // before. Hand-written routes can reuse metadataSchema() and extend it.
 
-const TEXT_TYPES = new Set(["text", "textarea", "richText", "password", "phone", "url", "generatedId", "file", "image", "color"]);
+const TEXT_TYPES = new Set(["text", "textarea", "richText", "password", "phone", "url", "generatedId", "file", "image", "color", "icon"]);
 const NUMBER_TYPES = new Set(["number", "integer", "money", "percent", "duration"]);
 const CHOICE_TYPES = new Set(["select", "radio"]);
 const MULTI_CHOICE_TYPES = new Set(["multiSelect", "checkboxGroup"]);

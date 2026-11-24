@@ -4,6 +4,8 @@ import cryptoRandomString from 'crypto-random-string';
 import LookupSelect from '../../components/metadata/LookupSelect';
 import UploadField from '../../components/metadata/UploadField';
 import ChoiceGroup from '../../components/metadata/ChoiceGroup';
+import IconSelect from '../../components/metadata/IconSelect';
+import IconCell from '../../components/metadata/IconCell';
 
 // One definition per field type, shared by MetadataForm (input, value
 // conversion) and MetadataTable (cell). Built-in types are registered the
@@ -53,6 +55,12 @@ registerFieldType('textarea', {
   input: ({ disabled, placeholder, field }) => <Input.TextArea disabled={disabled} placeholder={placeholder} autoSize={{ minRows: field.config?.rows ?? 3, maxRows: 10 }} />,
 });
 registerFieldType('richText', { ...registry.get('textarea') });
+registerFieldType('icon', {
+  input: ({ disabled, placeholder }) => <IconSelect disabled={disabled} placeholder={placeholder} />,
+  toForm: (value) => blankToUndefined(value),
+  fromForm: (value) => value ?? null,
+  cell: (value) => (value ? <IconCell name={value} /> : ''),
+});
 const upload = (kind) => ({
   input: ({ field, table, disabled }) => (
     <UploadField kind={kind} table={table} column={field.column_name} disabled={disabled}
