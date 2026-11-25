@@ -1,0 +1,20 @@
+{
+  "name": "create-msql-antd",
+  "version": "0.1.0",
+  "description": "Creates a new project on the msql-antd framework: a server on @msql-antd/framework-server and a UI on @msql-antd/framework-ui.",
+  "bin": {
+    "create-msql-antd": "index.js"
+  },
+  "files": [
+    "index.js",
+    "template"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "commonjs",
+  "license": "ISC",
+  "scripts": {
+    "test": "node --test create.test.js"
+  }
+}

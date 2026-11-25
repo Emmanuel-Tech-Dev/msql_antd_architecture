@@ -28,6 +28,7 @@ The database is authoritative for records, ACL mappings, table metadata, browser
 .
 ├── packages/framework-server/  @msql-antd/framework-server: Express API, MySQL query layer, security, migrations, operations
 ├── packages/framework-ui/      @msql-antd/framework-ui: providers, hooks, pages, components, design system
+├── packages/create-msql-antd/  The starter: npx create-msql-antd <folder> writes a new project
 ├── server/                     Example project server (index.js and its .env, logs, backups)
 ├── ui/                         Example project UI (main.jsx and two sample pages)
 ├── scripts/dev.js              npm run dev: starts the API and the UI together
@@ -101,6 +102,16 @@ Create `ui/.env`:
 ```env
 VITE_API_URL=http://localhost:3000
 ```
+
+## Start a new project
+
+```bash
+npx create-msql-antd acme-invoices
+# or, from this checkout with unreleased changes:
+node packages/create-msql-antd/index.js ../acme-invoices --framework packages
+```
+
+The rest of this README is about working on the framework itself.
 
 ## Install and run
 

@@ -1,0 +1,21 @@
+{
+  "name": "server",
+  "private": true,
+  "version": "0.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon --ignore resources/ index.js",
+    "migrate": "msql-antd-migrate",
+    "db:setup": "msql-antd-db-setup"
+  },
+  "dependencies": {
+    "@msql-antd/framework-server": "{{serverSpec}}",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

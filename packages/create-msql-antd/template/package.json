@@ -1,0 +1,13 @@
+{
+  "name": "{{name}}",
+  "private": true,
+  "workspaces": ["server", "ui"],
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:api": "npm run dev -w server",
+    "dev:ui": "npm run dev -w ui",
+    "build": "npm run build -w ui",
+    "migrate": "npm run migrate -w server",
+    "db:setup": "npm run db:setup -w server"
+  }
+}

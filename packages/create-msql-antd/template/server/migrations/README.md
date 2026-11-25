@@ -1,0 +1,1 @@
+Your project's migrations: `001_create_invoices.sql`, `002_...`. `npm run migrate` applies the framework's pending migrations first, then these, and records each one. Never edit a migration after it has run; add a new one. The data-model builder (Settings > Data model) can write these files for you.
