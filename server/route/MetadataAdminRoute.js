@@ -3,7 +3,7 @@ const path = require("path");
 const admin = require("../core/lib/metadataAdminService");
 const { previewLookup } = require("../core/lib/metadataService");
 
-const MIGRATIONS = path.resolve(__dirname, "../resources/migrations");
+const MIGRATIONS = process.env.MIGRATIONS_PATH || path.resolve(__dirname, "../resources/migrations");
 
 // The next free migration number, for the name of a downloaded migration.
 function nextMigrationName(slug) {

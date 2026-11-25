@@ -10,7 +10,7 @@ readTime: 22 min
 summary: Startup, middleware order, routes, services, the query layer, validation, settings, uploads, backup, and observability.
 ---
 
-The server is a CommonJS Express application. index.js composes infrastructure and route modules; route classes translate HTTP into service calls; service classes hold business and security orchestration; Model and QueryBuilder own database execution.
+The server is a CommonJS Express application. createServer(options) in createServer.js composes infrastructure and route modules, and index.js only calls it; route classes translate HTTP into service calls; service classes hold business and security orchestration; Model and QueryBuilder own database execution.
 
 ## Startup sequence
 
@@ -18,12 +18,38 @@ The server is a CommonJS Express application. index.js composes infrastructure a
 - Load environment variables
 - Create Express and HTTP server
 - Initialize request logging, cookies, JSON parsing, rate limiting, CORS, and Helmet
-- Register public authentication routes
-- Install authentication and authorization middleware
-- Register logs, backup, UI settings, statistics, user directory, metadata, metadata builder, access-control, and generic data routes
+- Run the project's beforeAuth middleware
+- Register public authentication routes, then the project's publicRoutes
+- Install authentication, the per-user rate limit and authorization, then the project's afterAuth middleware
+- Register logs, backup, UI settings, statistics, user directory, metadata, metadata builder and access-control routes
+- Register the project's routes, then the generic /api/:resources routes last
 - Install the not-found and central error handlers
 - Initialize logging and preload system settings
 - Listen on PORT and handle graceful shutdown signals
+:::
+
+## Your own routes, middleware and policies
+
+| Option | What it takes | Where it runs |
+| --- | --- | --- |
+| routes | Route classes, each new Route(app) like the framework's own | After sign-in and authorization, before the generic /api/:resources routes, so /api/v1/... paths are yours |
+| publicRoutes | Route classes that answer without a token | Before the token check (keep them few: health checks, webhooks with their own signature check) |
+| beforeAuth / afterAuth | Express middleware | Before the token check / after authorization, before any route |
+| policies | ABAC policies ({ id, description, evaluate }) | Added to the framework's engine; deny-only, like the core policies |
+| paths | { logs, backups, migrations } folders | Default: LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the framework's resources folder |
+| port | A port number | Default: PORT, then 3000 |
+
+```js server/index.js
+require("dotenv").config();
+const { createServer } = require("./createServer");
+const InvoiceRoute = require("./route/InvoiceRoute");
+const branchPolicy = require("./policies/branchPolicy");
+
+createServer({ routes: [InvoiceRoute], policies: [branchPolicy] }).start();
+```
+
+:::note Routes still need a resource
+A project route is protected like the framework's: authorization needs an API resource for its method and path (Settings › Resources) and a role that holds it. createServer returns { app, server, start }; start() loads settings, starts realtime and the background jobs, and listens.
 :::
 
 ## Server directories

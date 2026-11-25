@@ -53,12 +53,12 @@ Take a user who opens the Taxes page and saves an edit: `PUT /api/taxes/7`.
 
 ### On the server
 
-The order is set in `server/index.js`, and the order matters.
+The order is set in `createServer()` (`server/createServer.js`; `index.js` only calls it), and the order matters. A project's own middleware and routes slot into it through options: `beforeAuth`, `publicRoutes`, `afterAuth`, then `routes` just before the generic `/api/:resources` routes.
 
 | Step | Layer | What it decides | File |
 |---|---|---|---|
 | 1 | `requestLogger` | Gives the request an id and logs it. | `core/middleware/requestLogger.js` |
-| 2 | Parsers, rate limiter, CORS, helmet | Body size (100 kB, or 10 MB for CSV import), 3000 requests per 15 min per address (500 per signed-in user, checked after the token), allowed origins, security headers. | `index.js`, `core/config/origins.js` |
+| 2 | Parsers, rate limiter, CORS, helmet | Body size (100 kB, or 10 MB for CSV import), 3000 requests per 15 min per address (500 per signed-in user, checked after the token), allowed origins, security headers. | `createServer.js`, `core/config/origins.js` |
 | 3 | **Public routes** (`AuthRoute`) | Login, refresh, password reset and OTP are registered **before** the auth check, so they work without a token. | `route/authRoute.js` |
 | 4 | **`authMiddleWare`**: *who are you?* | Verifies the JWT signature and issuer, then compares the token's `token_version` with the database. If you changed your password or were signed out everywhere, old tokens stop working at once. | `core/middleware/authMiddleWare.js` |
 | 5 | **`authorization`**: *may you do this?* | Loads your roles, permissions and allowed URLs (cached 5 min), checks the URL and method, then runs the ABAC policies. See section 4. | `core/middleware/authorization.js` |

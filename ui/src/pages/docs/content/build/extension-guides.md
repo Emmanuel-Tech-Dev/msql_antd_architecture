@@ -41,6 +41,13 @@ summary: Repeatable procedures for new tables, pages, resources, forms, lookups,
 3. **Keep validation server-side** — The browser only names the profile. Sensitive sources are blocked, and a dataset with required_permission is skipped for users without it.
 4. **Consume from ValuesStore** — Read the dataset by storeName and avoid duplicate fetches in page components.
 
+## Add a server route
+
+1. **Write a route class** — constructor(app) registers handlers, like route/baseRoute.js. Reuse validateRecordAgainstMetadata and throwFieldErrors for described tables, and syncRecordFiles if it saves uploaded files.
+2. **Pass it to createServer** — createServer({ routes: [InvoiceRoute] }) in server/index.js. It is registered after authorization and before the generic /api/:resources routes.
+3. **Give it a resource** — Add an API resource for its method and path in Settings › Resources and link it to a permission and roles; without one, authorization refuses it.
+4. **Call it from the UI** — dataProvider.custom or apiClient, or MetadataForm onSubmit for a form that saves through it.
+
 ## Add an appearance setting
 
 1. **Extend defaults** — Add a safe default in siderConfig.js.

@@ -68,7 +68,9 @@ Kept on purpose: `/admin/home` ("Dashboard") still renders the legacy playground
 - One `SENSITIVE_COLUMNS` list; one place for the privileged role names.
 - Remove `tables_metadata` from bootstrap (nothing reads it any more).
 
-### Phase 2: Server app factory
+### Phase 2: Server app factory (done 2026-11-25)
+Done: `server/createServer.js` exports `createServer({ routes, publicRoutes, beforeAuth, afterAuth, policies, paths, port })` returning `{ app, server, start }`; `index.js` is a three-line caller. Verified: 16 read-only requests (public, signed in, 400/401/403/404, OPTIONS, /ws) compared before and after, 4,075 fields, 0 differences. Paths: `LOG_PATH`, `BACKUP_PATH` and the new `MIGRATIONS_PATH` (also read by the migration runner and the builder), settable through `paths`.
+
 - Turn `index.js` into `createServer(options)` (section 3), with today's `index.js` becoming a three-line caller. Behaviour must be identical: compare the responses of the main endpoints before and after.
 - Resolve file paths (migrations, backups, logs, uploads) from options or the project folder, not from `__dirname` inside the package.
 

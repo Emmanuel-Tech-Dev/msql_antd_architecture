@@ -6,7 +6,7 @@ const crypto = require("crypto");
 const mysql = require("mysql2/promise");
 
 const migrationName = process.argv[2];
-const migrationsPath = path.resolve(__dirname, "../resources/migrations");
+const migrationsPath = process.env.MIGRATIONS_PATH || path.resolve(__dirname, "../resources/migrations");
 
 if (
   migrationName &&
