@@ -1,5 +1,7 @@
 import { createElement, useMemo, useState } from 'react';
 import { Alert, Button, Form, Skeleton, Space, Typography } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
+import queryKeys from '../../core/queryKeys';
 import useCreate from '../../core/hooks/data/useCreate';
 import useUpdate from '../../core/hooks/data/useUpdate';
 import { getFieldType } from '../../core/metadata/fieldTypes';
@@ -47,6 +49,10 @@ function sectionsOf(metadata, shownFields) {
 // steps (its own Back / Continue buttons, whatever showActions says).
 // `metadata` replaces the loaded metadata (the builder previews a draft
 // with it), and `preview` never saves.
+// `onSubmit(values, { mode, record })` saves somewhere else (a route of your
+// own) instead of POST / PUT /api/:resources: the form still checks every
+// field first; what it returns goes to onSaved, and an error carrying
+// details.errors ({ column: message }) is shown under those fields.
 export default function MetadataForm({
     table,
     record,
@@ -60,6 +66,7 @@ export default function MetadataForm({
     preview = false,
     showActions = true,
     notify = true,
+    onSubmit,
     onSaved,
     onSaveError,
     onCancel,
@@ -73,6 +80,7 @@ export default function MetadataForm({
     const mode = record ? 'edit' : 'create';
     const create = useCreate({ resource: table });
     const update = useUpdate({ resource: table });
+    const queryClient = useQueryClient();
     const { resolveIcon } = useIcons();
     // Columns the server last refused, so a stepper can open their step.
     const [errorFields, setErrorFields] = useState([]);
@@ -104,9 +112,16 @@ export default function MetadataForm({
             .filter((field) => isWritableField(field, mode))
             .map((field) => [field.column_name, getFieldType(field.type).fromForm(values[field.column_name], field)]));
         try {
-            const saved = mode === 'edit'
-                ? await update.mutateAsync({ id: record[primaryKeyOf(metadata)], variables: payload })
-                : await create.mutateAsync(payload);
+            let saved;
+            if (onSubmit) {
+                saved = await onSubmit(payload, { mode, record });
+                // The custom route may have changed this table's lists.
+                queryClient.invalidateQueries({ queryKey: queryKeys.lists(table) });
+            } else {
+                saved = mode === 'edit'
+                    ? await update.mutateAsync({ id: record[primaryKeyOf(metadata)], variables: payload })
+                    : await create.mutateAsync(payload);
+            }
             if (notify) message.success(`${singular} ${mode === 'edit' ? 'updated' : 'added'}`);
             onSaved?.(saved, { mode, values: payload });
         } catch (saveError) {

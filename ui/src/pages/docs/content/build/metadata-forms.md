@@ -215,6 +215,51 @@ form.openCreate('taxes', { kind: 'VAT' });
 // A table with a stepper brings its own Back / Continue / Save buttons.
 ```
 
+## Saving to your own route
+
+| Step | What happens |
+| --- | --- |
+| Checks | The form checks every field (and every step) exactly as before. Nothing is sent while a field is wrong. |
+| onSubmit(values, { mode, record }) | Called instead of POST / PUT /api/:resources. values holds only the fields this user may write, already converted (dates as text, lists as arrays). record is the record being edited, or undefined when adding. |
+| Success | onSaved(saved, { mode, values }) runs: saved is whatever onSubmit returned (optional, usually the new record with its id), values is what was sent. The "added" or "updated" message shows and every list of the table refetches. |
+| Refusal | Throw (or let apiClient throw) an error with details.errors = { column: message }. Each message appears under its field, a stepper opens that field's step, and onSaveError receives the error. ERR_VALIDATION_FAILED from the server already has this shape. |
+| Where it works | MetadataForm onSubmit, MetadataTable formProps={{ onSubmit }}, and useRecordForm's recordModal({ onSubmit }). |
+
+```jsx In the browser
+<MetadataForm
+  table="customers"
+  record={editing}
+  onSubmit={async (values, { mode, record }) => {
+    console.log(values);   // see exactly what would be saved
+    const response = await apiClient.post('/api/v1/customers/onboard', values);
+    // Optional: return what onSaved needs, e.g. the new record with its id.
+    // response.data is the body; framework routes wrap it as { status, data }.
+    return response.data.data;
+  }}
+  onSaved={(customer, { values }) => navigate(`/admin/customers/${customer.id}`)}
+/>
+
+// Nothing to pass on? Return nothing; onSaved still gets the values sent.
+<MetadataForm table="customers" onSubmit={(values) => apiClient.post('/api/v1/customers/onboard', values)} onSaved={() => close()} />
+```
+
+```js On the server: the same checks and file clean-up as the generic route
+const { validateRecordAgainstMetadata, throwFieldErrors } = require("../core/lib/metadataSchema");
+const { syncRecordFiles } = require("../core/lib/uploadTracking");
+const Model = require("../core/model/model");
+
+app.post("/api/v1/customers/onboard", async (req, res) => {
+  const access = { permissions: req.permissions, privileged: req.isPrivileged };
+  const { record, errors } = await validateRecordAgainstMetadata("customers", req.body, { mode: "create", access });
+  if (Object.keys(errors).length) throwFieldErrors(errors);   // 400 with details.errors
+
+  const result = await new Model().insert("customers", record).execute();
+  await syncRecordFiles("customers", result.insertId, {}, record); // attach uploaded files
+  // …your own workflow: welcome email, account, audit entry
+  res.status(201).json({ status: "ok", data: { id: result.insertId, ...record } });
+});
+```
+
 ## Extending it
 
 | Need | How |
@@ -223,7 +268,7 @@ form.openCreate('taxes', { kind: 'VAT' });
 | A different stepper or another layout | registerFormLayout('steps', MyStepper) in core/metadata/formLayouts.js: see Multi-step forms |
 | A custom column or cell | MetadataTable columns={{ column: { title, render } }} |
 | Extra content in a form | MetadataForm slots: before:column, after:column, before:section:key, after:section:key |
-| Workflow rules | A hand-written route; metadataSchema(table) can be reused and extended with zod |
+| Workflow rules | A hand-written route with MetadataForm onSubmit; validateRecordAgainstMetadata (or metadataSchema(table), extendable with zod) gives it the same checks |
 
 :::warning Lookups are keys
 A lookup field names a metadata_lookups key. The server decides the source table, value and label columns, filter, sort, row limit and required permission. The browser never sends SQL or column names.

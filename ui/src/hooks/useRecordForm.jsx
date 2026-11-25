@@ -69,6 +69,7 @@ const useRecordForm = () => {
         onOk,
         okText = 'Save',
         width,
+        onSubmit,
         ...modalProps
     } = {}) => (
         <Modal
@@ -92,6 +93,7 @@ const useRecordForm = () => {
                     initialValues={opened.initialValues}
                     fields={fields}
                     showActions={false}
+                    onSubmit={onSubmit}
                     onCancel={close}
                     notify={pendingSave.current?.notify !== false}
                     onSaved={(saved) => {
