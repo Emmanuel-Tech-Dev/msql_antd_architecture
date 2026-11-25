@@ -5,7 +5,7 @@ const fs = require("fs");
 const AppError = require("../shared/helpers/AppError");
 
 const LOG_PATH =
-  process.env.LOG_PATH || path.join(__dirname, "../resources/logs");
+  process.env.LOG_PATH || path.resolve("resources/logs");
 
 const LOG_TYPES = [
   "access",

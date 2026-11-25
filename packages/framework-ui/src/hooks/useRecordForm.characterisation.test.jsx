@@ -8,7 +8,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App as AntdApp } from "antd";
-import adminTablesMetadata from "../../../../server/tests/fixtures/adminTablesMetadata.v2.json";
+import adminTablesMetadata from "../../../framework-server/tests/fixtures/adminTablesMetadata.v2.json";
 import { DataProviderContext } from "../core/provider/DataProvider";
 import useRecordForm from "./useRecordForm";
 

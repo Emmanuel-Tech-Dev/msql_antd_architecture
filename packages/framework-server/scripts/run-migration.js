@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 require("dotenv").config();
 
 // npm run migrate: applies pending framework migrations, then the project's

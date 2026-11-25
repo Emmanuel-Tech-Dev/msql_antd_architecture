@@ -26,22 +26,26 @@ The database is authoritative for records, ACL mappings, table metadata, browser
 
 ```text
 .
-├── server/                  Express API, MySQL query layer, security, migrations, operations
-├── packages/framework-ui/   @msql-antd/framework-ui: providers, hooks, pages, components, design system
-├── ui/                      Example app that uses the package (main.jsx and two sample pages)
-├── package.json             npm workspace for the UI package and the example app
+├── packages/framework-server/  @msql-antd/framework-server: Express API, MySQL query layer, security, migrations, operations
+├── packages/framework-ui/      @msql-antd/framework-ui: providers, hooks, pages, components, design system
+├── server/                     Example project server (index.js and its .env, logs, backups)
+├── ui/                         Example project UI (main.jsx and two sample pages)
+├── scripts/dev.js              npm run dev: starts the API and the UI together
+├── package.json                npm workspace for the two packages and the two example apps
 └── README.md                Repository entry point
 ```
 
 Important server locations:
 
-- `server/index.js` — middleware order, routes, startup, and graceful shutdown.
-- `server/core/middleware` — authentication, authorization, request validation, table validation, logging, and errors.
-- `server/core/lib` — auth, generic data services, settings, uploads, backup, and authorization policy.
-- `server/core/model` — schema discovery, parameterized query execution, search, filters, sorting, and pagination.
-- `server/route` — authentication, generic CRUD, ACL, logs, backup, and UI-settings endpoints.
-- `server/resources/migrations` — ordered database changes.
-- `server/tests` — authorization and lookup-registry regression tests.
+- `packages/framework-server/index.js` — everything a project can import from `@msql-antd/framework-server`.
+- `packages/framework-server/createServer.js` — middleware order, routes, startup, and graceful shutdown.
+- `server/index.js` — the example project: calls `createServer({ paths })`.
+- `packages/framework-server/core/middleware` — authentication, authorization, request validation, table validation, logging, and errors.
+- `packages/framework-server/core/lib` — auth, generic data services, settings, uploads, backup, and authorization policy.
+- `packages/framework-server/core/model` — schema discovery, parameterized query execution, search, filters, sorting, and pagination.
+- `packages/framework-server/route` — authentication, generic CRUD, ACL, logs, backup, and UI-settings endpoints.
+- `packages/framework-server/resources/migrations` — ordered database changes.
+- `packages/framework-server/tests` — authorization and lookup-registry regression tests.
 
 Important UI locations:
 
@@ -100,21 +104,15 @@ VITE_API_URL=http://localhost:3000
 
 ## Install and run
 
-Server:
+From the repository root (one install for both packages and both example apps):
 
 ```bash
-cd server
 npm install
 npm run migrate
 npm run dev
 ```
 
-UI (from the repository root; installs the package and the example app together):
-
-```bash
-npm install
-npm run dev
-```
+`npm run dev` starts the API and the UI together, each line labelled `[api]` or `[ui]`; Ctrl+C stops both. `npm run dev:api` or `npm run dev:ui` starts one. The API restarts when files in `server/` or `packages/framework-server/` change.
 
 Open:
 
@@ -127,19 +125,14 @@ Open:
 All shared schema changes must be migrations. Do not rely on a developer’s local database state.
 
 ```bash
-cd server
 npm run migrate
 ```
 
-Migration files are ordered in `server/resources/migrations`. Back up the target database before applying production migrations, and record which release applied each migration.
+Migration files are ordered in `packages/framework-server/resources/migrations`. Back up the target database before applying production migrations, and record which release applied each migration.
 
 ## Verification
 
 ```bash
-cd server
-npm test
-
-cd ..
 npm test
 npm run lint
 npm run build
@@ -159,7 +152,7 @@ After authentication, the UI posts a profile key (`{ profile: "authenticated_sta
 
 ### Metadata-driven forms
 
-`tables_metadata` describes field labels, types, rank, validation, visibility, write policy, and type settings in `config` (static `options`, or a named `lookup`). `metadata_tables` holds per-table settings. A lookup field names a row in `metadata_lookups`; the server builds its options from that definition only (`GET /api/v1/lookups/:key`, with `?parent=` for a dependent lookup) and checks its `required_permission`. Metadata never contains SQL. `GET /api/v1/metadata/:table` returns a table's settings, fields and lookups. `useRecordForm` interprets the metadata for create and edit flows. The server enforces it too: generic writes to a described table (one with an enabled `metadata_tables` row) are checked against its field rules (types, options, `required`, `config.rules`, conditions, lookup existence) and refused with per-field errors; `server/core/lib/metadataSchema.js` exposes `metadataSchema(table)` for hand-written routes.
+`tables_metadata` describes field labels, types, rank, validation, visibility, write policy, and type settings in `config` (static `options`, or a named `lookup`). `metadata_tables` holds per-table settings. A lookup field names a row in `metadata_lookups`; the server builds its options from that definition only (`GET /api/v1/lookups/:key`, with `?parent=` for a dependent lookup) and checks its `required_permission`. Metadata never contains SQL. `GET /api/v1/metadata/:table` returns a table's settings, fields and lookups. `useRecordForm` interprets the metadata for create and edit flows. The server enforces it too: generic writes to a described table (one with an enabled `metadata_tables` row) are checked against its field rules (types, options, `required`, `config.rules`, conditions, lookup existence) and refused with per-field errors; `packages/framework-server/core/lib/metadataSchema.js` exposes `metadataSchema(table)` for hand-written routes.
 
 ### Tables and server state
 

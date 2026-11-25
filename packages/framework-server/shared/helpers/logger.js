@@ -10,7 +10,7 @@ const ENV = process.env.NODE_ENV || "development";
 const LOG_LEVEL =
   process.env.LOG_LEVEL || (ENV === "production" ? "http" : "debug");
 const LOG_PATH =
-  process.env.LOG_PATH || path.join(__dirname, "../../resources/logs");
+  process.env.LOG_PATH || path.resolve("resources/logs");
 const LOG_RETENTION = process.env.LOG_RETENTION || "14d";
 const LOG_MAX_SIZE = process.env.LOG_MAX_SIZE || "20m";
 const LOG_CONSOLE = process.env.LOG_CONSOLE !== "false";

@@ -41,11 +41,11 @@ The database describes much of what the application can show and edit. The serve
 - Code-controlled where a mistake would widen the trust boundary: authentication, authorization and ABAC policies, table validation, sensitive tables and columns, schema changes (migrations), and backup execution.
 - One normalized data-provider contract between UI hooks and server endpoints.
 - Friendly messages for end users; technical request details remain available to developers and operators.
-- SuperAdmin and dev are privileged system roles; all other roles are evaluated from explicit permissions and resource mappings. The names are decided in one place on each side: isPrivilegedSystemRole (server/core/lib/authorizationPolicy.js) and isPrivilegedRole (packages/framework-ui/src/core/provider/AccessProvider.js).
+- SuperAdmin and dev are privileged system roles; all other roles are evaluated from explicit permissions and resource mappings. The names are decided in one place on each side: isPrivilegedSystemRole (packages/framework-server/core/lib/authorizationPolicy.js) and isPrivilegedRole (packages/framework-ui/src/core/provider/AccessProvider.js).
 
 ## First local run
 
-1. **Prepare MySQL** — Create the target database, import the baseline schema, and run the ordered migration files in server/resources/migrations.
+1. **Prepare MySQL** — Create the target database, import the baseline schema, and run the ordered migration files in packages/framework-server/resources/migrations.
 2. **Configure the server** — Create server environment values for database access, token secrets, encryption, email, client URL, logging, and optional backup tooling.
 3. **Start the API** — From server, run npm install and npm run dev. The default service address is http://localhost:3000.
 4. **Configure and start the UI** — Set VITE_API_URL, then run npm install and npm run dev from ui. Vite normally serves http://localhost:5173.

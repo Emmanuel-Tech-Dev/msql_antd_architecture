@@ -87,6 +87,7 @@ Verified: 56 UI tests (52 before plus 4 for `FrameworkApp`, `configureFramework`
 - Build with Vite library mode (ES modules + CSS). Today's `ui/` becomes the example app that uses the package.
 
 ### Phase 5: Starter and publishing
+- Done first (2026-11-25): the server as `@msql-antd/framework-server` in `packages/framework-server` (files moved with `git mv`). `index.js` exports `createServer` and, loaded on first use, `Model`, `db`, `BaseService`, `metadata`, `AppError`, `validateRequest`, `authorization`, `abac`, `logger`, `utils`, `CacheManager`, `SettingsManager`, `realtime`, `migrations` and the rest. Commands `msql-antd-migrate` and `msql-antd-db-setup`. Logs, backups and uploads default to the project's folder (`paths.uploads`/`UPLOAD_PATH` added); `server/` is the example project (`index.js` passes its folders). The workspace has four members; server dependency versions kept from the old server lockfile (0 changed). Root `npm run dev` starts the API and the UI together (`scripts/dev.js`). Verified: 179 server tests, 56 UI tests; the old and new layouts answered 16 read-only requests side by side, 4,075 fields, only stack-trace file paths differ.
 - `create-<framework>` CLI and project template.
 - Versioning: semantic versions. A framework migration or a breaking option change means a new minor/major version with release notes.
 - Publish as decided in section 6.

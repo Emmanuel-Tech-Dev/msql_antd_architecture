@@ -101,7 +101,7 @@ The repository is an npm workspace. From the root:
 
 | Command | Does |
 | --- | --- |
-| npm install | Installs the package and the example app together |
-| npm run dev | Starts the example app. It runs the package from source, so framework edits reload at once |
-| npm test | Runs the package's tests |
+| npm install | Installs both packages and both example apps together |
+| npm run dev | Starts the example API and UI together (npm run dev:ui for the UI alone). The UI runs the package from source, so framework edits reload at once |
+| npm test | Runs both packages' tests |
 | npm run build | Builds the package (dist/framework-ui.js and dist/framework-ui.css), then the example app |

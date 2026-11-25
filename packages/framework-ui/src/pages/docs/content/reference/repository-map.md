@@ -42,9 +42,11 @@ These are the dependencies of @msql-antd/framework-ui (packages/framework-ui/pac
 
 ## Server file map
 
+Files of @msql-antd/framework-server (packages/framework-server).
+
 | Area | Files | Responsibility |
 | --- | --- | --- |
-| Entry | index.js | Middleware order, route registration, startup, shutdown |
+| Entry | index.js (exports), createServer.js; the project's server/index.js | The package's exports; middleware order, route registration, startup, shutdown; the project's routes, policies and folders |
 | Configuration | conn.js, cloudinary.js, multer.js, origins.js, sensitiveData.js, lookupRegistry.js, swagger.js | External systems, sensitive tables and columns, allowed origins, legacy lookup allowlist |
 | Services | authService.js, baseService.js, metadataService.js, metadataSchema.js, metadataAdminService.js, metadataScaffold.js, bootstrapService.js, databaseBackupService.js, backupHistoryService.js, uploadServices.js, systemSettings.js | Business and operational orchestration |
 | Policy | authorizationPolicy.js, authorityService.js, abacEngine.js, coreAbacPolicies.js, authorizationContext.js, authorizationEvents.js | Role and override resolution, ABAC policies, privileged roles, live access-change publication |

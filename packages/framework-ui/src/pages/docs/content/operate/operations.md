@@ -33,6 +33,7 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 | LOG_LEVEL/PATH/RETENTION/MAX_SIZE/CONSOLE | Logging volume, destination, and rotation |
 | LOG_QUERY_MAX_DAYS/LIMIT/BYTES_PER_FILE | Log-viewer safety bounds |
 | BACKUP_PATH/TIMEOUT_MS | Default backup destination and execution timeout |
+| UPLOAD_PATH | Folder for uploads kept on disk before they are stored. LOG_PATH, BACKUP_PATH and UPLOAD_PATH default to resources/logs, resources/backups and resources/uploads in the folder the server runs from; createServer({ paths }) sets them too |
 | MYSQLDUMP_PATH | Explicit mysqldump executable |
 | SERVICE_NAME | OTP/service display name |
 | RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER | Requests per 15 minutes per address (all traffic, including sign-in; default 3000) and per signed-in user (default 500). Refusals are 429 ERR_TOO_MANY_REQUESTS |
@@ -56,7 +57,7 @@ db:setup refuses to run if the database already has framework tables. Existing i
 
 | Source | Folder | Numbered | Recorded as |
 | --- | --- | --- | --- |
-| Framework | server/resources/migrations (ships with the framework) | 001, 002, … | framework |
+| Framework | packages/framework-server/resources/migrations (ships with the framework) | 001, 002, … | framework |
 | Project | MIGRATIONS_PATH (the project's own folder) | 001, 002, … independently of the framework | project |
 
 :::note How npm run migrate works
@@ -93,6 +94,6 @@ Replace development CORS origins with environment-managed origins, use HTTPS, se
 :::
 
 ```shell Release verification
-cd server && npm test
-cd ../ui && npm run lint && npm run build
+npm test
+npm run lint && npm run build
 ```

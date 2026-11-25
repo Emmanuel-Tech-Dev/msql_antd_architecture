@@ -11,10 +11,11 @@
 //   beforeAuth  middleware run before the token check
 //   afterAuth   middleware run after authorization, before any route
 //   policies    ABAC policies added to the framework's engine (deny-only)
-//   paths       { logs, backups, migrations } folders; default: the env
-//               variables LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the
-//               framework's own resources folder. `migrations` is the
-//               project's own folder; the framework's stay in the framework
+//   paths       { logs, backups, uploads, migrations } folders; default: the
+//               env variables LOG_PATH, BACKUP_PATH, UPLOAD_PATH,
+//               MIGRATIONS_PATH, then resources/<name> in the folder the
+//               server runs from. `migrations` is the project's own folder;
+//               the framework's stay in the framework
 //   port        default PORT, then 3000
 //
 // Returns { app, server, start }. start() loads settings, starts realtime and
@@ -25,6 +26,7 @@ function applyPaths(paths = {}) {
   // so they are set before any of them is required.
   if (paths.logs) process.env.LOG_PATH = paths.logs;
   if (paths.backups) process.env.BACKUP_PATH = paths.backups;
+  if (paths.uploads) process.env.UPLOAD_PATH = paths.uploads;
   if (paths.migrations) process.env.MIGRATIONS_PATH = paths.migrations;
 }
 

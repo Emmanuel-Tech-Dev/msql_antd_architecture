@@ -1,6 +1,6 @@
 # How the framework works
 
-This is the framework every business system is built on: an Express + MySQL server (`server/`) and a React + antd + Tailwind UI (the package `@msql-antd/framework-ui` in `packages/framework-ui/`, used by the example app in `ui/`). This document follows one request from the browser to the database and back, then explains the main design decisions and their trade-offs.
+This is the framework every business system is built on: an Express + MySQL server (the package `@msql-antd/framework-server` in `packages/framework-server/`, used by the example server in `server/`) and a React + antd + Tailwind UI (the package `@msql-antd/framework-ui` in `packages/framework-ui/`, used by the example app in `ui/`). This document follows one request from the browser to the database and back, then explains the main design decisions and their trade-offs.
 
 Read it in order the first time. Each section names the files to open if you want to see the code.
 
@@ -16,7 +16,7 @@ flowchart LR
         DP["Data provider<br/>mysqlOrmProvider + apiClient"]
         Stores["Stores<br/>auth, resources, runtime values"]
     end
-    subgraph Server["server/ (Express)"]
+    subgraph Server["framework-server (Express)"]
         MW["Middleware chain<br/>log → parse → CORS → helmet"]
         Auth["authMiddleWare<br/>who are you?"]
         Authz["authorization<br/>may you do this?"]
@@ -53,7 +53,7 @@ Take a user who opens the Taxes page and saves an edit: `PUT /api/taxes/7`.
 
 ### On the server
 
-The order is set in `createServer()` (`server/createServer.js`; `index.js` only calls it), and the order matters. A project's own middleware and routes slot into it through options: `beforeAuth`, `publicRoutes`, `afterAuth`, then `routes` just before the generic `/api/:resources` routes.
+The order is set in `createServer()` (`packages/framework-server/createServer.js`; `index.js` only calls it), and the order matters. A project's own middleware and routes slot into it through options: `beforeAuth`, `publicRoutes`, `afterAuth`, then `routes` just before the generic `/api/:resources` routes.
 
 | Step | Layer | What it decides | File |
 |---|---|---|---|
@@ -218,12 +218,12 @@ Two channels push from the server to the browser:
 
 | System | How it works | Files |
 |---|---|---|
-| **Migrations** | Two sources: the framework's (`server/resources/migrations`) and the project's (`MIGRATIONS_PATH`), each numbered `001_…sql` on its own. `npm run migrate` applies pending framework migrations, then the project's, records each with its source and a checksum (an edited old migration stops the run). A fresh install starts from `npm run db:setup`. | `core/lib/migrationRunner.js`, `scripts/run-migration.js`, `scripts/db-setup.js` |
-| **Shared helpers** | General-purpose functions (blank checks, identifiers, names, numbers, dates, JSON, files, clipboard) live in one utilities object per side, not as local copies in each file. Domain rules stay in their own modules; metadata-only helpers live in `fieldRules.js`. | `server/shared/utils/functions.js`, `packages/framework-ui/src/utils/function_utils.js` |
+| **Migrations** | Two sources: the framework's (`packages/framework-server/resources/migrations`) and the project's (`MIGRATIONS_PATH`), each numbered `001_…sql` on its own. `npm run migrate` applies pending framework migrations, then the project's, records each with its source and a checksum (an edited old migration stops the run). A fresh install starts from `npm run db:setup`. | `core/lib/migrationRunner.js`, `scripts/run-migration.js`, `scripts/db-setup.js` |
+| **Shared helpers** | General-purpose functions (blank checks, identifiers, names, numbers, dates, JSON, files, clipboard) live in one utilities object per side, not as local copies in each file. Domain rules stay in their own modules; metadata-only helpers live in `fieldRules.js`. | `packages/framework-server/shared/utils/functions.js`, `packages/framework-ui/src/utils/function_utils.js` |
 | **Backups** | Manual and scheduled database backups with history and a SHA-256 checksum. The schedule is checked every 5 minutes, so a backup missed while the server was off runs soon after it starts. | `core/lib/databaseBackupService.js`, `backupHistoryService.js`, `route/BackupRoute.js` |
 | **Logging** | Winston (optionally Logtail): `logger.app`, `logger.error`, `logger.security` (sign-ins, permission changes, metadata saves), plus request logs. | `shared/helpers/logger.js` |
 | **Uploads** | Field uploads go to `/api/v1/uploads/:table/:column`. The field's metadata decides the allowed types and size, and the file's real content type is checked. | `core/lib/uploadServices.js`, `metadataService.uploadFieldFile` |
-| **Tests** | Jest on the server (authorization, ABAC, generic CRUD, metadata); Vitest on the UI (metadata runtime, record form). | `server/tests/`, `packages/framework-ui/src/**/*.test.jsx` |
+| **Tests** | Jest on the server (authorization, ABAC, generic CRUD, metadata); Vitest on the UI (metadata runtime, record form). | `packages/framework-server/tests/`, `packages/framework-ui/src/**/*.test.jsx` |
 
 ---
 

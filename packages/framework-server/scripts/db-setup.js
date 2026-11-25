@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 require("dotenv").config();
 
 // A fresh install: builds the framework in an EMPTY database. It loads

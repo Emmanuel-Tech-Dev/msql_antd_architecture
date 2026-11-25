@@ -10,7 +10,7 @@ readTime: 12 min
 summary: Trace any framework hook through the real files it touches, break one thing on purpose, and put the whole architecture under load with the limits from the code.
 ---
 
-The Framework Load Lab draws the framework as it is: every box is a real file in `packages/framework-ui/src/core` or `server/`, and every hook takes the path it takes in the code. Nothing calls the API or touches data; the paths, error codes and limits are copied from the source.
+The Framework Load Lab draws the framework as it is: every box is a real file in `packages/framework-ui/src/core` or `packages/framework-server/`, and every hook takes the path it takes in the code. Nothing calls the API or touches data; the paths, error codes and limits are copied from the source.
 
 ::architecture-simulator Framework Load Lab
 

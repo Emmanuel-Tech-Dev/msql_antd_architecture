@@ -7,7 +7,7 @@ const { pipeline } = require("stream/promises");
 const AppError = require("../../shared/helpers/AppError");
 
 const BACKUP_PATH = path.resolve(
-  process.env.BACKUP_PATH || path.join(__dirname, "../../resources/backups"),
+  process.env.BACKUP_PATH || path.resolve("resources/backups"),
 );
 const BACKUP_TIMEOUT_MS = Math.max(
   30_000,

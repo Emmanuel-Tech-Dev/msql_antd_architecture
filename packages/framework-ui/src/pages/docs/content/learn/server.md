@@ -10,7 +10,7 @@ readTime: 22 min
 summary: Startup, middleware order, routes, services, the query layer, validation, settings, uploads, backup, and observability.
 ---
 
-The server is a CommonJS Express application. createServer(options) in createServer.js composes infrastructure and route modules, and index.js only calls it; route classes translate HTTP into service calls; service classes hold business and security orchestration; Model and QueryBuilder own database execution.
+The server is a CommonJS Express application, shipped as the package @msql-antd/framework-server (packages/framework-server). createServer(options) in createServer.js composes infrastructure and route modules, and a project's index.js only calls it (the repository's example is server/index.js); route classes translate HTTP into service calls; service classes hold business and security orchestration; Model and QueryBuilder own database execution.
 
 ## Startup sequence
 
@@ -36,12 +36,13 @@ The server is a CommonJS Express application. createServer(options) in createSer
 | publicRoutes | Route classes that answer without a token | Before the token check (keep them few: health checks, webhooks with their own signature check) |
 | beforeAuth / afterAuth | Express middleware | Before the token check / after authorization, before any route |
 | policies | ABAC policies ({ id, description, evaluate }) | Added to the framework's engine; deny-only, like the core policies |
-| paths | { logs, backups, migrations } folders | Default: LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the framework's resources folder. migrations is the project's own folder; the framework's migrations always come from the framework |
+| paths | { logs, backups, uploads, migrations } folders | Default: LOG_PATH, BACKUP_PATH, UPLOAD_PATH, MIGRATIONS_PATH, then resources/<name> in the folder the server runs from. migrations is the project's own folder; the framework's migrations always come from the framework |
 | port | A port number | Default: PORT, then 3000 |
 
 ```js server/index.js
-require("dotenv").config();
-const { createServer } = require("./createServer");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+const { createServer } = require("@msql-antd/framework-server");
 const InvoiceRoute = require("./route/InvoiceRoute");
 const branchPolicy = require("./policies/branchPolicy");
 
@@ -53,6 +54,8 @@ A project route is protected like the framework's: authorization needs an API re
 :::
 
 ## Server directories
+
+These are the folders of packages/framework-server. A project does not edit them; it imports what it needs from @msql-antd/framework-server (see Use the server package).
 
 | Path | Responsibility |
 | --- | --- |
@@ -106,8 +109,7 @@ Any new generic BaseService route that receives a table or resource must use res
 | Authorization events | core/lib/authorizationEvents.js | Broadcasts access changes so active clients can refresh |
 | Token revocation | shared/helpers/tokenBlacklist.js | Supports logout and invalidated token lifecycle |
 
-```shell Run server checks
-cd server
+```shell Run server checks (from the repository root)
 npm test
 npm run migrate
 npm run dev
