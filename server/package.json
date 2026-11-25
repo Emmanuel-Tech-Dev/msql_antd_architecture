@@ -11,7 +11,9 @@
     "test:acl": "jest tests/authorizationPolicy.test.js --runInBand",
     "migrate": "node scripts/run-migration.js",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "db:setup": "node scripts/db-setup.js",
+    "db:snapshot": "node scripts/db-snapshot.js"
   },
   "keywords": [],
   "author": "",

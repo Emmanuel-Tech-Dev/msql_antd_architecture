@@ -37,6 +37,19 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 | SERVICE_NAME | OTP/service display name |
 | RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER | Requests per 15 minutes per address (all traffic, including sign-in; default 3000) and per signed-in user (default 500). Refusals are 429 ERR_TOO_MANY_REQUESTS |
 | TRUST_PROXY | Behind nginx or a load balancer: how many proxies to trust (e.g. 1), so limits and logs see the visitor's address instead of the proxy's |
+| SETUP_ADMIN_EMAIL / SETUP_ADMIN_NAME | Fresh install only: the first administrator that npm run db:setup creates |
+
+## Fresh install
+
+1. **Create an empty database** — Create the database (utf8mb4) and a least-privilege account, then set DATABASE_* in server/.env.
+2. **Name the first administrator** — Set SETUP_ADMIN_EMAIL (and optionally SETUP_ADMIN_NAME) in server/.env.
+3. **Run npm run db:setup** — It loads resources/schema/framework_schema.sql (the framework tables and their rows: roles, permissions and resources for the framework's pages and APIs, the bootstrap registry, settings and the admin tables' metadata), records the migrations the snapshot already includes, runs any newer ones, and creates the administrator with the SuperAdmin role.
+4. **Sign in once** — Use the temporary password it prints (shown only once) and choose a new password.
+5. **Add your project** — Your own tables, migrations and roles go on top; describe tables in Settings › Data model.
+
+:::warning Setup never touches an existing database
+db:setup refuses to run if the database already has framework tables. Existing installs update with npm run migrate. After adding framework migrations, refresh the snapshot with npm run db:snapshot (it copies only framework rows: no users, logs, backups, private settings or project tables) and commit it with the migrations.
+:::
 
 ## Deployment sequence
 
