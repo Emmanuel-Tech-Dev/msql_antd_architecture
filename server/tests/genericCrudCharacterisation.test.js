@@ -11,6 +11,7 @@ const db = require("../core/config/conn");
 const validateTable = require("../core/middleware/validateTable");
 const adminTablesMetadata = require("./fixtures/adminTablesMetadata.v2.json");
 const BaseService = require("../core/lib/baseService");
+const { clearTableCache } = require("../core/lib/schemaCache");
 
 const column = (Field, Key = "") => ({ Field, Key });
 const SCHEMAS = {
@@ -50,6 +51,9 @@ function mockDatabase({ describedTables = [] } = {}) {
     if (sql.includes("information_schema.tables")) {
       return [[{ count: SCHEMAS[params[0]] ? 1 : 0 }]];
     }
+    if (sql.includes("`information_schema`.`columns`")) {
+      return [(SCHEMAS[params[0]] ?? []).map(({ Field, Key }) => ({ COLUMN_NAME: Field, COLUMN_KEY: Key }))];
+    }
     const described = sql.match(/^DESCRIBE `(\w+)`/);
     if (described) return [SCHEMAS[described[1]]];
     if (sql.startsWith("INSERT") || sql.startsWith("UPDATE")) {
@@ -71,6 +75,7 @@ const writes = () => db.query.mock.calls.filter(([sql]) => /^(INSERT|UPDATE)/.te
 
 beforeEach(() => {
   db.query.mockReset();
+  clearTableCache();
   mockDatabase();
 });
 

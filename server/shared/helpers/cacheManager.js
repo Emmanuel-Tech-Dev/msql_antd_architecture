@@ -14,7 +14,8 @@ class CacheManager {
     // Track access patterns
     this.accessTracker = new Map();
     this.dormancyThreshold = options.dormancyThreshold || 1000 * 60 * 60; // 1 hour
-    this.cleanupInterval = options.cleanupInterval || 1000 * 60 * 10; // 10 minutes
+    // 0 turns the dormant-entry cleanup off.
+    this.cleanupInterval = options.cleanupInterval ?? 1000 * 60 * 10; // 10 minutes
 
     // Start cleanup scheduler
     this.startCleanupScheduler();
@@ -36,6 +37,21 @@ class CacheManager {
       accessCount: this.accessTracker.get(key)?.accessCount + 1 || 1,
       created: this.accessTracker.get(key)?.created || now,
     });
+  }
+
+  // The value for `key`, loaded once with `load()` and kept. With maxAge the
+  // value is loaded again that long after it was loaded, however often it is
+  // read (a plain entry's age restarts on every read). Concurrent calls share
+  // one load, and a load that fails is not kept, so the next call retries.
+  remember(key, load, { maxAge } = {}) {
+    const entry = this.get(key);
+    if (entry?.remembered && (!maxAge || Date.now() - entry.loadedAt < maxAge)) return entry.value;
+    const value = Promise.resolve().then(load).catch((error) => {
+      if (this.cache.get(key)?.value === value) this.delete(key);
+      throw error;
+    });
+    this.set(key, { remembered: true, loadedAt: Date.now(), value }, maxAge);
+    return value;
   }
 
   get(key) {
@@ -194,9 +210,12 @@ class CacheManager {
 
   // Start automatic cleanup
   startCleanupScheduler() {
+    if (!(this.cleanupInterval > 0)) return;
     this.cleanupTimer = setInterval(() => {
       this.cleanupDormantEntries();
     }, this.cleanupInterval);
+    // Housekeeping only: it must not keep the process (or a test run) alive.
+    this.cleanupTimer.unref?.();
   }
 
   // Stop cleanup scheduler

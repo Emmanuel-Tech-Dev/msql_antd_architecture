@@ -3,6 +3,7 @@ const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
 const { canReadField, canWriteField, findMissingLookupValues } = require("./metadataService");
 const { upgradeLegacyField } = require("./legacyDynamicForm");
+const { cachedDescribedFields } = require("./schemaCache");
 
 // Server-side enforcement of a described table's metadata (metadata upgrade
 // phase 3). A table is described when metadata_tables has an enabled row for
@@ -26,7 +27,12 @@ const text = z.union([z.string(), z.number()]).transform(String);
 const list = z.union([z.array(text), text])
   .transform((value) => (Array.isArray(value) ? value : value.split(",")).map((item) => item.trim()).filter(Boolean));
 
-async function loadDescribedFields(table) {
+// Cached per table; the builder clears it when it saves a new version.
+function loadDescribedFields(table) {
+  return cachedDescribedFields(table, () => readDescribedFields(table));
+}
+
+async function readDescribedFields(table) {
   const [described] = await new Model()
     .select(["table_name"], "metadata_tables")
     .where("table_name", "=", table)

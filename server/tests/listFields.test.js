@@ -2,6 +2,7 @@ jest.mock("../core/config/conn", () => ({ query: jest.fn(), getConnection: jest.
 jest.mock("../shared/helpers/logger", () => ({ error: jest.fn(), app: jest.fn() }));
 
 const db = require("../core/config/conn");
+const { clearTableCache } = require("../core/lib/schemaCache");
 const { validateRecordAgainstMetadata } = require("../core/lib/metadataSchema");
 const { upgradeLegacyField } = require("../core/lib/legacyDynamicForm");
 
@@ -36,7 +37,10 @@ function describe_(fields) {
 }
 const check = (record) => validateRecordAgainstMetadata("suppliers", record, { mode: "create" });
 
-beforeEach(() => db.query.mockReset());
+beforeEach(() => {
+  db.query.mockReset();
+  clearTableCache();
+});
 
 describe("list and groupList fields", () => {
   test("rows are checked like records and stored as JSON without unknown keys", async () => {

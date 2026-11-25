@@ -80,7 +80,7 @@ export function LoadMetrics({ lab }) {
       <Metric label="Throughput" value={show(`${load.throughput.toFixed(1)} req/s`)} fill={running ? load.throughput / Math.max(1, load.rps) : 0} note={`${running ? load.rps.toFixed(1) : 0} req/s from ${lab.hookIds.size} hooks`} />
       <Metric label="p95 latency" value={show(`${load.p95} ms`)} fill={running ? load.p95 / 1000 : 0} tone={running && load.p95 > 800 ? 'bad' : running && load.p95 > 400 ? 'warn' : ''} note="Target 400 ms" met={running ? load.p95 < 400 : undefined} />
       <Metric label="Error rate" value={show(`${load.errorRate.toFixed(1)}%`)} fill={running ? load.errorRate / 20 : 0} tone={running && load.errorRate > 5 ? 'bad' : running && load.errorRate > 1 ? 'warn' : ''} note="Target under 1%" met={running ? load.errorRate < 1 : undefined} />
-      <Metric label="Queries per request" value={show(load.queriesPerRequest.toFixed(1))} fill={running ? load.queriesPerRequest / 12 : 0} note="authMiddleWare 1 · authority 0–4 · validateTable 2 · data" />
+      <Metric label="Queries per request" value={show(load.queriesPerRequest.toFixed(1))} fill={running ? load.queriesPerRequest / 12 : 0} note="authMiddleWare 1 · authority 0–4 · schema cached · data" />
       <Metric label="MySQL pool" value={show(`${Math.round(load.poolUse * 100)}%`)} fill={running ? load.poolUse : 0} tone={running && load.poolUse > 0.85 ? 'bad' : running && load.poolUse > 0.6 ? 'warn' : ''} note={`${running ? load.queriesPerSecond.toFixed(0) : 0} queries/s on 10 connections`} />
     </section>
   );

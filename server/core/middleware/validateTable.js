@@ -1,5 +1,5 @@
 const AppError = require("../../shared/helpers/AppError");
-const Model = require("../model/model");
+const { tableSchema } = require("../lib/schemaCache");
 const { SENSITIVE_TABLES, isSensitiveColumn } = require("../config/sensitiveData");
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -19,8 +19,8 @@ async function resolveTableDefinition(requestedTable, access) {
     });
   }
 
-  const model = new Model();
-  if (!(await model.tableExists(table))) {
+  const schema = await tableSchema(table);
+  if (!schema.exists) {
     throw new AppError("ERR_NOT_FOUND", "Requested table or view was not found");
   }
 
@@ -28,7 +28,7 @@ async function resolveTableDefinition(requestedTable, access) {
   // this module.
   const { unreadableColumns } = require("../lib/metadataSchema");
   const restricted = await unreadableColumns(table, access);
-  const fields = (await model.getTableColumns(table)).filter(
+  const fields = schema.columns.filter(
     (column) => !isSensitiveColumn(column) && !restricted.includes(column),
   );
   if (!fields.length) {
@@ -39,7 +39,7 @@ async function resolveTableDefinition(requestedTable, access) {
     table,
     fields,
     restricted,
-    primaryKey: await model.getTablePrimaryKey(table),
+    primaryKey: schema.primaryKey,
   };
 }
 

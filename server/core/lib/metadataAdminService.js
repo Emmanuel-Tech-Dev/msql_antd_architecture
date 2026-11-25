@@ -5,6 +5,7 @@ const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData
 const { previewLookup } = require("./metadataService");
 const { validateRecordAgainstMetadata } = require("./metadataSchema");
 const { upgradeLegacyField } = require("./legacyDynamicForm");
+const { clearTableCache } = require("./schemaCache");
 const {
   checkField, definitionMigration, describeChanges, guessField, humanize, newTableMigration, requireIdentifier,
 } = require("./metadataScaffold");
@@ -179,6 +180,7 @@ async function saveDefinition(table, definition, { actorUserId, note } = {}) {
     }).executeInTransaction();
   });
 
+  clearTableCache(table);
   logger.security("Metadata saved", { actorUserId, table, version, changes: changes.length });
   return { version, changes };
 }

@@ -4,7 +4,7 @@ const express = require("express");
 require("express-async-errors"); // errors thrown in async handlers reach errorHandler
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const rateLimiter = require("express-rate-limit");
+const { createRateLimits } = require("./core/middleware/rateLimits");
 const helmet = require("helmet");
 const http = require("http");
 
@@ -36,19 +36,23 @@ const server = http.createServer(app);
 const settings = new SettingsManager();
 
 app.disable("x-powered-by");
+// Behind a reverse proxy (nginx, a load balancer) set TRUST_PROXY, e.g. 1 for
+// one proxy, so req.ip is the visitor's address and not the proxy's.
+if (process.env.TRUST_PROXY) {
+  const hops = Number(process.env.TRUST_PROXY);
+  app.set("trust proxy", Number.isInteger(hops) ? hops : process.env.TRUST_PROXY);
+}
 app.use(requestLogger(logger));
 app.use(cookieParser());
 // A CSV import sends up to 5,000 rows; every other request keeps the default
 // 100 kB limit.
 app.use("/api/v1/metadata-admin/import", express.json({ limit: "10mb" }));
 app.use(express.json());
-app.use(rateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { status: "error", message: "Too many requests, please try again in a few minutes." },
-}));
+const { perIpLimit, perUserLimit } = createRateLimits({
+  perIp: Number(process.env.RATE_LIMIT_PER_IP) || undefined,
+  perUser: Number(process.env.RATE_LIMIT_PER_USER) || undefined,
+});
+app.use(perIpLimit);
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: validateOrigin,
@@ -71,6 +75,7 @@ clearPermissionCache();
 // and passes authorization.
 new AuthRoute(app);
 app.use(authMiddleWare);
+app.use(perUserLimit);
 app.use(authorization);
 new LogRoute(app);
 new BackupRoute(app);

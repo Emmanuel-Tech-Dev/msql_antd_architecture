@@ -35,6 +35,8 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 | BACKUP_PATH/TIMEOUT_MS | Default backup destination and execution timeout |
 | MYSQLDUMP_PATH | Explicit mysqldump executable |
 | SERVICE_NAME | OTP/service display name |
+| RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER | Requests per 15 minutes per address (all traffic, including sign-in; default 3000) and per signed-in user (default 500). Refusals are 429 ERR_TOO_MANY_REQUESTS |
+| TRUST_PROXY | Behind nginx or a load balancer: how many proxies to trust (e.g. 1), so limits and logs see the visitor's address instead of the proxy's |
 
 ## Deployment sequence
 

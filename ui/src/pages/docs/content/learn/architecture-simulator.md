@@ -23,7 +23,7 @@ The toolbar changes every path: an expired access token is refreshed and retried
 :::
 
 :::note Put it under load
-Switch hooks on, set the users and how often they call hooks, and press play. Every request follows its hook's real path. The model uses the limits in the code: 500 requests per 15 minutes per IP (try "All users behind one office IP"), a MySQL pool of 10 connections, a 5-minute permission cache, about 1 + 0–4 + 2 queries before the data query, and React Query refetching on every mount.
+Switch hooks on, set the users and how often they call hooks, and press play. Every request follows its hook's real path. The model uses the limits in the code: 3000 requests per 15 minutes per address and 500 per signed-in user (try "All users behind one office IP"), a MySQL pool of 10 connections, a 5-minute permission cache, table schemas cached for 5 minutes, about 1 + 0–4 queries before the data query, and React Query refetching on every mount.
 :::
 
 :::note Explore the map

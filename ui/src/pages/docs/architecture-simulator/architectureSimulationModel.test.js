@@ -43,7 +43,10 @@ describe('Framework Load Lab model', () => {
 
   it('models the real limits: one office IP hits the rate limit, more users fill the pool', () => {
     expect(load({}).limited).toBe(0);
-    expect(load({ users: 30, office: true }).limited).toBeGreaterThan(0);
+    // Per-user limits: 30 staff behind one address are fine; 250 hit the address guard.
+    expect(load({ users: 30, office: true }).limited).toBe(0);
+    expect(load({ users: 250, office: true }).limited).toBeGreaterThan(0);
+    expect(load({ users: 1, pace: 60 }).limited).toBeGreaterThan(0);
     expect(load({ users: 300, pace: 6 }).poolUse).toBeGreaterThan(load({}).poolUse * 4);
     expect(load({ failures: new Set(['slowdb']) }).p95).toBeGreaterThan(load({}).p95);
     expect(load({ hookIds: new Set(['useCan']) }).rps).toBe(0);

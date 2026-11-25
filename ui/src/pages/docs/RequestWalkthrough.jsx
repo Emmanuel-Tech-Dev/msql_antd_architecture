@@ -16,7 +16,7 @@ const STAGES = [
   },
   {
     side: 'Server', name: 'Logging, limits, CORS, headers', question: 'Is this a well-formed request from an allowed origin?', file: 'server/index.js · core/middleware/requestLogger.js',
-    body: 'A request id and a log line; body size limit; 500 requests per 15 minutes; allowed origins; helmet security headers.',
+    body: 'A request id and a log line; body size limit; 3000 requests per 15 minutes per address (500 per signed-in user once the token is checked); allowed origins; helmet security headers.',
     pass: 'Passes on to the route chain.', stop: 'Rejected: wrong origin, too large, or rate-limited.', why: 'Cheap checks first, before any database work.',
   },
   {

@@ -2,6 +2,7 @@ jest.mock("../core/config/conn", () => ({ query: jest.fn(), getConnection: jest.
 jest.mock("../shared/helpers/logger", () => ({ error: jest.fn(), app: jest.fn() }));
 
 const db = require("../core/config/conn");
+const { clearTableCache } = require("../core/lib/schemaCache");
 const { metadataSchema, unreadableColumns, validateRecordAgainstMetadata } = require("../core/lib/metadataSchema");
 
 const field = (column_name, type, overrides = {}) => ({
@@ -45,7 +46,10 @@ function mockMetadata({ described = true, fields = TAXES, roles = ["Auditor", "U
   });
 }
 
-beforeEach(() => db.query.mockReset());
+beforeEach(() => {
+  db.query.mockReset();
+  clearTableCache();
+});
 
 describe("server-side metadata checks", () => {
   test("a valid record comes back cleaned: numbers coerced, read-only fields dropped", async () => {

@@ -23,6 +23,8 @@ summary: Fast paths for authentication, authorization, bootstrap, form, table, b
 | Role changes are delayed | Authorization cache/events | Cache invalidation, authorization event stream, auth_user refetch |
 | Table does not refresh after save | React Query | invalidateResources contains every changed table |
 | Appearance change does not apply | Bootstrap/theme | ui_settings row active/version, bootstrap invalidation, ThemeProvider scope |
+| 429 Too many requests | Rate limits | One busy user (RATE_LIMIT_PER_USER) or many people behind one address (RATE_LIMIT_PER_IP); behind a proxy, TRUST_PROXY unset makes everyone share the proxy's address |
+| A new column does not appear in the generic API | Schema cache | Table schemas are cached for 5 minutes after a migration; wait or restart the server (the builder's own saves clear it at once) |
 | Backup fails | Server tooling | mysqldump path, DB variables, destination policy, permissions, timeout, disk |
 | UI build fails | Compile/lint | First syntax error, unresolved import, hook rules, then chunk warnings |
 

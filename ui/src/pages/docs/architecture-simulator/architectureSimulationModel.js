@@ -1,6 +1,7 @@
 // The Framework Load Lab's model: the framework's real files, the path each
 // hook takes through them, and a load model driven by the limits in the code
-// (500 requests / 15 min / IP, a MySQL pool of 10, a 5-minute permission
+// (3000 requests / 15 min per address and 500 per signed-in user, a MySQL
+// pool of 10, a 5-minute permission
 // cache). Pure data and functions; the components only draw it.
 
 export const NODE_WIDTH = 186;
@@ -30,9 +31,9 @@ export const NODES = {
   boot: { c: 3, r: 0, band: 'express', title: 'bootstrapService', file: 'core/lib/bootstrapService.js', does: 'Loads the datasets registered for the authenticated_startup profile: lookups, resources, permissions, ui_settings.' },
   authn: { c: 0, r: 1, band: 'express', title: 'authMiddleWare', file: 'middleware/authMiddleWare.js', does: 'Verifies the JWT and issuer, then one query: token_version and forced_password_change from admin_credentials JOIN admin.' },
   abac: { c: 1, r: 1, band: 'express', title: 'AbacEngine', file: 'abacEngine.js · coreAbacPolicies.js', does: 'Deny-only rules evaluated after RBAC. It can refuse what RBAC allowed, never allow what RBAC refused.' },
-  vtable: { c: 2, r: 1, band: 'express', title: 'validateTable', file: 'middleware/validateTable.js', does: 'Table must exist (information_schema) and not be sensitive; DESCRIBE gives columns, minus sensitive ones and those the user may not read.' },
+  vtable: { c: 2, r: 1, band: 'express', title: 'validateTable', file: 'middleware/validateTable.js', does: 'Table must exist and not be sensitive; its columns and primary key (one information_schema query) and its metadata fields are cached for 5 minutes, and the builder clears them on save. Sensitive columns and those the user may not read are left out.' },
   meta: { c: 3, r: 1, band: 'express', title: 'Metadata services', file: 'metadataService · metadataSchema', does: 'Field metadata per table (filtered by read permission), lookup options by key through lookupRegistry, and server-side rules for writes.' },
-  index: { c: 0, r: 2, band: 'express', title: 'index.js pipeline', file: 'logger · rateLimit · cors · helmet', does: 'requestLogger → cookies/json → rate limit (500 / 15 min / IP) → cors → helmet → public auth routes → authMiddleWare → authorization → routes → errorHandler.' },
+  index: { c: 0, r: 2, band: 'express', title: 'index.js pipeline', file: 'logger · rateLimit · cors · helmet', does: 'requestLogger → cookies/json → rate limit per address (3000 / 15 min) → cors → helmet → public auth routes → authMiddleWare → rate limit per user (500 / 15 min) → authorization → routes → errorHandler.' },
   errors: { c: 1, r: 2, band: 'express', title: 'errorHandler', file: 'middleware/errorHandler.js', does: 'Turns AppError into { status, errorCode, message, details } with its HTTP status. Logs only unexpected errors.' },
   base: { c: 2, r: 2, band: 'express', title: 'BaseService', file: 'core/lib/baseService.js', does: 'Generic list / one / create / update / delete. Writes go through validateRecordAgainstMetadata first.' },
   upload: { c: 3, r: 2, band: 'express', title: 'uploadServices', file: 'config/multer.js · uploadServices', does: 'multer receives the file; uploadServices checks signature, size and type for the field, then stores it.' },
@@ -63,32 +64,32 @@ export const HOOKS = [
   {
     id: 'useList', group: 'Data', endpoint: 'GET /api/:resources', inLoad: true, weight: 1,
     steps: [['hook', "useList('resource', { pagination })"], ['rq', 'queryKeys.list(resource, params) · stale → fetch'], ['dp', 'getList → GET api/resource?page=1&limit=20'], ...protectedSteps('GET /api/resource'),
-      ['routes', 'baseRoute GET /api/:resources'], ['vtable', 'exists · not sensitive · DESCRIBE', 2], ['base', 'BaseService.list · readable columns only'], ['model', 'SELECT … LIMIT ? OFFSET ? + COUNT(*)'], ['mysql', 'data + count', 2], ['rq', 'cached under the list key']],
+      ['routes', 'baseRoute GET /api/:resources'], ['vtable', 'exists · not sensitive · schema from cache'], ['base', 'BaseService.list · readable columns only'], ['model', 'SELECT … LIMIT ? OFFSET ? + COUNT(*)'], ['mysql', 'data + count', 2], ['rq', 'cached under the list key']],
     result: '200 { data: [...], pagination: { page, limit, total } }',
   },
   {
     id: 'useOne', group: 'Data', endpoint: 'GET /api/:resources/:id', weight: 0.5,
     steps: [['hook', "useOne('resource', id)"], ['rq', 'queryKeys.one(resource, id)'], ['dp', 'getOne → GET api/resource/42'], ...protectedSteps('GET /api/resource/42'),
-      ['routes', 'baseRoute GET /api/:resources/:id'], ['vtable', 'exists · DESCRIBE', 2], ['base', 'BaseService.one'], ['model', 'SELECT … WHERE id = ?'], ['mysql', 'one row', 1], ['rq', 'cached']],
+      ['routes', 'baseRoute GET /api/:resources/:id'], ['vtable', 'exists · schema from cache'], ['base', 'BaseService.one'], ['model', 'SELECT … WHERE id = ?'], ['mysql', 'one row', 1], ['rq', 'cached']],
     result: '200 { data: { id: 42, … } }',
   },
   {
     id: 'useCreate', group: 'Data', endpoint: 'POST /api/:resources', weight: 0.3, write: true,
     steps: [['hook', "useCreate('resource').mutate(values)"], ['rq', 'mutation'], ['dp', 'create → POST api/resource'], ...protectedSteps('POST /api/resource'),
-      ['routes', 'baseRoute POST /api/:resources'], ['vtable', 'writable columns', 2], ['base', 'BaseService.create'], ['meta', 'validateRecordAgainstMetadata: required · types · lookups · write access', 2], ['model', 'INSERT INTO … VALUES (?, ?, …)'], ['mysql', 'insert', 1],
+      ['routes', 'baseRoute POST /api/:resources'], ['vtable', 'writable columns, from cache'], ['base', 'BaseService.create'], ['meta', 'validateRecordAgainstMetadata: required · types · lookups · write access', 2], ['model', 'INSERT INTO … VALUES (?, ?, …)'], ['mysql', 'insert', 1],
       ['rq', 'onSuccess → invalidateQueries(queryKeys.lists(resource))'], ['hook', 'every open list of this resource refetches']],
     result: '201 { data: { id: 418, … } } → lists refetch',
   },
   {
     id: 'useUpdate', group: 'Data', endpoint: 'PUT /api/:resources/:id', weight: 0.3, write: true,
     steps: [['hook', "useUpdate('resource').mutate({ id, values })"], ['rq', 'mutation'], ['dp', 'update → PUT api/resource/42'], ...protectedSteps('PUT /api/resource/42'),
-      ['routes', 'baseRoute PUT /api/:resources/:id'], ['vtable', 'writable columns', 2], ['base', 'BaseService.update'], ['meta', 'not editable / hidden fields rejected', 2], ['model', 'UPDATE … WHERE id = ?'], ['mysql', 'update', 1], ['rq', 'invalidate lists + one']],
+      ['routes', 'baseRoute PUT /api/:resources/:id'], ['vtable', 'writable columns, from cache'], ['base', 'BaseService.update'], ['meta', 'not editable / hidden fields rejected', 2], ['model', 'UPDATE … WHERE id = ?'], ['mysql', 'update', 1], ['rq', 'invalidate lists + one']],
     result: '200 { data: { id: 42, … } } → list and record refetch',
   },
   {
     id: 'useDelete', group: 'Data', endpoint: 'DELETE /api/:resources/:id', weight: 0.1, write: true,
     steps: [['hook', "useDelete('resource').mutate(id)"], ['rq', 'mutation'], ['dp', 'deleteOne → DELETE api/resource/42'], ...protectedSteps('DELETE /api/resource/42'),
-      ['routes', 'baseRoute DELETE /api/:resources/:id'], ['vtable', 'exists', 2], ['base', 'BaseService.delete'], ['model', 'DELETE … WHERE id = ?'], ['mysql', 'delete', 1], ['rq', 'invalidate lists']],
+      ['routes', 'baseRoute DELETE /api/:resources/:id'], ['vtable', 'exists (cached)'], ['base', 'BaseService.delete'], ['model', 'DELETE … WHERE id = ?'], ['mysql', 'delete', 1], ['rq', 'invalidate lists']],
     result: '200 → lists refetch',
   },
   {
@@ -147,7 +148,7 @@ export const MISSIONS = [
   { id: 'save', title: 'Trace a save', goal: 'Trace useCreate until the list refreshes. Which file decides the field values are valid?', answer: 'meta', trace: 'useCreate' },
   { id: 'nocall', title: 'The call that never leaves', goal: 'Trace useCan. Which file answers it?', answer: 'access', trace: 'useCan' },
   { id: 'live', title: 'Access changes live', goal: 'Trace useAuthorizationEvents. Which server file tells the browser?', answer: 'events', trace: 'useAuthorizationEvents' },
-  { id: 'office', title: 'One office, one IP', goal: '30 staff behind one router start getting 429. Click the file that stops them.', answer: 'index', load: { users: 30, pace: 4, office: true } },
+  { id: 'office', title: 'One office, one IP', goal: '250 staff share one router. Each has their own 500-request limit, but they start getting 429. Click the file that stops them.', answer: 'index', load: { users: 250, pace: 4, office: true } },
   { id: 'bottleneck', title: 'Find the bottleneck', goal: '300 users on lists, metadata and lookups. Which box turns red first?', answer: 'mysql', load: { users: 300, pace: 6, office: false } },
 ];
 
@@ -237,7 +238,8 @@ export function loadEdges(hookIds, failures) {
   return [...edges.values()];
 }
 
-const RATE_LIMIT_PER_SECOND = 500 / (15 * 60);
+const PER_ADDRESS_PER_SECOND = 3000 / (15 * 60);
+const PER_USER_PER_SECOND = 500 / (15 * 60);
 const POOL_SIZE = 10;
 
 // One simulated second of load. cacheWarm: share of permission-cache hits;
@@ -250,9 +252,11 @@ export function computeLoad({ users, pace, office, hookIds, failures, cacheWarm,
   const miss = 1 - cacheWarm;
   const queriesPerRequest = active.length ? dataQueries + miss * 4 : 0;
 
-  // A single user's short bursts fit the window; an office shares one budget.
+  // Each user has their own limit; everyone behind one office address also
+  // shares the per-address limit.
   const ips = office ? 1 : Math.max(1, users);
-  const limited = Math.max(0, rps - ips * RATE_LIMIT_PER_SECOND * (office ? 1 : 2.2));
+  const allowed = Math.min(ips * PER_ADDRESS_PER_SECOND, Math.max(1, users) * PER_USER_PER_SECOND);
+  const limited = Math.max(0, rps - allowed);
   const admitted = rps - limited;
   const authFailed = failures.has('revoke') ? admitted * revokeWave : 0;
   const refreshes = failures.has('expired') ? admitted * 0.08 : 0;
@@ -273,7 +277,7 @@ export function computeLoad({ users, pace, office, hookIds, failures, cacheWarm,
 
   const heat = {
     hook: rps / 60, rq: rps / 60, dp: rps / 60, api: (rps + refreshes * 4) / 60, ap: refreshes / 5, access: 0.05, socket: failures.has('rolechange') ? 0.4 : 0.05,
-    index: office ? perIpWindow / 500 / 3 : perIpWindow / 500 / 6, authroute: refreshes / 5, authsvc: refreshes / 5,
+    index: Math.max(perIpWindow / 3000, (rps / Math.max(1, users)) * 900 / 500), authroute: refreshes / 5, authsvc: refreshes / 5,
     authn: admitted / 80 + (authFailed > 0.05 ? 0.7 : 0), authz: miss * 3 + (denied ? 0.9 : 0), authority: miss * 3, abac: failures.has('abac') ? 0.7 : passed / 120,
     routes: passed / 90, vtable: passed / 70 + (failures.has('sensitive') ? 0.9 : 0), base: passed / 90, meta: passed / 90 + (invalid ? 0.7 : 0), boot: 0.05, upload: 0.05,
     events: failures.has('rolechange') ? 0.5 : 0, model: queriesPerSecond / 400, errors: errorRate / 10, mysql: poolUse,
@@ -281,10 +285,10 @@ export function computeLoad({ users, pace, office, hookIds, failures, cacheWarm,
   const fixed = (value) => value.toFixed(1);
   const stat = {
     hook: `${fixed(rps)} calls/s`, rq: 'staleTime 0', dp: `${fixed(rps)} req/s`, api: refreshes ? `${fixed(refreshes)} refresh/s` : `${fixed(rps)} req/s`, ap: refreshes ? `${fixed(refreshes)} refresh/s` : 'idle',
-    access: 'no network', socket: failures.has('rolechange') ? 'access:changed' : 'connected', index: limited > 0.05 ? `${fixed(limited)} × 429/s` : `${perIpWindow.toFixed(0)}/500 per IP`,
+    access: 'no network', socket: failures.has('rolechange') ? 'access:changed' : 'connected', index: limited > 0.05 ? `${fixed(limited)} × 429/s` : `${perIpWindow.toFixed(0)}/3000 per address`,
     authroute: refreshes ? `${fixed(refreshes)} /refresh/s` : 'idle', authsvc: refreshes ? 'issuing tokens' : 'idle', authn: authFailed > 0.05 ? `${fixed(authFailed)} × 401/s` : `${fixed(admitted)} q/s`,
     authz: denied ? `${fixed(denied)} × 403/s` : `cache hit ${(cacheWarm * 100).toFixed(0)}%`, authority: `${fixed(passed * miss * 4)} q/s`, abac: failures.has('abac') ? `${fixed(denied)} denied/s` : 'no denies',
-    routes: `${fixed(passed)} req/s`, vtable: `${fixed(passed * 2)} q/s`, base: `${fixed(passed)} req/s`, meta: invalid ? `${fixed(invalid)} × 400/s` : `${fixed(passed)} req/s`, boot: 'on sign-in', upload: 'idle',
+    routes: `${fixed(passed)} req/s`, vtable: 'schema cached', base: `${fixed(passed)} req/s`, meta: invalid ? `${fixed(invalid)} × 400/s` : `${fixed(passed)} req/s`, boot: 'on sign-in', upload: 'idle',
     events: failures.has('rolechange') ? 'publishing' : 'idle', model: `${queriesPerSecond.toFixed(0)} q/s`, errors: `${fixed(errors)}/s`, mysql: `${fixed(Math.min(POOL_SIZE, busy))}/10 busy${poolUse > 1 ? ' · queue' : ''}`,
   };
 
@@ -304,7 +308,7 @@ export function healthOf(load, running) {
 // Server log lines for the current second under load.
 export function loadLogLines(load, cacheWarm) {
   const lines = [];
-  if (load.limited > 0.05) lines.push(['bad', `429 ERR_TOO_MANY_REQUESTS ${load.limited.toFixed(1)}/s · rate limit is keyed by IP`]);
+  if (load.limited > 0.05) lines.push(['bad', `429 ERR_TOO_MANY_REQUESTS ${load.limited.toFixed(1)}/s · 3000 per address, 500 per user, per 15 min`]);
   if (load.authFailed > 0.5) lines.push(['warn', '401 ERR_TOKEN_EXPIRED token_version changed · /auth/refresh fails → sign-in']);
   if (load.refreshes > 0.05) lines.push(['warn', `apiClient: ${load.refreshes.toFixed(1)} refresh/s, other 401s queue behind it`]);
   if (load.denied > 0.05) lines.push(['bad', `403 ERR_ACCESS_DENIED ${load.denied.toFixed(1)}/s`]);

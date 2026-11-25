@@ -2,6 +2,7 @@ jest.mock("../core/config/conn", () => ({ query: jest.fn(), getConnection: jest.
 jest.mock("../shared/helpers/logger", () => ({ error: jest.fn(), app: jest.fn() }));
 
 const db = require("../core/config/conn");
+const { clearTableCache } = require("../core/lib/schemaCache");
 const { getLookupOptions, getTableMetadata } = require("../core/lib/metadataService");
 
 const SCHEMAS = {
@@ -46,7 +47,10 @@ function mockDatabase({ lookups = [], tables = [], fields = [], rows = [] } = {}
 
 const sourceQuery = (table) => db.query.mock.calls.find(([sql]) => sql.includes(`FROM \`${table}\``));
 
-beforeEach(() => db.query.mockReset());
+beforeEach(() => {
+  db.query.mockReset();
+  clearTableCache();
+});
 
 describe("lookups", () => {
   test("options come only from the lookup definition, as value and label", async () => {
