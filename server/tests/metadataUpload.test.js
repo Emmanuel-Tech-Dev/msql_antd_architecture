@@ -8,6 +8,7 @@ jest.mock("../core/lib/uploadServices", () => ({
     format: "png",
     size: file.size,
   })),
+  deleteDocument: jest.fn(async () => "ok"),
 }));
 
 const db = require("../core/config/conn");
@@ -24,6 +25,7 @@ const png = (size = 1024) => ({ buffer: Buffer.alloc(16), size, mimetype: "image
 beforeEach(() => {
   db.query.mockReset();
   uploadServices.uploadDocument.mockClear();
+  uploadServices.deleteDocument.mockClear();
   db.query.mockImplementation(async (sql, params = []) => [FIELDS[params[1]] ? [FIELDS[params[1]]] : []]);
 });
 
@@ -59,6 +61,20 @@ describe("file and image field uploads", () => {
     await expect(uploadFieldFile("suppliers", "name", png(), { privileged: true })).rejects.toMatchObject({ errorCode: "ERR_NOT_FOUND" });
     await expect(uploadFieldFile("suppliers", "missing", png(), { privileged: true })).rejects.toMatchObject({ errorCode: "ERR_NOT_FOUND" });
     await expect(uploadFieldFile("suppliers; drop", "logo", png(), { privileged: true })).rejects.toMatchObject({ errorCode: "ERR_INVALID_INPUT" });
+  });
+
+  test("every upload is recorded so it can be cleaned up, and an untracked upload is undone", async () => {
+    const stored = await uploadFieldFile("suppliers", "logo", png(), { permissions: ["create:suppliers"], actorId: "USR-1" });
+    const [sql, params] = db.query.mock.calls.find(([query]) => query.startsWith("INSERT INTO `metadata_uploads`"));
+    expect(sql).toContain("`public_id`");
+    expect(params).toEqual(["suppliers", "logo", stored.url, stored.public_id, "image/png", 1024, "USR-1"]);
+
+    db.query.mockImplementation(async (query, values = []) => {
+      if (query.startsWith("INSERT INTO `metadata_uploads`")) throw new Error("metadata_uploads is missing");
+      return [FIELDS[values[1]] ? [FIELDS[values[1]]] : []];
+    });
+    await expect(uploadFieldFile("suppliers", "logo", png(), { privileged: true })).rejects.toThrow("metadata_uploads is missing");
+    expect(uploadServices.deleteDocument).toHaveBeenCalledWith({ publicId: expect.stringMatching(/^logo-/), mimetype: "image/png" });
   });
 
   test("no file is refused", async () => {

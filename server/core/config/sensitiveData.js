@@ -8,6 +8,7 @@ const SENSITIVE_TABLES = new Set([
   "framework_bootstrap_datasets",
   "framework_bootstrap_profile_datasets",
   "framework_bootstrap_profiles",
+  "metadata_uploads",
   "system_settings",
   "tables",
   "token_blacklist",

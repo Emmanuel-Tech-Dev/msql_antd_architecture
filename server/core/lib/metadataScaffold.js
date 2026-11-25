@@ -9,7 +9,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const FIELD_TYPES = new Set([
   "text", "textarea", "richText", "email", "phone", "url", "password", "integer", "number", "money",
   "percent", "duration", "date", "dateTime", "time", "switch", "select", "multiSelect", "radio",
-  "checkboxGroup", "lookup", "multiLookup", "file", "image", "color", "icon", "primaryKey", "generatedId",
+  "checkboxGroup", "lookup", "multiLookup", "file", "image", "color", "icon", "list", "groupList", "primaryKey", "generatedId",
 ]);
 const TIMESTAMP_COLUMNS = new Set(["createdAt", "updatedAt", "deletedAt", "created_at", "updated_at", "deleted_at"]);
 
@@ -126,6 +126,32 @@ function checkField(field, physicalColumns) {
   if (!Number.isInteger(span) || span < 1 || span > 24) {
     throw new AppError("ERR_VALIDATION_FAILED", `${field.column_name}: width must be 1 to 24`);
   }
+  if (field.type === "list" || field.type === "groupList") {
+    checkRowFields(field.config?.fields, field.column_name);
+    if (field.type === "groupList") checkRowFields(field.config?.children?.fields, `${field.column_name} items`);
+  }
+}
+
+const ROW_FIELD_TYPES = new Set([...FIELD_TYPES].filter((type) => !["list", "groupList", "file", "image", "primaryKey", "generatedId", "password"].includes(type)));
+
+// A list's row fields: at least one, each with its own key and a type a row can hold.
+function checkRowFields(rowFields, where) {
+  if (!Array.isArray(rowFields) || !rowFields.length) {
+    throw new AppError("ERR_VALIDATION_FAILED", `${where}: add at least one row field`);
+  }
+  const keys = new Set();
+  for (const rowField of rowFields) {
+    if (!IDENTIFIER.test(rowField?.column_name ?? "")) {
+      throw new AppError("ERR_VALIDATION_FAILED", `${where}: "${rowField?.column_name ?? ""}" is not a valid row field key`);
+    }
+    if (keys.has(rowField.column_name)) {
+      throw new AppError("ERR_VALIDATION_FAILED", `${where}: the row field key ${rowField.column_name} is used twice`);
+    }
+    keys.add(rowField.column_name);
+    if (!ROW_FIELD_TYPES.has(rowField.type)) {
+      throw new AppError("ERR_VALIDATION_FAILED", `${where}.${rowField.column_name}: rows cannot hold ${rowField.type} fields`);
+    }
+  }
 }
 
 const describeValue = (value) => {
@@ -211,7 +237,7 @@ const STORAGE = {
   percent: "DECIMAL(5,2)", duration: "INT", date: "DATE", dateTime: "DATETIME", time: "TIME",
   switch: "TINYINT(1)", select: "VARCHAR(60)", radio: "VARCHAR(60)", multiSelect: "VARCHAR(500)",
   checkboxGroup: "VARCHAR(500)", lookup: "VARCHAR(255)", multiLookup: "VARCHAR(500)", file: "VARCHAR(500)",
-  image: "VARCHAR(500)", color: "VARCHAR(20)", generatedId: "VARCHAR(40)",
+  image: "VARCHAR(500)", color: "VARCHAR(20)", generatedId: "VARCHAR(40)", icon: "VARCHAR(64)", list: "JSON", groupList: "JSON",
 };
 const storageOf = (column) => column.storage ?? STORAGE[column.type] ?? "VARCHAR(255)";
 

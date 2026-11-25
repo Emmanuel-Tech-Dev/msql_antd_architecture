@@ -24,7 +24,7 @@ function startingValues(fields, mode, record, initialValues) {
         const stored = mode === 'edit'
             ? record?.[field.column_name]
             : initialValues?.[field.column_name] ?? field.config?.default ?? definition.createDefault?.();
-        return [field.column_name, definition.toForm(stored)];
+        return [field.column_name, definition.toForm(stored, field)];
     }));
 }
 
@@ -102,7 +102,7 @@ export default function MetadataForm({
         }
         const payload = Object.fromEntries(shownFields
             .filter((field) => isWritableField(field, mode))
-            .map((field) => [field.column_name, getFieldType(field.type).fromForm(values[field.column_name])]));
+            .map((field) => [field.column_name, getFieldType(field.type).fromForm(values[field.column_name], field)]));
         try {
             const saved = mode === 'edit'
                 ? await update.mutateAsync({ id: record[primaryKeyOf(metadata)], variables: payload })

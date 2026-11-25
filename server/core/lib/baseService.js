@@ -3,6 +3,7 @@ const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
 const { throwFieldErrors, validateRecordAgainstMetadata } = require("./metadataSchema");
 const { getLookupColumns } = require("../config/lookupRegistry");
+const { releaseRecordFiles, syncRecordFiles } = require("./uploadTracking");
 
 const { isSensitiveColumn } = require("../config/sensitiveData");
 
@@ -169,7 +170,10 @@ class BaseService {
       { mode: "create", access: this.access() },
     );
     if (Object.keys(errors).length) throwFieldErrors(errors);
-    return new Model().insert(resources, record).execute();
+    const result = await new Model().insert(resources, record).execute();
+    const primaryKey = this.request.validatedResource?.primaryKey;
+    await syncRecordFiles(resources, result.insertId || record[primaryKey], {}, record);
+    return result;
   }
 
   async bulkCreate(payload) {
@@ -198,7 +202,10 @@ class BaseService {
       }
     }
     if (Object.keys(errors).length) throwFieldErrors(errors);
-    return new Model().bulkInsert(resources, records).execute();
+    const result = await new Model().bulkInsert(resources, records).execute();
+    const primaryKey = this.request.validatedResource?.primaryKey;
+    for (const record of records) await syncRecordFiles(resources, record[primaryKey] ?? null, {}, record);
+    return result;
   }
 
   async updateRecord(payload, existing = {}) {
@@ -221,21 +228,26 @@ class BaseService {
         "No editable fields were provided",
       );
     }
-    return new Model()
+    const result = await new Model()
       .update(resources, writableRecord)
       .where(primaryKey, "=", id)
       .execute();
+    await syncRecordFiles(resources, id, existing, writableRecord);
+    return result;
   }
 
-  async deleteRecord(payload) {
+  // `existing` is the record as it was, so its files can be released.
+  async deleteRecord(payload, existing = {}) {
     const primaryKey = this.request.validatedResource?.primaryKey;
     if (!primaryKey) {
       throw new AppError("ERR_INVALID_INPUT", "Resource has no primary key");
     }
-    return new Model()
+    const result = await new Model()
       .delete(payload?.resources)
       .where(primaryKey, "=", payload?.id)
       .execute();
+    if (result.affectedRows) await releaseRecordFiles(payload?.resources, existing);
+    return result;
   }
 
   async lookup(payload = {}) {

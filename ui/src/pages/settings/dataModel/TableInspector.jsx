@@ -1,5 +1,6 @@
-import { Button, Input, Segmented, Select, Switch } from 'antd';
+import { Alert, Button, Input, Segmented, Select, Switch } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import IconSelect from '../../../components/metadata/IconSelect';
 import { Eyebrow } from './dataModelShared';
 
 // The table's own settings in the form designer: names, form container,
@@ -10,6 +11,8 @@ export default function TableInspector({ settings, fields, onChange }) {
     const setSection = (index, changes) => set({ sections: sections.map((section, at) => (at === index ? { ...section, ...changes } : section)) });
     const stepper = settings.stepper;
     const setStepper = (changes) => set({ stepper: { ...(stepper ?? {}), ...changes } });
+    const sectionKeys = new Set(sections.map((section) => section.key));
+    const unsectioned = fields.filter((field) => Number(field.form_visible) === 1 && field.type !== 'primaryKey' && !sectionKeys.has(field.section_key));
 
     return (
         <div className="flex flex-col gap-4">
@@ -18,10 +21,16 @@ export default function TableInspector({ settings, fields, onChange }) {
                 <strong className="font-[var(--font-heading)] text-[17px] font-semibold">{settings.label}</strong>
             </div>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Name in menus<Input value={settings.label} onChange={(event) => set({ label: event.target.value })} /></label>
-            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">One record is called<Input value={settings.singular_label} onChange={(event) => set({ singular_label: event.target.value })} /></label>
-            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Shown as
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Name of one record
+                <Input placeholder="e.g. Transaction" value={settings.singular_label} onChange={(event) => set({ singular_label: event.target.value })} />
+                <span className="text-[12.5px] font-normal text-[var(--color-text-secondary)]">
+                    Used in buttons and titles: &ldquo;Add {(settings.singular_label || 'record').toLowerCase()}&rdquo;, &ldquo;Edit {(settings.singular_label || 'record').toLowerCase()}&rdquo;.
+                </span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Record title field
                 <Select allowClear value={settings.title_column ?? undefined} onChange={(value) => set({ title_column: value ?? null })}
                     options={fields.filter((field) => field.type !== 'primaryKey').map((field) => ({ value: field.column_name, label: field.col_real_name || field.column_name }))} />
+                <span className="text-[12.5px] font-normal text-[var(--color-text-secondary)]">The field that names a record when it is shown elsewhere, such as a reference number or a name. It heads the stepper summary.</span>
             </label>
             <div className="flex flex-col gap-1.5 text-[13px] font-semibold">Form opens in
                 <Segmented block value={settings.form_layout} onChange={(form_layout) => set({ form_layout })}
@@ -33,6 +42,7 @@ export default function TableInspector({ settings, fields, onChange }) {
 
             <div className="flex flex-col gap-2">
                 <span className="text-[13px] font-semibold">Sections</span>
+                <span className="text-[12.5px] text-[var(--color-text-secondary)]">Group the form&apos;s fields. To put a field in a section, use the folder button beside it in the outline, or its Section setting.</span>
                 {sections.map((section, index) => (
                     <div key={section.key} className="flex flex-col gap-1.5 rounded-[calc(var(--app-radius,6px)*1.6)] border border-[var(--color-border)] p-2.5">
                         <div className="flex items-center gap-1.5">
@@ -40,7 +50,7 @@ export default function TableInspector({ settings, fields, onChange }) {
                             <Button type="text" aria-label={`Remove section ${index + 1}`} icon={<DeleteOutlined />} onClick={() => set({ sections: sections.filter((_, at) => at !== index) })} />
                         </div>
                         <Input aria-label={`Section ${index + 1} description`} placeholder="Description" value={section.description} onChange={(event) => setSection(index, { description: event.target.value })} />
-                        <Input aria-label={`Section ${index + 1} icon`} placeholder="Icon, e.g. ShopOutlined" value={section.icon} onChange={(event) => setSection(index, { icon: event.target.value || undefined })} />
+                        <IconSelect placeholder="Icon (optional)" value={section.icon} onChange={(icon) => setSection(index, { icon: icon || undefined })} />
                     </div>
                 ))}
                 <Button type="dashed" icon={<PlusOutlined />}
@@ -56,6 +66,12 @@ export default function TableInspector({ settings, fields, onChange }) {
                 {stepper && (
                     <>
                         <span className="text-[12.5px] text-[var(--color-text-secondary)]">Each section is one step.</span>
+                        {unsectioned.length > 0 && (
+                            <Alert type="warning" showIcon title={`${unsectioned.length} field${unsectioned.length === 1 ? ' has' : 's have'} no section`}
+                                description={sections.length
+                                    ? 'They form an untitled first step. Move them into sections with the folder button in the outline.'
+                                    : 'With no sections, the whole form is one untitled step. Add sections above, then move fields into them.'} />
+                        )}
                         <Segmented block value={stepper.variant ?? 'horizontal'} onChange={(variant) => setStepper({ variant })}
                             options={[{ value: 'horizontal', label: 'Across' }, { value: 'vertical', label: 'Down' }, { value: 'compact', label: 'Compact' }]} />
                         <label className="flex items-center justify-between text-[13px]">Summary panel<Switch size="small" checked={Boolean(stepper.showSummary)} onChange={(showSummary) => setStepper({ showSummary })} /></label>

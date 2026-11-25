@@ -4,6 +4,7 @@ const Model = require("../model/model");
 const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData");
 const { previewLookup } = require("./metadataService");
 const { validateRecordAgainstMetadata } = require("./metadataSchema");
+const { upgradeLegacyField } = require("./legacyDynamicForm");
 const {
   checkField, definitionMigration, describeChanges, guessField, humanize, newTableMigration, requireIdentifier,
 } = require("./metadataScaffold");
@@ -113,8 +114,13 @@ async function getDefinition(table) {
   const [settings] = await new Model().select(["table_name", ...TABLE_SETTINGS, "version", "updatedAt"], "metadata_tables")
     .where("table_name", "=", table).execute();
   if (!settings) throw new AppError("ERR_NOT_FOUND", `${table} is not described`);
-  const fields = await new Model().select(["column_name", ...FIELD_SETTINGS, "version"], "tables_metadata")
+  const rows = await new Model().select(["column_name", ...FIELD_SETTINGS, "options", "version"], "tables_metadata")
     .where("table_name", "=", table).orderBy("rank", "ASC").orderBy("id", "ASC").execute();
+  // Old dynaForm fields open as list / groupList, so saving once converts them.
+  const fields = rows.map((row) => {
+    const { options: _legacyOptions, ...field } = upgradeLegacyField(row);
+    return field;
+  });
   return { table: settings, fields };
 }
 

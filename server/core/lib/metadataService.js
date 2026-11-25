@@ -4,6 +4,8 @@ const Model = require("../model/model");
 const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData");
 const { v4: uuidv4 } = require("uuid");
 const uploadServices = require("./uploadServices");
+const { recordUpload } = require("./uploadTracking");
+const { upgradeLegacyField } = require("./legacyDynamicForm");
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // Never a lookup source, whatever a lookup row says.
@@ -35,7 +37,7 @@ async function getTableMetadata(table, access) {
 
   const described = await new Model()
     .select(["column_name", "col_real_name", "type", "form_visible", "list_visible", "editable",
-      "disabled", "required", "section_key", "col_span", "config", "rank", "version"],
+      "disabled", "required", "section_key", "col_span", "config", "options", "rank", "version"],
     "tables_metadata")
     .where("table_name", "=", table)
     .orderBy("rank", "ASC")
@@ -43,10 +45,16 @@ async function getTableMetadata(table, access) {
     .execute();
 
   const fields = described
+    .map((field) => {
+      const { options: _legacyOptions, ...upgraded } = upgradeLegacyField(field);
+      return upgraded;
+    })
     .filter((field) => canReadField(field, access))
     .map((field) => (canWriteField(field, access) ? field : { ...field, disabled: 1 }));
 
-  const lookupKeys = [...new Set(fields.map((field) => field.config?.lookup).filter(Boolean))];
+  // Lookups of fields, and of row fields inside list and groupList fields.
+  const rowFields = (field) => [...(field.config?.fields ?? []), ...(field.config?.children?.fields ?? [])];
+  const lookupKeys = [...new Set(fields.flatMap((field) => [field, ...rowFields(field)]).map((field) => field.config?.lookup).filter(Boolean))];
   const lookups = lookupKeys.length
     ? await new Model()
       .select(["lookup_key", "depends_on"], "metadata_lookups")
@@ -188,7 +196,7 @@ const UPLOAD_TYPES = {
 // returns where it is. Anyone who may create or update that table's records
 // may upload for it; the field's metadata decides the accepted types and size,
 // and the upload service checks the content really is that type.
-async function uploadFieldFile(table, column, file, { permissions = [], privileged = false } = {}) {
+async function uploadFieldFile(table, column, file, { permissions = [], privileged = false, actorId = null } = {}) {
   requireIdentifier(table, "table name");
   requireIdentifier(column, "column name");
   if (!privileged && !permissions.includes(`create:${table}`) && !permissions.includes(`update:${table}`)) {
@@ -224,6 +232,13 @@ async function uploadFieldFile(table, column, file, { permissions = [], privileg
     publicId: `${column}-${uuidv4()}`,
     allowedTypes: accepted,
   });
+  // An upload that cannot be tracked could never be cleaned up, so it is undone.
+  try {
+    await recordUpload({ table, column, stored, mimetype: file.mimetype, actorId });
+  } catch (error) {
+    await uploadServices.deleteDocument({ publicId: stored.public_id, mimetype: file.mimetype }).catch(() => {});
+    throw error;
+  }
   return { ...stored, name: file.originalname };
 }
 

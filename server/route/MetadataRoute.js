@@ -42,6 +42,7 @@ class MetadataRoute {
       const data = await uploadFieldFile(req.params.table, req.params.column, req.file, {
         permissions: req.permissions,
         privileged: req.isPrivileged,
+        actorId: req.user?.sub,
       });
       res.status(201).json({
         status: "ok",

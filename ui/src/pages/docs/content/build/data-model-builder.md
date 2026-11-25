@@ -18,7 +18,7 @@ The builder is the browser editor for table metadata. It needs the manage:metada
 | --- | --- |
 | Tables | See every table, described or not. Credential, token, log and framework tables are never listed. |
 | Describe | Fields are guessed from the columns (types, options from ENUMs, lookups from foreign keys). Review and save as version 1. |
-| Form | Outline (sections, order), live preview on desktop or phone, and an inspector for each field or the table (layout, columns, sections, steps). |
+| Form | Outline of the fields under their sections: the arrows reorder a field within its section, and the folder button moves it to another section (or No section). Live preview on desktop or phone. Table opens the table inspector (Name in menus, Name of one record, Record title field, where the form opens, columns, sections, steps); clicking a field opens its inspector. For a List or Grouped list field the inspector also edits the row fields, each with the same inspector as a table field. |
 | List | Which fields are columns, their order, which ones search covers, and the default sort, with the live list below. |
 | History | Every version with what changed and who changed it. Restore saves the old version as a new one. Export JSON, field CSV or a SQL migration; import JSON or CSV into the draft. |
 | Lookups | Edit or create a lookup and preview its choices before saving. Shows which fields use it. |

@@ -2,6 +2,7 @@ const { z } = require("zod");
 const AppError = require("../../shared/helpers/AppError");
 const Model = require("../model/model");
 const { canReadField, canWriteField, findMissingLookupValues } = require("./metadataService");
+const { upgradeLegacyField } = require("./legacyDynamicForm");
 
 // Server-side enforcement of a described table's metadata (metadata upgrade
 // phase 3). A table is described when metadata_tables has an enabled row for
@@ -13,9 +14,13 @@ const NUMBER_TYPES = new Set(["number", "integer", "money", "percent", "duration
 const CHOICE_TYPES = new Set(["select", "radio"]);
 const MULTI_CHOICE_TYPES = new Set(["multiSelect", "checkboxGroup"]);
 const DATE_TYPES = new Set(["date", "dateTime"]);
+const LIST_TYPES = new Set(["list", "groupList"]);
+// What a row of a list or groupList cannot hold (in this version).
+const NOT_IN_ROWS = new Set(["list", "groupList", "file", "image", "primaryKey", "generatedId", "password"]);
 
 const isBlank = (value) => value === undefined || value === null
-  || (typeof value === "string" && value.trim() === "");
+  || (typeof value === "string" && value.trim() === "")
+  || (Array.isArray(value) && value.length === 0);
 
 const text = z.union([z.string(), z.number()]).transform(String);
 const list = z.union([z.array(text), text])
@@ -29,10 +34,11 @@ async function loadDescribedFields(table) {
     .execute();
   if (!described) return null;
 
-  return new Model()
-    .select(["column_name", "col_real_name", "type", "form_visible", "editable", "disabled", "required", "config"], "tables_metadata")
+  const fields = await new Model()
+    .select(["column_name", "col_real_name", "type", "form_visible", "editable", "disabled", "required", "config", "options"], "tables_metadata")
     .where("table_name", "=", table)
     .execute();
+  return fields.map(upgradeLegacyField);
 }
 
 // Primary keys and disabled fields are never written; a field that is not
@@ -129,7 +135,90 @@ function valueSchema(field) {
   if (TEXT_TYPES.has(type) || type === "lookup") {
     return withRules(text, field);
   }
+  if (LIST_TYPES.has(type)) {
+    return listSchema(field);
+  }
   return z.any();
+}
+
+const rowFieldsOf = (fields) => (Array.isArray(fields) ? fields : [])
+  .filter((field) => field?.column_name && !NOT_IN_ROWS.has(field.type));
+
+function parseRows(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// Each row against its fields, with the same checks as a whole record.
+// Messages name the row: "Contacts, row 2: Phone is required". Conditions
+// read the row's own values; keys that are not row fields are dropped.
+function checkRows(fields, rows, where, issues) {
+  return rows.map((row, index) => {
+    const place = `${where} ${index + 1}`;
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      issues.push(`${place} is not valid`);
+      return {};
+    }
+    const cleaned = {};
+    for (const field of fields) {
+      const column = field.column_name;
+      const value = row[column];
+      if (!conditionMet(field.config?.visibleWhen, row)) continue;
+      if (isBlank(value)) {
+        if (isRequired(field, row)) issues.push(`${place}: ${field.col_real_name || column} is required`);
+        cleaned[column] = null;
+        continue;
+      }
+      const result = valueSchema(field).safeParse(value);
+      if (result.success) cleaned[column] = result.data;
+      else issues.push(`${place}: ${result.error.issues[0].message}`);
+    }
+    return cleaned;
+  });
+}
+
+function rowCountIssues(config, count, label, unit, issues) {
+  if (config.minRows !== undefined && count < config.minRows) issues.push(`${label} needs at least ${config.minRows} ${unit}${config.minRows === 1 ? "" : "s"}`);
+  if (config.maxRows !== undefined && count > config.maxRows) issues.push(`${label} allows at most ${config.maxRows} ${unit}${config.maxRows === 1 ? "" : "s"}`);
+}
+
+// A list (rows) or groupList (groups, each with an inner list), stored as JSON.
+function listSchema(field) {
+  const label = field.col_real_name || field.column_name;
+  const config = field.config ?? {};
+  const unit = field.type === "groupList" ? "group" : "row";
+  const countUnit = (config.rowLabel ?? unit).toLowerCase();
+  return z.any().transform((value, ctx) => {
+    const rows = parseRows(value);
+    if (!rows) {
+      ctx.addIssue({ code: "custom", message: `${label} must be a list` });
+      return z.NEVER;
+    }
+    const issues = [];
+    rowCountIssues(config, rows.length, label, countUnit, issues);
+    let cleaned = checkRows(rowFieldsOf(config.fields), rows, `${label}, ${unit}`, issues);
+    if (field.type === "groupList") {
+      const children = config.children ?? {};
+      const key = children.key || "list";
+      const childLabel = children.label || "Items";
+      cleaned = cleaned.map((group, index) => {
+        const items = parseRows(rows[index]?.[key]) ?? [];
+        rowCountIssues(children, items.length, `${label}, group ${index + 1}, ${childLabel}`, (children.rowLabel ?? "row").toLowerCase(), issues);
+        return { ...group, [key]: checkRows(rowFieldsOf(children.fields), items, `${label}, group ${index + 1}, ${childLabel} row`, issues) };
+      });
+    }
+    if (issues.length) {
+      ctx.addIssue({ code: "custom", message: issues.slice(0, 3).join("; ") + (issues.length > 3 ? ` (and ${issues.length - 3} more)` : "") });
+      return z.NEVER;
+    }
+    return JSON.stringify(cleaned);
+  });
 }
 
 // Blank values skip the type and rule checks (the required check handles
@@ -200,9 +289,41 @@ async function metadataSchema(table, { mode = "create", existing = {}, access } 
   return fields ? buildSchema(fields, mode, existing, access) : null;
 }
 
+// Lookup values inside list rows (and groupList groups and their items).
+async function rowLookupErrors(field, value) {
+  const config = field.config ?? {};
+  const label = field.col_real_name || field.column_name;
+  const unit = field.type === "groupList" ? "group" : "row";
+  const checks = [];
+  const collect = (fields, rows, where) => rows.forEach((row, index) => {
+    for (const rowField of rowFieldsOf(fields)) {
+      const wanted = row?.[rowField.column_name];
+      if (rowField.config?.lookup && !isBlank(wanted)) checks.push({ rowField, row, wanted, place: `${where} ${index + 1}` });
+    }
+  });
+  const rows = parseRows(value) ?? [];
+  collect(config.fields, rows, `${label}, ${unit}`);
+  if (field.type === "groupList") {
+    const key = config.children?.key || "list";
+    rows.forEach((group, index) => collect(config.children?.fields, parseRows(group?.[key]) ?? [], `${label}, group ${index + 1}, ${config.children?.label || "Items"} row`));
+  }
+  for (const { rowField, row, wanted, place } of checks) {
+    const values = rowField.type === "multiLookup" ? String(wanted).split(",") : [wanted];
+    if ((await findMissingLookupValues(rowField.config.lookup, values, row)).length) {
+      return `${place}: ${rowField.col_real_name || rowField.column_name} must be one of the available choices`;
+    }
+  }
+  return null;
+}
+
 async function lookupErrors(fields, values, merged) {
   const errors = {};
   for (const field of fields) {
+    if (LIST_TYPES.has(field.type) && !isBlank(values[field.column_name])) {
+      const message = await rowLookupErrors(field, values[field.column_name]);
+      if (message) errors[field.column_name] = message;
+      continue;
+    }
     const lookupKey = field.config?.lookup;
     const value = values[field.column_name];
     if (!lookupKey || isBlank(value)) continue;

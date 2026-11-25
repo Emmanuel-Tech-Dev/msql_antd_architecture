@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Segmented, Skeleton, Tag } from 'antd';
-import { ArrowDownOutlined, ArrowUpOutlined, DesktopOutlined, EyeInvisibleOutlined, MobileOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Dropdown, Segmented, Skeleton, Tag } from 'antd';
+import { ArrowDownOutlined, ArrowUpOutlined, DesktopOutlined, EyeInvisibleOutlined, FolderOutlined, MobileOutlined, SettingOutlined } from '@ant-design/icons';
 import MetadataForm from '../../../components/metadata/MetadataForm';
 import { useTableMetadata } from '../../../core/metadata/useTableMetadata';
 import { useMetadataLookups, useMetadataPermissions, useSaveDefinition, useTableDefinition } from '../../../core/metadata/useMetadataAdmin';
@@ -25,7 +25,7 @@ function moveField(fields, column, step) {
     return next;
 }
 
-function Outline({ settings, fields, selected, onSelect, onMove }) {
+function Outline({ settings, fields, selected, onSelect, onMove, onAssign }) {
     const sections = settings.sections ?? [];
     const known = new Set(sections.map((section) => section.key));
     const groups = [
@@ -42,6 +42,11 @@ function Outline({ settings, fields, selected, onSelect, onMove }) {
                 {groups.map((group) => (
                     <div key={group.key} className="flex flex-col gap-1">
                         <Eyebrow>{group.title.toUpperCase()}</Eyebrow>
+                        {!group.fields.length && (
+                            <span className="rounded-[calc(var(--app-radius,6px)*1.4)] border border-dashed border-[var(--color-border)] px-2 py-1.5 text-[12.5px] text-[var(--color-text-secondary)]">
+                                Empty. Use <FolderOutlined aria-label="the folder button" /> on a field to move it here.
+                            </span>
+                        )}
                         {group.fields.map((field) => {
                             const active = selected === field.column_name;
                             return (
@@ -55,6 +60,16 @@ function Outline({ settings, fields, selected, onSelect, onMove }) {
                                         </span>
                                         <span className="text-xs text-[var(--color-text-secondary)]">{typeLabel(field.type)}</span>
                                     </button>
+                                    {sections.length > 0 && (
+                                        <Dropdown trigger={['click']} menu={{
+                                            selectable: true,
+                                            selectedKeys: [known.has(field.section_key) ? field.section_key : NO_SECTION],
+                                            items: [...sections.map((section) => ({ key: section.key, label: section.title || section.key })), { type: 'divider' }, { key: NO_SECTION, label: 'No section' }],
+                                            onClick: ({ key }) => onAssign(field.column_name, key === NO_SECTION ? null : key),
+                                        }}>
+                                            <Button size="small" type="text" aria-label={`Move ${field.column_name} to a section`} title="Move to a section" icon={<FolderOutlined />} />
+                                        </Dropdown>
+                                    )}
                                     <Button size="small" type="text" aria-label={`Move ${field.column_name} up`} icon={<ArrowUpOutlined />} onClick={() => onMove(field.column_name, -1)} />
                                     <Button size="small" type="text" aria-label={`Move ${field.column_name} down`} icon={<ArrowDownOutlined />} onClick={() => onMove(field.column_name, 1)} />
                                 </div>
@@ -142,7 +157,8 @@ function Workspace({ table, definition, runtime, lookups, permissions, tab, go }
                 {tab === 'form' && (
                     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)_340px]">
                         <Outline settings={settings} fields={fields} selected={selected} onSelect={setSelected}
-                            onMove={(column, step) => setFields((current) => moveField(current, column, step))} />
+                            onMove={(column, step) => setFields((current) => moveField(current, column, step))}
+                            onAssign={(column, section_key) => setFields((current) => current.map((item) => (item.column_name === column ? { ...item, section_key } : item)))} />
                         <FormPreview table={table} draft={draft} />
                         <Panel className="lg:sticky lg:top-4">
                             <div className="max-h-[80vh] overflow-y-auto p-[18px]">

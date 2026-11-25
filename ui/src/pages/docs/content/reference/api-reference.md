@@ -40,7 +40,6 @@ summary: Endpoint families, access expectations, payload shapes, response envelo
 | POST /api/:resources/bulk | Create up to 500 records |
 | PUT /api/:resources/:id | Update writable fields |
 | DELETE /api/:resources/:id | Delete by primary key |
-| POST /api/:resources/file | Multipart create/upload variants |
 
 ## Framework and administration
 

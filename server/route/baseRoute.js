@@ -4,9 +4,6 @@ const { loadBootstrapProfile } = require("../core/lib/bootstrapService");
 const AppError = require("../shared/helpers/AppError");
 // const authMiddleWare = require("../core/middleware/authMiddleWare");
 // const authorization = require("../core/middleware/authorization");
-const { uploadSingle } = require("../core/config/multer");
-const { uploadSingleFile } = require("../core/lib/uploadServices");
-const uploadServices = require("../core/lib/uploadServices");
 const utils = require("../shared/utils/functions");
 
 class BaseRoute {
@@ -22,8 +19,6 @@ class BaseRoute {
     this.getColFilters(app);
     this.findOne(app);
     this.create(app);
-    this.createWithFile(app);
-    this.uploadBulkFiles(app);
     this.bulkCreate(app);
     this.update(app);
     this.updateSome(app);
@@ -73,7 +68,6 @@ class BaseRoute {
     app.get("/api/:resources/filters", validateTable, async (req, res) => {
       const service = new BaseService(req, res);
       const data = await service.getColFilters();
-      console.log(data, "data");
       res.status(200).json({
         status: "ok",
         message: "Operation Successful!",
@@ -154,80 +148,6 @@ class BaseRoute {
     });
   }
 
-  createWithFile(app) {
-    app.post(
-      "/api/:resources/file",
-      validateTable,
-      uploadSingle.single("file"),
-      async (req, res) => {
-        const service = new BaseService(req, res);
-        const table = req.params.resources;
-        const file = req.file;
-        const body = req.body;
-
-        const convertBody = JSON.parse(body.body);
-
-        // console.log(convertBody);
-        // return;
-
-        if (!file) {
-          throw new AppError("ERR_BAD_REQUEST", null, {
-            message: "No file uploaded",
-            level: "access",
-          });
-        }
-
-        const results = await uploadServices.uploadSingleFile(
-          file,
-          "User Profile Testing",
-        );
-
-        const dataWithFile = {
-          ...convertBody,
-          custom_id: utils.genRegNumber("REG"),
-          avatar: results?.url,
-          //file_type: data.resource_type,
-          // file_storage_id: data.public_id,
-        };
-
-        if (!results) throw new AppError("ERR_FILE_UPLOAD_FAILED");
-        const data = await service.create(dataWithFile);
-
-        res.status(201).json({
-          status: "ok",
-          message: "Operation Successful!",
-          data,
-          details: "Resource updated successfully",
-        });
-      },
-    );
-  }
-
-  uploadBulkFiles(app) {
-    app.post(
-      "/api/:resources/upload_bulk",
-      validateTable,
-      uploadSingle.array("files", 5),
-      async (req, res) => {
-        const service = new BaseService(req, res);
-        const files = req.files;
-        const results = await uploadServices.uploadMultipleFiles(
-          files,
-          "Testing",
-        );
-
-        const data = await service.bulkCreate(results);
-
-        res.status(201).json({
-          status: "ok",
-          message: "Operation Successful!",
-          data,
-          details: "Resource updated successfully",
-        });
-      },
-    );
-  }
-
   update(app) {
     app.put("/api/:resources/:id", validateTable, async (req, res) => {
       const service = new BaseService(req, res);
@@ -261,7 +181,7 @@ class BaseRoute {
         throw new AppError("ERR_NOT_FOUND");
       }
 
-      const result = await service.deleteRecord(req.params);
+      const result = await service.deleteRecord(req.params, data);
 
       res.status(200).json({
         status: "ok",
@@ -292,7 +212,6 @@ class BaseRoute {
   getExtraMetaList(app) {
     app.post("/api/v1/extra_meta_options", async (req, res) => {
       const service = new BaseService(req, res);
-      console.log("extra meta list request", req.body);
       const result = await service.lookup(req.body);
 
       res.json({

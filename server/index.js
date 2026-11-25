@@ -12,6 +12,7 @@ const AppError = require("./shared/helpers/AppError");
 const logger = require("./shared/helpers/logger");
 const SettingsManager = require("./core/lib/systemSettings");
 const backupHistoryService = require("./core/lib/backupHistoryService");
+const uploadTracking = require("./core/lib/uploadTracking");
 const authMiddleWare = require("./core/middleware/authMiddleWare");
 const { authorization, clearPermissionCache } = require("./core/middleware/authorization");
 const errorHandler = require("./core/middleware/errorHandler");
@@ -104,6 +105,16 @@ function scheduleAutomaticBackups() {
   setInterval(run, BACKUP_SCHEDULE_CHECK_MS).unref();
 }
 
+// Uploads never saved with a record (after 24 hours) and replaced or cleared
+// files are deleted from storage.
+const UPLOAD_PURGE_MS = 60 * 60 * 1000;
+function scheduleUploadCleanup() {
+  const run = () => uploadTracking.purgeUploads()
+    .catch((error) => logger.error(error, { context: "Upload clean-up" }));
+  run();
+  setInterval(run, UPLOAD_PURGE_MS).unref();
+}
+
 async function startServer() {
   try {
     await logger.initialize();
@@ -111,6 +122,7 @@ async function startServer() {
     await settings.preloadAll();
     app.locals.settings = settings;
     scheduleAutomaticBackups();
+    scheduleUploadCleanup();
     server.listen(PORT, () => {
       logger.app("Server started", { port: Number(PORT) });
     });

@@ -1,6 +1,6 @@
 import { Col, Form, Row } from 'antd';
 import { getFieldType } from '../../core/metadata/fieldTypes';
-import { conditionMet, fieldLabel, fieldRules, formFieldsOf, isWritableField } from '../../core/metadata/fieldRules';
+import { conditionMet, fieldLabel, fieldRules, formFieldsOf, isFieldRequired, isWritableField } from '../../core/metadata/fieldRules';
 
 const CHOICE_TYPES = new Set(['select', 'multiSelect', 'radio', 'checkboxGroup', 'lookup', 'multiLookup']);
 
@@ -10,11 +10,12 @@ function columnSpan(field, formColumns) {
     return span === 24 ? 24 / (formColumns || 1) : span;
 }
 
-function FieldItem({ field, table, mode, readOnly, lookupDependsOn, rules }) {
+function FieldItem({ field, table, mode, readOnly, lookupDependsOn, rules, values }) {
     const definition = getFieldType(field.type);
     const label = fieldLabel(field);
     const placeholder = field.config?.placeholder ?? `${CHOICE_TYPES.has(field.type) ? 'Select' : 'Enter'} ${label}`;
     const disabled = readOnly || !isWritableField(field, mode);
+    if (definition.renderItem) return definition.renderItem({ field, disabled, required: isFieldRequired(field, values) });
     return (
         <Form.Item
             name={field.column_name}
@@ -52,7 +53,7 @@ export default function MetadataFields({ metadata, mode = 'create', section, fie
                                 {({ getFieldsValue }) => {
                                     const values = getFieldsValue(true);
                                     if (!conditionMet(config.visibleWhen, values)) return null;
-                                    return <FieldItem {...itemProps} rules={fieldRules(field, values)} />;
+                                    return <FieldItem {...itemProps} rules={fieldRules(field, values)} values={values} />;
                                 }}
                             </Form.Item>
                         ) : (

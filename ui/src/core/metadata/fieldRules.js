@@ -23,6 +23,23 @@ export function conditionMet(condition, values) {
 
 export const fieldLabel = (field) => field.col_real_name || field.column_name;
 
+// What a row of a list or groupList cannot hold (the server drops them too).
+export const NOT_IN_ROWS = new Set(["list", "groupList", "file", "image", "primaryKey", "generatedId", "password"]);
+export const rowFieldsOf = (fields) => (Array.isArray(fields) ? fields : [])
+  .filter((field) => field?.column_name && !NOT_IN_ROWS.has(field.type));
+
+// A list field's rows, whether stored as JSON text or already parsed.
+export function parseRows(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 // The fields a form shows: visible in forms, never the primary key.
 export function formFieldsOf(metadata, { fields, section } = {}) {
   return (metadata?.fields ?? []).filter((field) => Number(field.form_visible) === 1

@@ -9,7 +9,7 @@ const isBlank = (value) => value === undefined || value === null || value === ''
 
 function displayValue(field, value) {
     const definition = getFieldType(field.type);
-    return definition.cell(definition.fromForm(value), {}, field);
+    return definition.cell(definition.fromForm(value, field), {}, field);
 }
 
 function StepMark({ step, index, state, resolveIcon }) {
@@ -154,7 +154,8 @@ export default function StepsLayout({ metadata, sections, renderSection, form, m
     const advance = async () => {
         if (!reviewing) {
             try {
-                await form.validateFields(sections[current].fieldNames);
+                // recursive: the rows inside a list field are checked with it.
+                await form.validateFields(sections[current].fieldNames, { recursive: true });
             } catch {
                 return;
             }

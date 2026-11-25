@@ -8,6 +8,7 @@ export const FIELD_TYPE_GROUPS = [
     { label: 'Choices', options: [['switch', 'Yes / no'], ['select', 'Select'], ['multiSelect', 'Several choices'], ['radio', 'Radio'], ['checkboxGroup', 'Checkboxes']] },
     { label: 'From another table', options: [['lookup', 'Lookup'], ['multiLookup', 'Several from lookup']] },
     { label: 'Files', options: [['image', 'Image'], ['file', 'File'], ['icon', 'Icon']] },
+    { label: 'Repeating', options: [['list', 'List (repeating rows)'], ['groupList', 'Grouped list']] },
     { label: 'System', options: [['primaryKey', 'Primary key'], ['generatedId', 'Generated ID']] },
 ].map((group) => ({ label: group.label, options: group.options.map(([value, label]) => ({ value, label })) }));
 
@@ -15,6 +16,7 @@ const TYPE_LABELS = Object.fromEntries(FIELD_TYPE_GROUPS.flatMap((group) => grou
 export const typeLabel = (type) => TYPE_LABELS[type] ?? type;
 export const OPTION_TYPES = new Set(['select', 'multiSelect', 'radio', 'checkboxGroup']);
 export const LOOKUP_TYPES = new Set(['lookup', 'multiLookup']);
+export const LIST_TYPES = new Set(['list', 'groupList']);
 export const NUMBER_TYPES = new Set(['integer', 'number', 'money', 'percent', 'duration']);
 
 export const WIDTHS = [

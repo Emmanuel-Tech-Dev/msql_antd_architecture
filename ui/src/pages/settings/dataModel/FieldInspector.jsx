@@ -1,6 +1,8 @@
-import { Button, Checkbox, Input, InputNumber, Segmented, Select, Switch } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { FIELD_TYPE_GROUPS, LOOKUP_TYPES, NUMBER_TYPES, OPTION_TYPES, WIDTHS } from './fieldCatalogue';
+import { useState } from 'react';
+import { Button, Checkbox, Input, InputNumber, Segmented, Select, Switch, Tabs } from 'antd';
+import { ArrowDownOutlined, ArrowLeftOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { NOT_IN_ROWS } from '../../../core/metadata/fieldRules';
+import { FIELD_TYPE_GROUPS, LIST_TYPES, LOOKUP_TYPES, NUMBER_TYPES, OPTION_TYPES, WIDTHS, typeLabel } from './fieldCatalogue';
 import { Eyebrow } from './dataModelShared';
 
 const RULES = [
@@ -49,8 +51,123 @@ function ConditionEditor({ label, condition, onChange, otherFields }) {
     );
 }
 
-// Settings of one field in the form designer.
-export default function FieldInspector({ field, sections, lookups, permissions, otherFields, onChange }) {
+const ROW_TYPE_GROUPS = FIELD_TYPE_GROUPS
+    .map((group) => ({ ...group, options: group.options.filter((option) => !NOT_IN_ROWS.has(option.value)) }))
+    .filter((group) => group.options.length);
+const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// The fields of each row of a list (or of a groupList's groups or items).
+// Each one is edited with the same inspector as a table field.
+function RowFieldsEditor({ title, fields, onChange, lookups, permissions }) {
+    const [open, setOpen] = useState(null);
+    const rowFields = fields ?? [];
+    const update = (index, next) => onChange(rowFields.map((rowField, at) => (at === index ? next : rowField)));
+    const move = (index, step) => {
+        const next = [...rowFields];
+        [next[index], next[index + step]] = [next[index + step], next[index]];
+        onChange(next);
+    };
+    const addField = () => {
+        let number = rowFields.length + 1;
+        while (rowFields.some((rowField) => rowField.column_name === `field_${number}`)) number += 1;
+        onChange([...rowFields, { column_name: `field_${number}`, col_real_name: `Field ${number}`, type: 'text', required: 0, config: null }]);
+        setOpen(rowFields.length);
+    };
+
+    if (open !== null && rowFields[open]) {
+        return (
+            <div className="flex flex-col gap-3 rounded-[calc(var(--app-radius,6px)*2)] border border-[var(--color-border)] p-3">
+                <Button type="link" className="!self-start !px-0" icon={<ArrowLeftOutlined />} onClick={() => setOpen(null)}>{title}</Button>
+                <FieldInspector inRow field={rowFields[open]} lookups={lookups} permissions={permissions} sections={[]}
+                    otherFields={rowFields.filter((_, at) => at !== open)} onChange={(next) => update(open, next)} />
+            </div>
+        );
+    }
+    return (
+        <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-semibold">{title}</span>
+            {rowFields.map((rowField, index) => (
+                <div key={`${rowField.column_name}-${index}`} className="flex items-center gap-1 rounded-[calc(var(--app-radius,6px)*1.5)] border border-[var(--color-border)] py-1 pl-2.5 pr-1">
+                    <button type="button" className="flex min-w-0 grow cursor-pointer flex-col border-0 bg-transparent p-0 text-left" onClick={() => setOpen(index)}>
+                        <strong className="truncate text-[13px]">{rowField.col_real_name || rowField.column_name}{Number(rowField.required) === 1 ? ' *' : ''}</strong>
+                        <span className="truncate font-[var(--font-mono)] text-[11.5px] text-[var(--color-text-secondary)]">{rowField.column_name} · {typeLabel(rowField.type)}</span>
+                    </button>
+                    <Button type="text" size="small" aria-label={`Move ${rowField.column_name} up`} icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => move(index, -1)} />
+                    <Button type="text" size="small" aria-label={`Move ${rowField.column_name} down`} icon={<ArrowDownOutlined />} disabled={index === rowFields.length - 1} onClick={() => move(index, 1)} />
+                    <Button type="text" size="small" aria-label={`Remove ${rowField.column_name}`} icon={<DeleteOutlined />} onClick={() => onChange(rowFields.filter((_, at) => at !== index))} />
+                </div>
+            ))}
+            {!rowFields.length && <span className="text-[12.5px] text-[var(--color-text-secondary)]">No fields yet: a row needs at least one.</span>}
+            <Button type="dashed" icon={<PlusOutlined />} onClick={addField}>Add field</Button>
+        </div>
+    );
+}
+
+// Rows: labels and how many (a list's rows, a groupList's groups or items).
+function RowSettings({ config, onChange, unit }) {
+    return (
+        <div className="grid grid-cols-2 gap-2.5">
+            <Labelled label={`${unit} label`}><Input placeholder={unit} value={config.rowLabel} onChange={(event) => onChange('rowLabel', event.target.value || undefined)} /></Labelled>
+            <Labelled label="Add button"><Input placeholder={`Add ${(config.rowLabel ?? unit).toLowerCase()}`} value={config.addLabel} onChange={(event) => onChange('addLabel', event.target.value || undefined)} /></Labelled>
+            <Labelled label="At least"><InputNumber className="!w-full" min={0} value={config.minRows} onChange={(value) => onChange('minRows', value ?? undefined)} /></Labelled>
+            <Labelled label="At most"><InputNumber className="!w-full" min={1} value={config.maxRows} onChange={(value) => onChange('maxRows', value ?? undefined)} /></Labelled>
+        </div>
+    );
+}
+
+function ListSettings({ field, config, setConfig, lookups, permissions }) {
+    const children = config.children ?? {};
+    const setChildren = (key, value) => {
+        const next = { key: children.key ?? 'items', ...children, [key]: value };
+        if (value === undefined) delete next[key];
+        setConfig('children', next);
+    };
+    return (
+        <div className="flex flex-col gap-3 rounded-[calc(var(--app-radius,6px)*2)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-3">
+            <div className="flex flex-col gap-1.5 text-[13px] font-semibold">Row style
+                <Segmented block value={config.display ?? 'table'} onChange={(display) => setConfig('display', display === 'table' ? undefined : display)}
+                    options={[{ value: 'table', label: 'Table' }, { value: 'cards', label: 'Cards' }]} />
+                <span className="text-[12.5px] font-normal text-[var(--color-text-secondary)]">Phones always show cards. Stored as JSON in one column.</span>
+            </div>
+            {field.type === 'list' ? (
+                <>
+                    <RowSettings config={config} onChange={setConfig} unit="Row" />
+                    <RowFieldsEditor title="Row fields" fields={config.fields} onChange={(fields) => setConfig('fields', fields)} lookups={lookups} permissions={permissions} />
+                </>
+            ) : (
+                <Tabs size="small" items={[
+                    {
+                        key: 'groups', label: 'Group fields',
+                        children: (
+                            <div className="flex flex-col gap-3">
+                                <RowSettings config={config} onChange={setConfig} unit="Group" />
+                                <RowFieldsEditor title="Group fields" fields={config.fields} onChange={(fields) => setConfig('fields', fields)} lookups={lookups} permissions={permissions} />
+                            </div>
+                        ),
+                    },
+                    {
+                        key: 'items', label: `Inner list · ${children.key ?? 'items'}`,
+                        children: (
+                            <div className="flex flex-col gap-3">
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    <Labelled label="List label"><Input placeholder="Items" value={children.label} onChange={(event) => setChildren('label', event.target.value || undefined)} /></Labelled>
+                                    <Labelled label="Stored under" hint="Key inside each group"><Input value={children.key ?? 'items'}
+                                        onChange={(event) => KEY_PATTERN.test(event.target.value) && setChildren('key', event.target.value)} /></Labelled>
+                                </div>
+                                <RowSettings config={children} onChange={setChildren} unit="Item" />
+                                <RowFieldsEditor title="Item fields" fields={children.fields} onChange={(fields) => setChildren('fields', fields)} lookups={lookups} permissions={permissions} />
+                            </div>
+                        ),
+                    },
+                ]} />
+            )}
+        </div>
+    );
+}
+
+// Settings of one field in the form designer. `inRow`: a field inside a
+// list's row, which has no table-level settings (visibility, section, access).
+export default function FieldInspector({ field, sections, lookups, permissions, otherFields, onChange, inRow = false }) {
     const config = field.config ?? {};
     const set = (changes) => onChange({ ...field, ...changes });
     const setConfig = (key, value) => {
@@ -71,7 +188,15 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
                 <strong className="font-[var(--font-heading)] text-[17px] font-semibold">{field.col_real_name || field.column_name}</strong>
             </div>
             <Labelled label="Label"><Input value={field.col_real_name} onChange={(event) => set({ col_real_name: event.target.value })} /></Labelled>
-            <Labelled label="Field type"><Select value={field.type} options={FIELD_TYPE_GROUPS} onChange={(type) => set({ type })} disabled={isKey} /></Labelled>
+            {inRow && (
+                <Labelled label="Key" hint="Name of this value inside each row: letters, digits and _">
+                    <Input value={field.column_name} onChange={(event) => KEY_PATTERN.test(event.target.value) && set({ column_name: event.target.value })} />
+                </Labelled>
+            )}
+            <Labelled label="Field type"><Select value={field.type} options={inRow ? ROW_TYPE_GROUPS : FIELD_TYPE_GROUPS} onChange={(type) => set({ type })} disabled={isKey} /></Labelled>
+            {inRow ? (
+                <Toggle label="Required" checked={Number(field.required) === 1} onChange={(on) => set({ required: on ? 1 : 0 })} />
+            ) : (
             <div className="grid grid-cols-2 gap-2.5">
                 <Toggle label="In the form" checked={Number(field.form_visible) === 1} disabled={isKey} onChange={(on) => set({ form_visible: on ? 1 : 0 })} />
                 <Toggle label="In the list" checked={Number(field.list_visible) === 1} onChange={(on) => set({ list_visible: on ? 1 : 0 })} />
@@ -79,10 +204,11 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
                 <Toggle label="Editable" checked={Number(field.editable) !== 0} disabled={isKey} onChange={(on) => set({ editable: on ? 1 : 0 })} />
                 <Toggle label="Read-only" checked={Number(field.disabled) === 1} disabled={isKey} onChange={(on) => set({ disabled: on ? 1 : 0 })} />
             </div>
+            )}
             <div className="flex flex-col gap-1.5 text-[13px] font-semibold">Width
                 <Segmented block value={Number(field.col_span) || 24} onChange={(col_span) => set({ col_span })} options={WIDTHS} />
             </div>
-            {sections.length > 0 && (
+            {!inRow && sections.length > 0 && (
                 <Labelled label="Section">
                     <Select allowClear placeholder="No section" value={field.section_key ?? undefined} onChange={(section_key) => set({ section_key: section_key ?? null })}
                         options={sections.map((section) => ({ value: section.key, label: section.title || section.key }))} />
@@ -92,6 +218,9 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
             <Labelled label="Help text"><Input.TextArea autoSize={{ minRows: 2 }} value={config.helpText} onChange={(event) => setConfig('helpText', event.target.value)} /></Labelled>
             <Labelled label="Default for new records"><Input value={config.default} onChange={(event) => setConfig('default', event.target.value)} /></Labelled>
 
+            {LIST_TYPES.has(field.type) && !inRow && (
+                <ListSettings field={field} config={config} setConfig={setConfig} lookups={lookups} permissions={permissions} />
+            )}
             {OPTION_TYPES.has(field.type) && (
                 <div className="flex flex-col gap-2">
                     <span className="text-[13px] font-semibold">Options</span>
@@ -149,6 +278,7 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
                 <Button type="dashed" icon={<PlusOutlined />} onClick={() => setConfig('rules', [...rules, { rule: 'minLength', value: 3 }])}>Add rule</Button>
             </div>
 
+            {!inRow && (
             <div className="flex flex-col gap-2.5 rounded-[calc(var(--app-radius,6px)*2)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-3">
                 <span className="text-[13px] font-semibold">Access</span>
                 {[['readPermission', 'Who can see it', 'Everyone who can read the table'], ['writePermission', 'Who can change it', 'Same as who can see it']].map(([key, label, empty]) => (
@@ -161,6 +291,7 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
                     Enforced by the server: without the permission the field is left out of records, forms and lists, or shown read-only. Add permissions on the Permissions page and give them to roles.
                 </span>
             </div>
+            )}
 
             <ConditionEditor label="Show this field when" condition={config.visibleWhen} otherFields={otherFields} onChange={(value) => setConfig('visibleWhen', value)} />
             <ConditionEditor label="Required when" condition={config.requiredWhen} otherFields={otherFields} onChange={(value) => setConfig('requiredWhen', value)} />

@@ -154,20 +154,6 @@ for (const table of defaultTables) {
       description: `Bulk create ${table} records`,
     },
     {
-      permission: permCreate,
-      resource: `create:${table}:file`,
-      path: `/api/${table}/file`,
-      method: "POST",
-      description: `Create ${table} with file`,
-    },
-    {
-      permission: permCreate,
-      resource: `create:${table}:upload_bulk`,
-      path: `/api/${table}/upload_bulk`,
-      method: "POST",
-      description: `Bulk upload files for ${table}`,
-    },
-    {
       permission: permUpdate,
       resource: `update:${table}:by_id`,
       path: `/api/${table}/:id`,

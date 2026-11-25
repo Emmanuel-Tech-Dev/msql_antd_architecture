@@ -99,17 +99,8 @@ const mysqlOrmProvider = (baseUrl) => ({
     }
   },
 
-  create: async ({ resource, variables, meta }) => {
+  create: async ({ resource, variables }) => {
     try {
-      if (meta?.mysql?.hasFile) {
-        const { data } = await apiClient.post(
-          joinUrl(baseUrl, `api/${resource}/file`),
-          variables,
-          { headers: { "Content-Type": "multipart/form-data" } },
-        );
-        return normalizeRecordResponse(data);
-      }
-
       const { data } = await apiClient.post(
         joinUrl(baseUrl, `api/${resource}`),
         variables,

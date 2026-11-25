@@ -6,6 +6,8 @@ import UploadField from '../../components/metadata/UploadField';
 import ChoiceGroup from '../../components/metadata/ChoiceGroup';
 import IconSelect from '../../components/metadata/IconSelect';
 import IconCell from '../../components/metadata/IconCell';
+import ListField, { ListCell } from '../../components/metadata/ListField';
+import { parseRows, rowFieldsOf } from './fieldRules';
 
 // One definition per field type, shared by MetadataForm (input, value
 // conversion) and MetadataTable (cell). Built-in types are registered the
@@ -21,6 +23,9 @@ import IconCell from '../../components/metadata/IconCell';
 // display "chips" or "cards" (an option may carry a description for cards);
 // money takes currency ("GHS") as a prefix.
 // createDefault(): value for a new record when the field has no default
+// renderItem({ field, disabled, required }): renders its own Form.Item tree
+//   instead of input() (list and groupList, whose rows are form items)
+// toForm and fromForm also receive the field, for types that need its config.
 
 const registry = new Map();
 
@@ -55,6 +60,29 @@ registerFieldType('textarea', {
   input: ({ disabled, placeholder, field }) => <Input.TextArea disabled={disabled} placeholder={placeholder} autoSize={{ minRows: field.config?.rows ?? 3, maxRows: 10 }} />,
 });
 registerFieldType('richText', { ...registry.get('textarea') });
+// Each row through its fields' own conversions (dates become dayjs and back);
+// keys that are not row fields are dropped.
+function convertRows(field, value, direction) {
+  const config = field?.config ?? {};
+  const convertRow = (fields, row) => Object.fromEntries(rowFieldsOf(fields)
+    .filter((rowField) => row && Object.hasOwn(row, rowField.column_name))
+    .map((rowField) => [rowField.column_name, getFieldType(rowField.type)[direction](row[rowField.column_name], rowField)]));
+  const childKey = config.children?.key || 'list';
+  return parseRows(value).map((row) => (field?.type === 'groupList'
+    ? { ...convertRow(config.fields, row), [childKey]: parseRows(row?.[childKey]).map((item) => convertRow(config.children?.fields, item)) }
+    : convertRow(config.fields, row)));
+}
+const repeating = {
+  fullWidth: true,
+  renderItem: ({ field, disabled, required }) => <ListField field={field} disabled={disabled} required={required} />,
+  input: () => null,
+  toForm: (value, field) => convertRows(field, value, 'toForm'),
+  fromForm: (value, field) => convertRows(field, value, 'fromForm'),
+  cell: (value, record, field) => <ListCell value={value} field={field} />,
+};
+registerFieldType('list', repeating);
+registerFieldType('groupList', repeating);
+
 registerFieldType('icon', {
   input: ({ disabled, placeholder }) => <IconSelect disabled={disabled} placeholder={placeholder} />,
   toForm: (value) => blankToUndefined(value),
