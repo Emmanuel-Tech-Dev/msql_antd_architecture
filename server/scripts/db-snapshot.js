@@ -82,7 +82,9 @@ async function main() {
     rows.tables_metadata = rows.tables_metadata.filter((row) => described(row.table_name));
     rows.metadata_lookups = rows.metadata_lookups.filter((row) => described(row.source_table));
 
-    const applied = new Set((await query("SELECT migration_name AS name FROM framework_schema_migrations")).map((row) => row.name));
+    // Framework migrations only; a table from before two sources has no `source` column.
+    const hasSource = (await query("SELECT COUNT(*) AS n FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'framework_schema_migrations' AND column_name = 'source'"))[0].n > 0;
+    const applied = new Set((await query(`SELECT migration_name AS name FROM framework_schema_migrations${hasSource ? " WHERE source = 'framework'" : ""}`)).map((row) => row.name));
     const included = fs.readdirSync(MIGRATIONS).filter((file) => file.endsWith(".sql") && applied.has(file)).sort();
 
     const lines = [

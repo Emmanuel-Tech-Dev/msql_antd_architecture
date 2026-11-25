@@ -37,6 +37,7 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 | SERVICE_NAME | OTP/service display name |
 | RATE_LIMIT_PER_IP / RATE_LIMIT_PER_USER | Requests per 15 minutes per address (all traffic, including sign-in; default 3000) and per signed-in user (default 500). Refusals are 429 ERR_TOO_MANY_REQUESTS |
 | TRUST_PROXY | Behind nginx or a load balancer: how many proxies to trust (e.g. 1), so limits and logs see the visitor's address instead of the proxy's |
+| MIGRATIONS_PATH | The project's own migrations folder (its tables, its rows). Unset: the project has none |
 | SETUP_ADMIN_EMAIL / SETUP_ADMIN_NAME | Fresh install only: the first administrator that npm run db:setup creates |
 
 ## Fresh install
@@ -51,11 +52,22 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 db:setup refuses to run if the database already has framework tables. Existing installs update with npm run migrate. After adding framework migrations, refresh the snapshot with npm run db:snapshot (it copies only framework rows: no users, logs, backups, private settings or project tables) and commit it with the migrations.
 :::
 
+## Migrations
+
+| Source | Folder | Numbered | Recorded as |
+| --- | --- | --- | --- |
+| Framework | server/resources/migrations (ships with the framework) | 001, 002, … | framework |
+| Project | MIGRATIONS_PATH (the project's own folder) | 001, 002, … independently of the framework | project |
+
+:::note How npm run migrate works
+Pending framework migrations run first, then the project's, each in number order, and each is recorded in framework_schema_migrations with its source and checksum. The same number may appear in both sources. A recorded migration whose file has changed stops the run. To run one migration: node scripts/run-migration.js 012_invoices.sql, or project:012_invoices.sql when both sources have that name. An install from before two sources is upgraded by the first run: its records become framework.
+:::
+
 ## Deployment sequence
 
 1. **Back up** — Create and verify a database backup before schema or ACL changes.
 2. **Build artifacts** — Run server tests and the UI production build in a clean environment.
-3. **Apply migrations** — Run ordered migrations once against the target database and record the release.
+3. **Apply migrations** — npm run migrate: pending framework migrations first, then the project's, each recorded with its source.
 4. **Deploy server** — Load secrets from the environment, start under a process manager, and wait for the startup log.
 5. **Deploy UI** — Serve Vite’s dist directory behind HTTPS with history fallback to index.html.
 6. **Smoke test** — Test login, refresh, the first authorized route, a list, a form lookup, an ACL change, logs, and backup metadata.

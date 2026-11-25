@@ -36,7 +36,7 @@ The server is a CommonJS Express application. createServer(options) in createSer
 | publicRoutes | Route classes that answer without a token | Before the token check (keep them few: health checks, webhooks with their own signature check) |
 | beforeAuth / afterAuth | Express middleware | Before the token check / after authorization, before any route |
 | policies | ABAC policies ({ id, description, evaluate }) | Added to the framework's engine; deny-only, like the core policies |
-| paths | { logs, backups, migrations } folders | Default: LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the framework's resources folder |
+| paths | { logs, backups, migrations } folders | Default: LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the framework's resources folder. migrations is the project's own folder; the framework's migrations always come from the framework |
 | port | A port number | Default: PORT, then 3000 |
 
 ```js server/index.js

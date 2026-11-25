@@ -10,15 +10,11 @@ require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
-const { execFileSync } = require("child_process");
 const mysql = require("mysql2/promise");
+const { FRAMEWORK_MIGRATIONS, ensureTrackingTable, recordMigration, runMigrations } = require("../core/lib/migrationRunner");
 
 const SNAPSHOT = path.resolve(__dirname, "../resources/schema/framework_schema.sql");
-const MIGRATIONS = path.resolve(__dirname, "../resources/migrations");
 const SENTINEL_TABLES = ["admin", "admin_roles", "tables_metadata", "framework_schema_migrations"];
-
-const checksum = (contents) => crypto.createHash("sha256").update(contents, "utf8").digest("hex");
 
 async function main() {
   const email = String(process.env.SETUP_ADMIN_EMAIL ?? "").trim();
@@ -48,28 +44,18 @@ async function main() {
     console.log(`Loading the framework schema into ${process.env.DATABASE_NAME}…`);
     await connection.query(snapshot);
 
-    // The snapshot already contains these migrations' effects.
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS framework_schema_migrations (
-        migration_name VARCHAR(255) NOT NULL PRIMARY KEY,
-        checksum CHAR(64) NOT NULL,
-        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB
-    `);
+    // The snapshot already contains these framework migrations' effects.
+    await ensureTrackingTable(connection);
     for (const file of included) {
-      const migrationPath = path.join(MIGRATIONS, file);
-      if (!fs.existsSync(migrationPath)) continue;
-      await connection.execute(
-        "INSERT INTO framework_schema_migrations (migration_name, checksum) VALUES (?, ?)",
-        [file, checksum(fs.readFileSync(migrationPath, "utf8"))],
-      );
+      const migrationPath = path.join(FRAMEWORK_MIGRATIONS, file);
+      if (fs.existsSync(migrationPath)) await recordMigration(connection, { source: "framework", file, path: migrationPath });
     }
+
+    // Framework migrations newer than the snapshot, then the project's.
+    await runMigrations(connection);
   } finally {
     await connection.end();
   }
-
-  // Migrations newer than the snapshot.
-  execFileSync(process.execPath, [path.join(__dirname, "run-migration.js")], { stdio: "inherit" });
 
   // Created the same way the Users page creates accounts.
   const AuthService = require("../core/lib/authService");

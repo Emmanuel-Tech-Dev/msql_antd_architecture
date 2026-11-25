@@ -13,7 +13,8 @@
 //   policies    ABAC policies added to the framework's engine (deny-only)
 //   paths       { logs, backups, migrations } folders; default: the env
 //               variables LOG_PATH, BACKUP_PATH, MIGRATIONS_PATH, then the
-//               framework's own resources folder
+//               framework's own resources folder. `migrations` is the
+//               project's own folder; the framework's stay in the framework
 //   port        default PORT, then 3000
 //
 // Returns { app, server, start }. start() loads settings, starts realtime and

@@ -1,9 +1,12 @@
 const fs = require("fs");
-const path = require("path");
 const admin = require("../core/lib/metadataAdminService");
 const { previewLookup } = require("../core/lib/metadataService");
 
-const MIGRATIONS = process.env.MIGRATIONS_PATH || path.resolve(__dirname, "../resources/migrations");
+const { FRAMEWORK_MIGRATIONS, projectMigrationsDir } = require("../core/lib/migrationRunner");
+
+// A new table belongs to the project: its migration is numbered in the
+// project's folder when there is one.
+const MIGRATIONS = projectMigrationsDir() ?? FRAMEWORK_MIGRATIONS;
 
 // The next free migration number, for the name of a downloaded migration.
 function nextMigrationName(slug) {
