@@ -1,0 +1,14 @@
+{
+  "name": "msql-antd-framework",
+  "private": true,
+  "workspaces": [
+    "packages/framework-ui",
+    "ui"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w ui",
+    "build": "npm run build -w @msql-antd/framework-ui && npm run build -w ui",
+    "test": "npm test -w @msql-antd/framework-ui",
+    "lint": "npm run lint -w @msql-antd/framework-ui -w ui"
+  }
+}

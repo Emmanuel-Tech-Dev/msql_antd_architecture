@@ -26,9 +26,11 @@ The database is authoritative for records, ACL mappings, table metadata, browser
 
 ```text
 .
-├── server/       Express API, MySQL query layer, security, migrations, operations
-├── ui/           React application, providers, hooks, pages, components, design system
-└── README.md     Repository entry point
+├── server/                  Express API, MySQL query layer, security, migrations, operations
+├── packages/framework-ui/   @msql-antd/framework-ui: providers, hooks, pages, components, design system
+├── ui/                      Example app that uses the package (main.jsx and two sample pages)
+├── package.json             npm workspace for the UI package and the example app
+└── README.md                Repository entry point
 ```
 
 Important server locations:
@@ -43,14 +45,15 @@ Important server locations:
 
 Important UI locations:
 
-- `ui/src/main.jsx` — application provider composition.
-- `ui/src/App.jsx` — public and protected browser routes.
-- `ui/src/core/provider` — framework, data, auth, access, bootstrap, and resource contracts.
-- `ui/src/core/hooks` — provider-aligned data, auth, and access hooks.
-- `ui/src/hooks` — record forms, tables, layout, persistence, uploads, and UI utilities.
-- `ui/src/components` — layout, page headers, access-management, tables, and shared UI.
-- `ui/src/pages` — authentication, administration, settings, analytics, and public documentation.
-- `ui/src/utils/ThemeProvider.jsx` — public/workspace appearance scopes and shared design tokens.
+- `packages/framework-ui/src/index.js` — everything a project can import from `@msql-antd/framework-ui`.
+- `packages/framework-ui/src/FrameworkApp.jsx` — provider composition and the framework's public and protected routes.
+- `ui/src/main.jsx` — the example project: renders `<FrameworkApp config resources routes>`.
+- `packages/framework-ui/src/core/provider` — framework, data, auth, access, bootstrap, and resource contracts.
+- `packages/framework-ui/src/core/hooks` — provider-aligned data, auth, and access hooks.
+- `packages/framework-ui/src/hooks` — record forms, tables, layout, persistence, uploads, and UI utilities.
+- `packages/framework-ui/src/components` — layout, page headers, access-management, tables, and shared UI.
+- `packages/framework-ui/src/pages` — authentication, administration, settings, analytics, and public documentation.
+- `packages/framework-ui/src/utils/ThemeProvider.jsx` — public/workspace appearance scopes and shared design tokens.
 
 ## Requirements
 
@@ -106,10 +109,9 @@ npm run migrate
 npm run dev
 ```
 
-UI:
+UI (from the repository root; installs the package and the example app together):
 
 ```bash
-cd ui
 npm install
 npm run dev
 ```
@@ -137,7 +139,7 @@ Migration files are ordered in `server/resources/migrations`. Back up the target
 cd server
 npm test
 
-cd ../ui
+cd ..
 npm test
 npm run lint
 npm run build

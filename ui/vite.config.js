@@ -1,20 +1,22 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// https://vite.dev/config/
+const frameworkSource = fileURLToPath(new URL("../packages/framework-ui/src", import.meta.url));
+
+// The example app runs the framework from its source, so edits reload instantly.
+// A real project installs @msql-antd/framework-ui and uses its built dist files.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Route-level lazy loading keeps application chunks below this budget while
-  // allowing the shared React/Ant Design runtime to remain cacheable.
+  resolve: {
+    alias: [
+      { find: /^@msql-antd\/framework-ui\/styles\.css$/, replacement: `${frameworkSource}/styles.css` },
+      { find: /^@msql-antd\/framework-ui$/, replacement: `${frameworkSource}/index.js` },
+    ],
+  },
   build: {
     chunkSizeWarningLimit: 800,
-  },
-  test: {
-    environment: "jsdom",
-    setupFiles: ["./src/test/setup.js"],
-    include: ["src/**/*.test.{js,jsx}"],
-    css: false,
   },
   optimizeDeps: {
     include: [
@@ -23,7 +25,6 @@ export default defineConfig({
       "@tiptap/extension-image",
       "@tiptap/extension-text-align",
       "@tiptap/extensions",
-      "@xyflow/react",
     ],
   },
 });

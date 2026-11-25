@@ -1,6 +1,5 @@
 import React from 'react'
-import MetadataForm from '../../components/metadata/MetadataForm'
-import MetadataFields from '../../components/metadata/MetadataFields'
+import { MetadataForm, MetadataFields } from '@msql-antd/framework-ui'
 
 const TestFramework = () => {
     return (

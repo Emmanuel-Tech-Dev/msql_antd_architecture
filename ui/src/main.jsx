@@ -1,73 +1,31 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
-import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider } from './utils/ThemeProvider.jsx'
-import FrameworkProvider from './core/provider/FrameworkProvider.jsx'
-import mysqlOrmProvider from './core/provider/mysqlOrmProvider.js'
-import mysqlOrmAuthProvider from './core/provider/mysqlOrmAuthProvider.js'
-import SocketProvider from './core/realtime/SocketProvider.jsx'
-import { GoogleOAuthProvider } from '@react-oauth/google'
+import { Route } from 'react-router-dom'
+import { FrameworkApp } from '@msql-antd/framework-ui'
+import '@msql-antd/framework-ui/styles.css'
+const Home = lazy(() => import('./pages/Test.jsx'))
+const MetadataPlayground = lazy(() => import('./pages/admin/Test.jsx'))
 
-import { App as AntdApp } from "antd";
+const config = {
+  apiUrl: import.meta.env.VITE_API_URL,
+  socketUrl: import.meta.env.VITE_SOCKET_URL,
+  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+  mapProvider: import.meta.env.VITE_MAP_PROVIDER,
+  mapboxAccessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN,
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  googleMapId: import.meta.env.VITE_GOOGLE_MAP_ID,
+}
 
-import "antd/dist/antd.css";
-import "antd-distinct-system-css/index.css";
-import "mapbox-gl/dist/mapbox-gl.css";
-import './index.css';
-
-const BASE_URL = import.meta.env.VITE_API_URL;
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-const resources = [
-  {
-    name: 'admin',
-    label: 'Users',
-    permissions: {
-      list: 'read:admin',
-      create: 'create:admin',
-      edit: 'update:admin',
-      delete: 'delete:admin',
-    },
-    meta: {
-      mysql: {
-        tableConfig: {
-          searchable: ['name', 'email'],
-        },
-      },
-    },
-  },
-  {
-    name: 'admin_roles',
-    label: 'Roles',
-    permissions: {
-      list: 'read:admin_roles',
-      create: 'create:admin_roles',
-      edit: 'update:admin_roles',
-      delete: 'delete:admin_roles',
-    },
-    meta: {},
-  },
-];
+const routes = (
+  <>
+    <Route index element={<Home />} />
+    <Route path="home" element={<Home />} />
+    <Route path="testing" element={<MetadataPlayground />} />
+  </>
+)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <ThemeProvider>
-          <AntdApp>
-            <FrameworkProvider
-              dataProvider={mysqlOrmProvider(BASE_URL)}
-              authProvider={mysqlOrmAuthProvider()}
-              resources={resources}
-            >
-              <SocketProvider>
-                <App />
-              </SocketProvider>
-            </FrameworkProvider>
-          </AntdApp>
-        </ThemeProvider>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
+    <FrameworkApp config={config} routes={routes} />
   </StrictMode>,
 )

@@ -1,6 +1,6 @@
 # How the framework works
 
-This is the framework every business system is built on: an Express + MySQL server (`server/`) and a React + antd + Tailwind UI (`ui/`). This document follows one request from the browser to the database and back, then explains the main design decisions and their trade-offs.
+This is the framework every business system is built on: an Express + MySQL server (`server/`) and a React + antd + Tailwind UI (the package `@msql-antd/framework-ui` in `packages/framework-ui/`, used by the example app in `ui/`). This document follows one request from the browser to the database and back, then explains the main design decisions and their trade-offs.
 
 Read it in order the first time. Each section names the files to open if you want to see the code.
 
@@ -10,7 +10,7 @@ Read it in order the first time. Each section names the files to open if you wan
 
 ```mermaid
 flowchart LR
-    subgraph Browser["ui/ (React)"]
+    subgraph Browser["framework-ui (React)"]
         Page["Page<br/>(MetadataTable, MetadataForm, hand-built screens)"]
         Hooks["Hooks + React Query<br/>(cache, refetch)"]
         DP["Data provider<br/>mysqlOrmProvider + apiClient"]
@@ -46,9 +46,9 @@ Take a user who opens the Taxes page and saves an edit: `PUT /api/taxes/7`.
 
 | Step | What happens | File |
 |---|---|---|
-| 1 | The page calls a hook, for example `useUpdate`, which calls the **data provider**. | `ui/src/core/hooks/data/` |
-| 2 | The data provider turns "update taxes 7" into an HTTP call. | `ui/src/core/provider/mysqlOrmProvider.js` |
-| 3 | `apiClient` (axios) attaches `Authorization: Bearer <access token>`. The token is kept in `sessionStorage`. | `ui/src/services/apiClient.js` |
+| 1 | The page calls a hook, for example `useUpdate`, which calls the **data provider**. | `packages/framework-ui/src/core/hooks/data/` |
+| 2 | The data provider turns "update taxes 7" into an HTTP call. | `packages/framework-ui/src/core/provider/mysqlOrmProvider.js` |
+| 3 | `apiClient` (axios) attaches `Authorization: Bearer <access token>`. The token is kept in `sessionStorage`. | `packages/framework-ui/src/services/apiClient.js` |
 | 4 | If the server answers **401** (access token expired), `apiClient` calls `/auth/refresh` once, queues any other requests that fail meanwhile, then replays them all with the new token. | same file |
 
 ### On the server
@@ -97,7 +97,7 @@ sequenceDiagram
 - Google sign-in and email OTP are optional and controlled by settings.
 - **`token_version`** is the kill switch. Raising it in `admin_credentials` invalidates every token that user holds.
 
-Files: `route/authRoute.js`, `core/lib/authService.js`, `ui/src/core/provider/mysqlOrmAuthProvider.js`, `ui/src/store/authStore.js`.
+Files: `route/authRoute.js`, `core/lib/authService.js`, `packages/framework-ui/src/core/provider/mysqlOrmAuthProvider.js`, `packages/framework-ui/src/store/authStore.js`.
 
 ---
 
@@ -131,7 +131,7 @@ flowchart LR
 
 **Pages** use the same data. `/auth/auth_user` returns the browser routes the user may open. The UI's `useRouteGuard` only lets you onto a page that's in that list, and the sidebar is built from it. Hiding a page is a convenience; the API behind it is still protected by step 2.
 
-Files: `core/middleware/authorization.js`, `core/lib/authorityService.js`, `core/lib/authorizationPolicy.js`, `core/lib/abacEngine.js`, `core/lib/coreAbacPolicies.js`, `route/acessRoute.js` (managing roles and permissions), `ui/src/core/hooks/access/useRouteGuard.js`.
+Files: `core/middleware/authorization.js`, `core/lib/authorityService.js`, `core/lib/authorizationPolicy.js`, `core/lib/abacEngine.js`, `core/lib/coreAbacPolicies.js`, `route/acessRoute.js` (managing roles and permissions), `packages/framework-ui/src/core/hooks/access/useRouteGuard.js`.
 
 ---
 
@@ -162,7 +162,7 @@ A table can be **described**. Its description lives in four tables:
 
 **The same description drives three things:**
 
-1. **The UI.** `MetadataTable` and `MetadataForm` build the list and the form from `GET /api/v1/metadata/:table`. Field types come from a registry (`ui/src/core/metadata/fieldTypes.jsx`), so a project can add its own with `registerFieldType`. Layouts work the same way (`formLayouts.js`, built-in `steps`).
+1. **The UI.** `MetadataTable` and `MetadataForm` build the list and the form from `GET /api/v1/metadata/:table`. Field types come from a registry (`packages/framework-ui/src/core/metadata/fieldTypes.jsx`), so a project can add its own with `registerFieldType`. Layouts work the same way (`formLayouts.js`, built-in `steps`).
 2. **The server's checks.** `validateRecordAgainstMetadata` (`core/lib/metadataSchema.js`) builds a zod schema from the fields and checks every generic write:
    - types are coerced and unknown columns dropped;
    - required, rules, options, show-when/required-when and lookup values are all checked;
@@ -174,25 +174,25 @@ Tables that aren't described still work through the generic API. They only get t
 
 **The builder** (Settings › Data model, permission `manage:metadata`) edits all of this in the browser: describe a table, design its form and list with a live preview, edit lookups, see versions and restore one, export and import definitions, import records from CSV and write a migration for a new table. The builder never changes the database schema itself; a new table becomes a migration file.
 
-Files: `core/lib/metadataService.js`, `metadataSchema.js`, `metadataAdminService.js`, `metadataScaffold.js`, `route/MetadataRoute.js`, `route/MetadataAdminRoute.js`, `ui/src/components/metadata/`, `ui/src/pages/settings/dataModel/`.
+Files: `core/lib/metadataService.js`, `metadataSchema.js`, `metadataAdminService.js`, `metadataScaffold.js`, `route/MetadataRoute.js`, `route/MetadataAdminRoute.js`, `packages/framework-ui/src/components/metadata/`, `packages/framework-ui/src/pages/settings/dataModel/`.
 
 ---
 
 ## 6. Start-up data and settings
 
-- **Bootstrap registry.** What the UI loads right after sign-in is defined in `framework_bootstrap_profiles` and `framework_bootstrap_datasets`: which tables, columns, filters, sort and maximum rows, optionally per environment and per permission. The browser asks for a *profile* (`authenticated_startup`) and never names tables itself. Results land in the runtime values store (`ui/src/store/values-store`).
+- **Bootstrap registry.** What the UI loads right after sign-in is defined in `framework_bootstrap_profiles` and `framework_bootstrap_datasets`: which tables, columns, filters, sort and maximum rows, optionally per environment and per permission. The browser asks for a *profile* (`authenticated_startup`) and never names tables itself. Results land in the runtime values store (`packages/framework-ui/src/store/values-store`).
 - **System settings.** `SettingsManager` (`core/lib/systemSettings.js`) reads key/value settings from the database and caches them in memory: token lifetimes, sign-in identifiers, open endpoints, OTP and Google switches, backup schedule. Appearance (colours, radius, fonts, dark mode) is a UI setting with its own route (`route/UiSettingsRoute.js`).
 
 ---
 
 ## 7. The UI shell
 
-`ui/src/main.jsx` wraps the app in this provider stack, from the outside in:
+`<FrameworkApp>` (`packages/framework-ui/src/FrameworkApp.jsx`) wraps the app in this provider stack, from the outside in. A project renders it from its own `main.jsx` with `config`, `resources` and `routes`:
 
 ```
 GoogleOAuthProvider → BrowserRouter → ThemeProvider → antd App
   → FrameworkProvider(dataProvider, authProvider, resources)
-      → SocketProvider → App (routes)
+      → SocketProvider → framework routes + the project's routes
 ```
 
 | Piece | Job | File |
@@ -203,14 +203,14 @@ GoogleOAuthProvider → BrowserRouter → ThemeProvider → antd App
 | **Stores** (zustand) | `authStore` (user, roles, permissions), `ResourceProvider` (browser routes and the menu), `values-store` (bootstrap data). | `store/`, `core/provider/` |
 | **React Query** | Caches every server read (`['metadata', table]`, `['auth_user']`, …) and refetches after writes. | `core/queryClient.js`, `core/queryKeys.js` |
 | **Access hooks** | `useCan('update:taxes')` hides buttons the user can't use. Cosmetic only; the server decides. | `core/hooks/access/` |
-| **Layout and routes** | `AppLayout` (sidebar from browser routes, header, profile) plus the route guard. Pages are lazy-loaded in `App.jsx`. | `components/Layout/`, `App.jsx` |
+| **Layout and routes** | `AppLayout` (sidebar from browser routes, header, profile) plus the route guard. Pages are lazy-loaded in `FrameworkApp.jsx`; a project's pages come in through its `routes` prop. | `components/Layout/`, `FrameworkApp.jsx` |
 
 ### Live updates
 
 Two channels push from the server to the browser:
 
-- **Authority events** (Server-Sent Events, `/auth/access-events`). When an admin changes your role, permissions or account status, the server publishes an event. Your browser then re-fetches `auth_user` and bootstrap, so menus and buttons update without signing in again. Files: `core/lib/authorizationEvents.js`, `ui/src/core/hooks/auth/useAuthorizationEvents.js`.
-- **Socket.IO** (`core/realtime/socketServer.js`, `ui/src/core/realtime/SocketProvider.jsx`). An authenticated socket for project features such as notifications or live dashboards.
+- **Authority events** (Server-Sent Events, `/auth/access-events`). When an admin changes your role, permissions or account status, the server publishes an event. Your browser then re-fetches `auth_user` and bootstrap, so menus and buttons update without signing in again. Files: `core/lib/authorizationEvents.js`, `packages/framework-ui/src/core/hooks/auth/useAuthorizationEvents.js`.
+- **Socket.IO** (`core/realtime/socketServer.js`, `packages/framework-ui/src/core/realtime/SocketProvider.jsx`). An authenticated socket for project features such as notifications or live dashboards.
 
 ---
 
@@ -219,11 +219,11 @@ Two channels push from the server to the browser:
 | System | How it works | Files |
 |---|---|---|
 | **Migrations** | Two sources: the framework's (`server/resources/migrations`) and the project's (`MIGRATIONS_PATH`), each numbered `001_…sql` on its own. `npm run migrate` applies pending framework migrations, then the project's, records each with its source and a checksum (an edited old migration stops the run). A fresh install starts from `npm run db:setup`. | `core/lib/migrationRunner.js`, `scripts/run-migration.js`, `scripts/db-setup.js` |
-| **Shared helpers** | General-purpose functions (blank checks, identifiers, names, numbers, dates, JSON, files, clipboard) live in one utilities object per side, not as local copies in each file. Domain rules stay in their own modules; metadata-only helpers live in `fieldRules.js`. | `server/shared/utils/functions.js`, `ui/src/utils/function_utils.js` |
+| **Shared helpers** | General-purpose functions (blank checks, identifiers, names, numbers, dates, JSON, files, clipboard) live in one utilities object per side, not as local copies in each file. Domain rules stay in their own modules; metadata-only helpers live in `fieldRules.js`. | `server/shared/utils/functions.js`, `packages/framework-ui/src/utils/function_utils.js` |
 | **Backups** | Manual and scheduled database backups with history and a SHA-256 checksum. The schedule is checked every 5 minutes, so a backup missed while the server was off runs soon after it starts. | `core/lib/databaseBackupService.js`, `backupHistoryService.js`, `route/BackupRoute.js` |
 | **Logging** | Winston (optionally Logtail): `logger.app`, `logger.error`, `logger.security` (sign-ins, permission changes, metadata saves), plus request logs. | `shared/helpers/logger.js` |
 | **Uploads** | Field uploads go to `/api/v1/uploads/:table/:column`. The field's metadata decides the allowed types and size, and the file's real content type is checked. | `core/lib/uploadServices.js`, `metadataService.uploadFieldFile` |
-| **Tests** | Jest on the server (authorization, ABAC, generic CRUD, metadata); Vitest on the UI (metadata runtime, record form). | `server/tests/`, `ui/src/**/*.test.jsx` |
+| **Tests** | Jest on the server (authorization, ABAC, generic CRUD, metadata); Vitest on the UI (metadata runtime, record form). | `server/tests/`, `packages/framework-ui/src/**/*.test.jsx` |
 
 ---
 
