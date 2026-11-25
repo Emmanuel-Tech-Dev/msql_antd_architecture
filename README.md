@@ -28,7 +28,7 @@ The database is authoritative for records, ACL mappings, table metadata, browser
 .
 ├── packages/framework-server/  @msql-antd/framework-server: Express API, MySQL query layer, security, migrations, operations
 ├── packages/framework-ui/      @msql-antd/framework-ui: providers, hooks, pages, components, design system
-├── packages/create-msql-antd/  The starter: npx create-msql-antd <folder> writes a new project
+├── packages/create/            @msql-antd/create, the starter: npm init @msql-antd <folder>
 ├── server/                     Example project server (index.js and its .env, logs, backups)
 ├── ui/                         Example project UI (main.jsx and two sample pages)
 ├── scripts/dev.js              npm run dev: starts the API and the UI together
@@ -106,10 +106,12 @@ VITE_API_URL=http://localhost:3000
 ## Start a new project
 
 ```bash
-npx create-msql-antd acme-invoices
+npm init @msql-antd acme-invoices
 # or, from this checkout with unreleased changes:
-node packages/create-msql-antd/index.js ../acme-invoices --framework packages
+node packages/create/index.js ../acme-invoices --framework packages
 ```
+
+The packages are private on GitHub Packages: set `GITHUB_TOKEN` (a token with `read:packages`) and add `@msql-antd:registry=https://npm.pkg.github.com` and `//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}` to `~/.npmrc`. See "Create a project" in the in-app docs.
 
 The rest of this README is about working on the framework itself.
 
@@ -130,6 +132,17 @@ Open:
 - Application: `http://localhost:5173/login`
 - Public documentation: `http://localhost:5173/docs`
 - API: `http://localhost:3000`
+
+## Release the packages
+
+All three packages share one version. Raise `version` in `packages/framework-server`, `packages/framework-ui` and `packages/create` (and the starter's template dependencies follow its version), commit, then tag:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The `Release packages` workflow (`.github/workflows/release.yml`) checks the tag matches every version, runs the tests and publishes to GitHub Packages. A new framework migration or a changed option means a new minor version (0.x) with release notes. `npm run release` does the same from your machine if your token has `write:packages`.
 
 ## Database changes
 

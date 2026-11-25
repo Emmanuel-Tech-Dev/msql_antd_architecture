@@ -78,5 +78,13 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.1.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msql-antd/msql_antd_architecture.git",
+    "directory": "packages/framework-server"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }

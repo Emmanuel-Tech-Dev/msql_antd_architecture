@@ -1,0 +1,38 @@
+# Publishes the three packages to GitHub Packages when a version tag is pushed:
+#   git tag v0.1.0 && git push origin v0.1.0
+# The tag must match the version in every package.json.
+name: Release packages
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@msql-antd"
+
+      - name: Check the tag matches the package versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for pkg in packages/framework-server packages/framework-ui packages/create; do
+            version=$(node -p "require('./$pkg/package.json').version")
+            if [ "$version" != "$tag" ]; then echo "$pkg is $version, tag is $tag"; exit 1; fi
+          done
+
+      - run: npm ci
+      - run: npm test
+      - run: npm publish -w @msql-antd/framework-server -w @msql-antd/framework-ui -w @msql-antd/create
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

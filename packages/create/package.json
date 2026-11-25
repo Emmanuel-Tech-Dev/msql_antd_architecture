@@ -1,0 +1,28 @@
+{
+  "name": "@msql-antd/create",
+  "version": "0.1.0",
+  "description": "Creates a new project on the msql-antd framework: npm init @msql-antd <folder>.",
+  "bin": {
+    "create-msql-antd": "index.js"
+  },
+  "files": [
+    "index.js",
+    "template"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "commonjs",
+  "license": "ISC",
+  "scripts": {
+    "test": "node --test create.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msql-antd/msql_antd_architecture.git",
+    "directory": "packages/create"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

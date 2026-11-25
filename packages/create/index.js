@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Creates a new project on the msql-antd framework:
 //
-//   npx create-msql-antd my-project
-//   node create-msql-antd/index.js my-project --framework ../msql_antd_architecture/packages
+//   npm init @msql-antd my-project
+//   node packages/create/index.js my-project --framework ../msql_antd_architecture/packages
 //
 // --framework <folder> links the two packages from a local checkout instead of
 // installing a released version (for trying unreleased framework changes).
@@ -11,8 +11,8 @@ const path = require("path");
 
 const TEMPLATE = path.join(__dirname, "template");
 const VERSION = `^${require("./package.json").version}`;
-// npm leaves .gitignore out of published packages, so the template stores it as _gitignore.
-const RENAMED = { _gitignore: ".gitignore" };
+// npm leaves .gitignore and .npmrc out of published packages, so the template stores them as _gitignore and _npmrc.
+const RENAMED = { _gitignore: ".gitignore", _npmrc: ".npmrc" };
 
 function parseArgs(argv) {
   const args = { target: null, framework: null };
@@ -53,7 +53,7 @@ function copyTemplate(from, to, values) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.target) {
-    console.log("Usage: create-msql-antd <project-folder> [--framework <local packages folder>]");
+    console.log("Usage: npm init @msql-antd <project-folder> [-- --framework <local packages folder>]");
     process.exitCode = args.help ? 0 : 1;
     return;
   }
@@ -78,6 +78,7 @@ function main() {
 
 Next:
   cd ${relative}
+  Set GITHUB_TOKEN (a token with read:packages) if npm install cannot reach @msql-antd packages
   npm install
   Fill in server/.env (database, secrets, SETUP_ADMIN_EMAIL), then:
   npm run db:setup      first time, on an empty database

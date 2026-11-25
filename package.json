@@ -4,7 +4,7 @@
   "workspaces": [
     "packages/framework-ui",
     "packages/framework-server",
-    "packages/create-msql-antd",
+    "packages/create",
     "ui",
     "server"
   ],
@@ -13,9 +13,10 @@
     "dev:ui": "npm run dev -w ui",
     "dev:api": "npm run dev -w server",
     "build": "npm run build -w @msql-antd/framework-ui && npm run build -w ui",
-    "test": "npm test -w @msql-antd/framework-ui -w @msql-antd/framework-server -w create-msql-antd",
+    "test": "npm test -w @msql-antd/framework-ui -w @msql-antd/framework-server -w @msql-antd/create",
     "lint": "npm run lint -w @msql-antd/framework-ui -w ui",
     "migrate": "npm run migrate -w server",
-    "db:setup": "npm run db:setup -w server"
+    "db:setup": "npm run db:setup -w server",
+    "release": "npm test && npm publish -w @msql-antd/framework-server -w @msql-antd/framework-ui -w @msql-antd/create"
   }
 }

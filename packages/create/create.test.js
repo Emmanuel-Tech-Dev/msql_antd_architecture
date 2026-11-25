@@ -21,8 +21,11 @@ test("creates a project with the names, package versions and files filled in", (
   assert.match(read("ui/index.html"), /<title>Acme Invoices<\/title>/);
   assert.ok(fs.existsSync(path.join(target, ".gitignore")));
   assert.ok(!fs.existsSync(path.join(target, "_gitignore")));
+  assert.match(read(".npmrc"), /@msql-antd:registry=https:\/\/npm.pkg.github.com/);
+  assert.match(read(".npmrc"), /_authToken=\$\{GITHUB_TOKEN\}/);
   const files = fs.readdirSync(target, { recursive: true }).filter((file) => fs.statSync(path.join(target, file)).isFile());
   assert.deepEqual(files.filter((file) => read(file).includes("{{")), []);
+  assert.equal(fs.existsSync(path.join(target, "_npmrc")), false);
 });
 
 test("links a local checkout with --framework, and refuses a folder that is not empty", () => {

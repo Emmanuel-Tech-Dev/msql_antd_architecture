@@ -22,7 +22,8 @@
   "scripts": {
     "build": "vite build",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "vite build"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.97.0",
@@ -80,5 +81,13 @@
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1",
     "vitest": "^3.2.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/msql-antd/msql_antd_architecture.git",
+    "directory": "packages/framework-ui"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
