@@ -24,6 +24,7 @@ import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import { Button, Input, Popover, Select, Space, Tooltip } from 'antd';
+import utils from '../../utils/function_utils';
 
 const EMPTY_HTML = '<p></p>';
 const DEFAULT_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -76,23 +77,9 @@ const EDITOR_CONTENT_CLASS = [
     '[&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]',
 ].join(' ');
 
-function normalizeHtml(value) {
-    if (value === null || value === undefined) return '';
-    return String(value);
-}
-
 function editorHtml(editor) {
     if (!editor || editor.isEmpty) return '';
     return editor.getHTML();
-}
-
-function readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('The selected image could not be read.'));
-        reader.readAsDataURL(file);
-    });
 }
 
 function resolveUploadUrl(result) {
@@ -324,7 +311,7 @@ export default function RichTextEditor({
 
     const editor = useEditor({
         extensions,
-        content: normalizeHtml(value ?? initialContent) || EMPTY_HTML,
+        content: utils.asText(value ?? initialContent) || EMPTY_HTML,
         editable,
         immediatelyRender: false,
         editorProps: {
@@ -369,7 +356,7 @@ export default function RichTextEditor({
 
     useEffect(() => {
         if (!editor) return;
-        const nextContent = normalizeHtml(value ?? initialContent);
+        const nextContent = utils.asText(value ?? initialContent);
         const currentContent = editorHtml(editor);
         if (nextContent !== currentContent) {
             editor.commands.setContent(nextContent || EMPTY_HTML, { emitUpdate: false });
@@ -392,7 +379,7 @@ export default function RichTextEditor({
             const result = uploadImage
                 ? await uploadImage(file)
                 : allowBase64Images
-                    ? await readFileAsDataUrl(file)
+                    ? await utils.readFileAsDataUrl(file, 'The selected image could not be read.')
                     : '';
             const url = resolveUploadUrl(result);
             if (!url) throw new Error('The image upload did not return a usable URL.');

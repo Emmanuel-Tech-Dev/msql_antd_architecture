@@ -16,25 +16,6 @@ import utils from '../../utils/function_utils';
 
 const { Text, Title } = Typography;
 
-const number = (value) => Number(value) || 0;
-
-const formatCompactDate = (value) => {
-    const date = new Date(`${value}T00:00:00`);
-    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
-};
-
-const formatFullDate = (value) => {
-    const date = new Date(`${value}T00:00:00`);
-    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
-};
-
-const percent = (part, total) => (total ? Math.round((part / total) * 100) : 0);
-
-const initials = (name, email) => {
-    const values = String(name || email || 'User').trim().split(/\s+/).filter(Boolean);
-    return values.slice(0, 2).map((value) => value[0]).join('').toUpperCase();
-};
-
 const metricCards = [
     { key: 'active_users', label: 'Active accounts', icon: <SafetyCertificateOutlined />, tone: 'success' },
     { key: 'google_linked_users', label: 'Google linked', icon: <GoogleOutlined />, tone: 'accent' },
@@ -59,13 +40,13 @@ export default function UserStatistics() {
 
     const data = statistics.data;
     const overview = data?.overview ?? {};
-    const totalUsers = number(overview.total_users);
-    const activeUsers = number(overview.active_users);
-    const googleLinkedUsers = number(overview.google_linked_users);
-    const passwordEnabledUsers = number(overview.password_enabled_users);
+    const totalUsers = utils.toNumber(overview.total_users);
+    const activeUsers = utils.toNumber(overview.active_users);
+    const googleLinkedUsers = utils.toNumber(overview.google_linked_users);
+    const passwordEnabledUsers = utils.toNumber(overview.password_enabled_users);
 
     const registrations = useMemo(() => {
-        const registrationByDate = new Map((data?.registrations ?? []).map((entry) => [entry.date, number(entry.user_count)]));
+        const registrationByDate = new Map((data?.registrations ?? []).map((entry) => [entry.date, utils.toNumber(entry.user_count)]));
         return Array.from({ length: 30 }, (_, index) => {
             const date = new Date();
             date.setHours(0, 0, 0, 0);
@@ -73,7 +54,7 @@ export default function UserStatistics() {
             const key = date.toISOString().slice(0, 10);
             return {
                 date: key,
-                label: formatCompactDate(key),
+                label: utils.formatDay(key),
                 users: registrationByDate.get(key) ?? 0,
             };
         });
@@ -82,7 +63,7 @@ export default function UserStatistics() {
     const roleDistribution = useMemo(
         () => (data?.roles ?? []).map((role) => ({
             role: role.role_name,
-            users: number(role.user_count),
+            users: utils.toNumber(role.user_count),
         })),
         [data?.roles],
     );
@@ -177,8 +158,8 @@ export default function UserStatistics() {
                         </>}
                     </div>
                     {metricCards.map(({ key, label, icon, tone }) => {
-                        const value = number(overview[key]);
-                        const ratio = percent(value, totalUsers);
+                        const value = utils.toNumber(overview[key]);
+                        const ratio = utils.percentOf(value, totalUsers);
                         const toneClass = tone === 'success'
                             ? 'bg-[var(--ads-success-soft)] text-[var(--ads-success)]'
                             : tone === 'info'
@@ -215,7 +196,7 @@ export default function UserStatistics() {
                     <div className="p-3 pb-2 sm:p-5 sm:pb-2">
                         {statistics.isLoading ? <Skeleton active paragraph={{ rows: 9 }} /> : data?.registrations?.length ? trendChart : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No new users in the last 30 days" />}
                     </div>
-                    {!statistics.isLoading && data?.registrations?.length > 0 && <div className="border-t border-[var(--ads-border-subtle)] px-5 py-3 text-xs text-[var(--ads-text-muted)] sm:px-6">{number(overview.created_last_30_days)} new account{number(overview.created_last_30_days) === 1 ? '' : 's'} created during this reporting period.</div>}
+                    {!statistics.isLoading && data?.registrations?.length > 0 && <div className="border-t border-[var(--ads-border-subtle)] px-5 py-3 text-xs text-[var(--ads-text-muted)] sm:px-6">{utils.toNumber(overview.created_last_30_days)} new account{utils.toNumber(overview.created_last_30_days) === 1 ? '' : 's'} created during this reporting period.</div>}
                 </article>
 
                 <article className="overflow-hidden rounded-[var(--ads-radius-lg)] border border-[var(--ads-border-subtle)] bg-[var(--ads-surface)] shadow-[var(--ads-shadow-xs)] xl:col-span-4">
@@ -243,8 +224,8 @@ export default function UserStatistics() {
                                     <span className="flex items-center gap-3"><span className={`grid size-9 place-items-center rounded-[var(--ads-radius-sm)] ${item.background}`}>{item.icon}</span><Text>{item.label}</Text></span>
                                     <strong className="font-mono text-lg text-[var(--ads-text-heading)]">{item.value}</strong>
                                 </div>
-                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ads-surface-sunken)]"><span className="block h-full rounded-full" style={{ width: `${percent(item.value, totalUsers)}%`, background: item.color }} /></div>
-                                <Text className="mt-2 block font-mono text-xs !text-[var(--ads-text-subtle)]">{percent(item.value, totalUsers)}% of all user accounts</Text>
+                                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ads-surface-sunken)]"><span className="block h-full rounded-full" style={{ width: `${utils.percentOf(item.value, totalUsers)}%`, background: item.color }} /></div>
+                                <Text className="mt-2 block font-mono text-xs !text-[var(--ads-text-subtle)]">{utils.percentOf(item.value, totalUsers)}% of all user accounts</Text>
                             </div>
                         ))}
                     </div>
@@ -265,14 +246,14 @@ export default function UserStatistics() {
                             </div>
                             {statistics.isLoading && Array.from({ length: 4 }, (_, index) => <div className="px-5 py-4 sm:px-6" key={index}><Skeleton active title={false} paragraph={{ rows: 1 }} /></div>)}
                             {(data?.recentUsers ?? []).map((user) => {
-                                const isActive = number(user.status) === 1;
+                                const isActive = utils.toNumber(user.status) === 1;
                                 const provider = String(user.oauth_provider || '').toLowerCase() === 'google' ? 'Google' : 'Password';
                                 return (
                                     <div className="grid grid-cols-[minmax(250px,1.45fr)_120px_135px_minmax(130px,1fr)] items-center gap-4 px-5 py-3.5 sm:px-6" key={user.custom_id}>
-                                        <div className="flex min-w-0 items-center gap-3"><Avatar className="shrink-0 !bg-[var(--ads-accent-soft)] !text-[var(--ads-accent)]">{initials(user.name, user.email)}</Avatar><div className="min-w-0"><Text strong className="block truncate !text-[var(--ads-text-heading)]">{user.name || 'Unnamed user'}</Text><Text className="block truncate text-xs !text-[var(--ads-text-muted)]">{user.email}</Text></div></div>
+                                        <div className="flex min-w-0 items-center gap-3"><Avatar className="shrink-0 !bg-[var(--ads-accent-soft)] !text-[var(--ads-accent)]">{utils.initials(user.name || user.email || 'User')}</Avatar><div className="min-w-0"><Text strong className="block truncate !text-[var(--ads-text-heading)]">{user.name || 'Unnamed user'}</Text><Text className="block truncate text-xs !text-[var(--ads-text-muted)]">{user.email}</Text></div></div>
                                         <Tag className={isActive ? '!m-0 !border-[var(--ads-success-border)] !bg-[var(--ads-success-soft)] !text-[var(--ads-success)]' : '!m-0 !border-[var(--ads-border-subtle)] !bg-[var(--ads-surface-sunken)] !text-[var(--ads-text-muted)]'}>{isActive ? 'Active' : 'Inactive'}</Tag>
                                         <span className="flex items-center gap-2 text-sm text-[var(--ads-text-muted)]">{provider === 'Google' ? <GoogleOutlined className="text-[var(--ads-accent)]" /> : <SafetyCertificateOutlined className="text-[var(--ads-info)]" />}{provider}</span>
-                                        <Text className="text-xs !text-[var(--ads-text-muted)]">{user.last_login ? utils.getDateAndTime(user.last_login) : `Created ${formatFullDate(String(user.createdAt).slice(0, 10))}`}</Text>
+                                        <Text className="text-xs !text-[var(--ads-text-muted)]">{user.last_login ? utils.getDateAndTime(user.last_login) : `Created ${utils.formatDay(String(user.createdAt).slice(0, 10), { withYear: true })}`}</Text>
                                     </div>
                                 );
                             })}

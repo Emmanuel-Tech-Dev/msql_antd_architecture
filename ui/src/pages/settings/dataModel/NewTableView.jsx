@@ -3,8 +3,9 @@ import { Alert, App, Button, Checkbox, Input, Select, Table } from 'antd';
 import { CopyOutlined, DeleteOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAdminAction } from '../../../core/metadata/useMetadataAdmin';
 import { downloadText } from '../../../utils/csv';
-import { FIELD_TYPE_GROUPS, OPTION_TYPES, humanize } from './fieldCatalogue';
+import { FIELD_TYPE_GROUPS, OPTION_TYPES } from './fieldCatalogue';
 import { Eyebrow, Panel, ScreenHeader } from './dataModelShared';
+import utils from '../../../utils/function_utils';
 
 const TYPES = FIELD_TYPE_GROUPS.filter((group) => group.label !== 'System');
 const IDENTIFIER = /^[a-z][a-z0-9_]*$/;
@@ -38,7 +39,7 @@ export default function NewTableView({ go }) {
                     required: column.required,
                     unique: column.unique,
                     config: OPTION_TYPES.has(column.type) && column.options.trim()
-                        ? { options: column.options.split(',').map((option) => option.trim()).filter(Boolean).map((option) => ({ value: option, label: humanize(option) })) }
+                        ? { options: column.options.split(',').map((option) => option.trim()).filter(Boolean).map((option) => ({ value: option, label: utils.humanize(option) })) }
                         : undefined,
                 })),
             };
@@ -48,13 +49,13 @@ export default function NewTableView({ go }) {
         }
     };
     const copy = async () => {
-        await navigator.clipboard.writeText(result.sql);
-        message.success('Migration copied');
+        if (await utils.copyText(result.sql)) message.success('Migration copied');
+        else message.error('The browser refused to copy. Select the text and copy it by hand.');
     };
 
     const tableColumns = [
         { title: 'Column', key: 'name', render: (_, column) => <Input aria-label="Column name" placeholder="e.g. full_name" value={column.name} onChange={(event) => setColumn(column.key, { name: event.target.value.trim() })} /> },
-        { title: 'Label', key: 'label', render: (_, column) => <Input aria-label="Label" placeholder={humanize(column.name) || 'Label'} value={column.label} onChange={(event) => setColumn(column.key, { label: event.target.value })} /> },
+        { title: 'Label', key: 'label', render: (_, column) => <Input aria-label="Label" placeholder={utils.humanize(column.name) || 'Label'} value={column.label} onChange={(event) => setColumn(column.key, { label: event.target.value })} /> },
         {
             title: 'Field type', key: 'type', width: 220,
             render: (_, column) => (
@@ -84,7 +85,7 @@ export default function NewTableView({ go }) {
                             <Input className="font-[var(--font-mono)]" placeholder="e.g. suppliers" value={table} onChange={(event) => { setTable(event.target.value.trim()); setResult(null); }} />
                         </label>
                         <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Name in menus
-                            <Input placeholder={humanize(table) || 'Suppliers'} value={label} onChange={(event) => { setLabel(event.target.value); setResult(null); }} />
+                            <Input placeholder={utils.humanize(table) || 'Suppliers'} value={label} onChange={(event) => { setLabel(event.target.value); setResult(null); }} />
                         </label>
                     </div>
                     <Table rowKey="key" columns={tableColumns} dataSource={columns} pagination={false} scroll={{ x: 820 }} />

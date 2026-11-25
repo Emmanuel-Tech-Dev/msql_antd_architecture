@@ -1,4 +1,4 @@
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+import utils from './function_utils';
 
 const cleanIdentifier = (value) =>
   String(value ?? "")
@@ -18,11 +18,11 @@ export function legacySqlToLookup(sql) {
   const fields = match[1]
     .split(",")
     .map(cleanIdentifier)
-    .filter((field) => IDENTIFIER.test(field));
+    .filter((field) => utils.isIdentifier(field));
   const table = cleanIdentifier(match[2]);
   const whereColumn = cleanIdentifier(match[3]);
 
-  if (!IDENTIFIER.test(table) || fields.length === 0) return null;
+  if (!utils.isIdentifier(table) || fields.length === 0) return null;
 
   return {
     lookup: {

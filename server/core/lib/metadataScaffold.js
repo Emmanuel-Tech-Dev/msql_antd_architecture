@@ -1,11 +1,11 @@
 const mysql = require("mysql2");
 const AppError = require("../../shared/helpers/AppError");
+const utils = require("../../shared/utils/functions");
 
 // The metadata builder's pure parts: guessing a field from a database column,
 // writing migrations, and describing what changed between two versions. No
 // database access here; metadataAdminService feeds these the rows.
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const FIELD_TYPES = new Set([
   "text", "textarea", "richText", "email", "phone", "url", "password", "integer", "number", "money",
   "percent", "duration", "date", "dateTime", "time", "switch", "select", "multiSelect", "radio",
@@ -13,23 +13,12 @@ const FIELD_TYPES = new Set([
 ]);
 const TIMESTAMP_COLUMNS = new Set(["createdAt", "updatedAt", "deletedAt", "created_at", "updated_at", "deleted_at"]);
 
-function requireIdentifier(value, label) {
-  if (!IDENTIFIER.test(value ?? "")) throw new AppError("ERR_INVALID_INPUT", `Invalid ${label}: ${value}`);
-  return value;
-}
-
-// "created_by" -> "Created by", "phoneNo" -> "Phone no"
-function humanize(name) {
-  const words = String(name).replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").trim().toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
 function enumOptions(columnType) {
   const match = /^(?:enum|set)\((.*)\)$/i.exec(columnType ?? "");
   if (!match) return [];
   return [...match[1].matchAll(/'((?:[^']|'')*)'/g)].map(([, value]) => {
     const unescaped = value.replace(/''/g, "'");
-    return { value: unescaped, label: humanize(unescaped.toLowerCase()) };
+    return { value: unescaped, label: utils.humanize(unescaped.toLowerCase()) };
   });
 }
 
@@ -44,7 +33,7 @@ function guessField(column, { existingLookups = [] } = {}) {
   const automatic = /auto_increment|default_generated|on update/i.test(column.EXTRA ?? "") || column.COLUMN_DEFAULT !== null;
   const field = {
     column_name: name,
-    col_real_name: humanize(name),
+    col_real_name: utils.humanize(name),
     type: "text",
     form_visible: 1,
     list_visible: 1,
@@ -115,7 +104,7 @@ function guessField(column, { existingLookups = [] } = {}) {
 }
 
 function checkField(field, physicalColumns) {
-  requireIdentifier(field.column_name, "column");
+  utils.requireIdentifier(field.column_name, "column");
   if (!physicalColumns.includes(field.column_name)) {
     throw new AppError("ERR_VALIDATION_FAILED", `${field.column_name} is not a column of this table`);
   }
@@ -141,7 +130,7 @@ function checkRowFields(rowFields, where) {
   }
   const keys = new Set();
   for (const rowField of rowFields) {
-    if (!IDENTIFIER.test(rowField?.column_name ?? "")) {
+    if (!utils.isIdentifier(rowField?.column_name)) {
       throw new AppError("ERR_VALIDATION_FAILED", `${where}: "${rowField?.column_name ?? ""}" is not a valid row field key`);
     }
     if (keys.has(rowField.column_name)) {
@@ -209,7 +198,7 @@ function upsertSql(table, columns, row, updateColumns) {
 // A table's metadata as a migration: what "Export as migration" downloads, so
 // a definition designed in one database reaches another through git.
 function definitionMigration(definition, { lookups = [] } = {}) {
-  const table = requireIdentifier(definition.table.table_name, "table name");
+  const table = utils.requireIdentifier(definition.table.table_name, "table name");
   const lines = [
     `-- Metadata for ${table} (version ${definition.table.version ?? 1}), exported from the metadata builder.`,
     "",
@@ -244,12 +233,12 @@ const storageOf = (column) => column.storage ?? STORAGE[column.type] ?? "VARCHAR
 // A new table, its metadata and its permissions as one migration. The
 // builder never runs it: the file is downloaded, reviewed and migrated.
 function newTableMigration(spec) {
-  const table = requireIdentifier(spec.table, "table name");
+  const table = utils.requireIdentifier(spec.table, "table name");
   const columns = spec.columns ?? [];
   if (!columns.length) throw new AppError("ERR_VALIDATION_FAILED", "Add at least one column");
   const seen = new Set(["id", "createdAt", "updatedAt"]);
   for (const column of columns) {
-    requireIdentifier(column.name, "column name");
+    utils.requireIdentifier(column.name, "column name");
     if (seen.has(column.name)) throw new AppError("ERR_VALIDATION_FAILED", `Column ${column.name} is listed twice or reserved`);
     seen.add(column.name);
     if (!FIELD_TYPES.has(column.type) || ["primaryKey"].includes(column.type)) {
@@ -272,7 +261,7 @@ function newTableMigration(spec) {
     { column_name: "id", col_real_name: "ID", type: "primaryKey", form_visible: 0, list_visible: 0, editable: 0 },
     ...columns.map((column) => ({
       column_name: column.name,
-      col_real_name: column.label || humanize(column.name),
+      col_real_name: column.label || utils.humanize(column.name),
       type: column.type,
       form_visible: 1,
       list_visible: column.type === "textarea" || column.type === "richText" ? 0 : 1,
@@ -289,7 +278,7 @@ function newTableMigration(spec) {
     ["read", "GET", `/api/${table}/table`], ["read", "GET", `/api/${table}/:id`],
     ["create", "POST", `/api/${table}`], ["update", "PUT", `/api/${table}/:id`], ["delete", "DELETE", `/api/${table}/:id`],
   ];
-  const label = spec.label || humanize(table);
+  const label = spec.label || utils.humanize(table);
   const sql = [
     `-- ${label}: a new table designed in the metadata builder.`,
     "",
@@ -323,7 +312,5 @@ module.exports = {
   describeChanges,
   enumOptions,
   guessField,
-  humanize,
   newTableMigration,
-  requireIdentifier,
 };

@@ -40,7 +40,46 @@ function getEncryptionKey() {
 
 const cache = new NodeCache({ stdTTL: 3600 });
 
+// A table, column or key name: letters, digits and _, not starting with a digit.
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 const utils = {
+  IDENTIFIER,
+
+  isIdentifier(value) {
+    return IDENTIFIER.test(value ?? "");
+  },
+
+  // The name, or a 400 naming what was wrong with it.
+  requireIdentifier(value, label) {
+    if (!IDENTIFIER.test(value ?? "")) {
+      throw new AppError("ERR_INVALID_INPUT", `Invalid ${label}: ${String(value ?? "").slice(0, 60)}`);
+    }
+    return value;
+  },
+
+  // Nothing entered: undefined, null, "", whitespace only, or an empty list.
+  isBlank(value) {
+    return value === undefined || value === null
+      || (typeof value === "string" && value.trim() === "")
+      || (Array.isArray(value) && value.length === 0);
+  },
+
+  // "created_by" -> "Created by", "phoneNo" -> "Phone no"
+  humanize(name) {
+    const words = String(name ?? "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").trim().toLowerCase();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  },
+
+  sha256(text) {
+    return crypto.createHash("sha256").update(text, "utf8").digest("hex");
+  },
+
+  // "?, ?, ?": one placeholder per value, for an IN (...) list.
+  placeholders(values = []) {
+    return values.map(() => "?").join(", ");
+  },
+
   requireIdentifiers(identifiers) {
     for (const [name, value] of Object.entries(identifiers)) {
       if (typeof value !== "string" || !value.trim()) {
@@ -585,7 +624,7 @@ const utils = {
 
   uniqueIds(values = []) {
     return [
-      ...new Set(values.map((value) => String(value).trim()).filter(Boolean)),
+      ...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean)),
     ];
   },
   hasOwn(value, property) {

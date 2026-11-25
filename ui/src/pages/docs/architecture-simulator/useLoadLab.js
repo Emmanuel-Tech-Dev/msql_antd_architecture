@@ -9,16 +9,10 @@ import {
   NODES,
   traceHook,
 } from './architectureSimulationModel';
+import utils from '../../../utils/function_utils';
 
 const WARM_CACHE = 0.97;
 const MAX_LOG_LINES = 40;
-const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-const timestamp = () => new Date().toTimeString().slice(0, 8);
-const toggled = (set, value) => {
-  const next = new Set(set);
-  if (next.has(value)) next.delete(value); else next.add(value);
-  return next;
-};
 
 // State of the Framework Load Lab: one traced hook, or many hooks under load.
 export default function useLoadLab() {
@@ -34,19 +28,19 @@ export default function useLoadLab() {
   // Reduced motion only stops the automatic play on page load: the first trace
   // opens finished. Animation someone starts (a hook, Play, load) still runs.
   const [traceId, setTraceId] = useState('useCreate');
-  const [traceAt, setTraceAt] = useState(() => (prefersReducedMotion() ? traceHook(findHook('useCreate'), new Set()).steps.length - 1 : 0));
-  const [tracePlaying, setTracePlaying] = useState(() => !prefersReducedMotion());
+  const [traceAt, setTraceAt] = useState(() => (utils.prefersReducedMotion() ? traceHook(findHook('useCreate'), new Set()).steps.length - 1 : 0));
+  const [tracePlaying, setTracePlaying] = useState(() => !utils.prefersReducedMotion());
 
   const [selected, setSelected] = useState(null);
   const [missionId, setMissionId] = useState(null);
   const [completed, setCompleted] = useState(() => new Set());
-  const [logs, setLogs] = useState([{ id: 0, tone: '', text: `${timestamp()} ready · click a hook to trace it, or press play for load` }]);
+  const [logs, setLogs] = useState([{ id: 0, tone: '', text: `${utils.timeOfDay()} ready · click a hook to trace it, or press play for load` }]);
   const logId = useRef(1);
 
   const log = useCallback((tone, text) => {
     const id = logId.current;
     logId.current += 1;
-    setLogs((current) => [{ id, tone, text: `${timestamp()} ${text}` }, ...current].slice(0, MAX_LOG_LINES));
+    setLogs((current) => [{ id, tone, text: `${utils.timeOfDay()} ${text}` }, ...current].slice(0, MAX_LOG_LINES));
   }, []);
 
   const trace = useMemo(() => traceHook(findHook(traceId), failures), [traceId, failures]);
@@ -117,12 +111,12 @@ export default function useLoadLab() {
 
   const jumpTrace = useCallback((index) => {
     setTracePlaying(false);
-    setTraceAt(Math.max(0, Math.min(trace.steps.length - 1, index)));
+    setTraceAt(utils.clamp(index, 0, trace.steps.length - 1));
   }, [trace.steps.length]);
 
   const stepTrace = useCallback((delta) => {
     const last = trace.steps.length - 1;
-    const next = Math.max(0, Math.min(last, traceAt + delta));
+    const next = utils.clamp(traceAt + delta, 0, last);
     setTraceAt(next);
     if (next === last && traceAt !== last) finishTrace();
     else setTracePlaying(false);
@@ -145,7 +139,7 @@ export default function useLoadLab() {
 
   const toggleFailure = useCallback((id) => {
     const switchingOn = !failures.has(id);
-    setFailures((current) => toggled(current, id));
+    setFailures((current) => utils.toggleInSet(current, id));
     setTraceAt(0);
     setTracePlaying(true);
     if (!switchingOn) return;
@@ -212,7 +206,7 @@ export default function useLoadLab() {
       setOffice(value);
       log('', value ? 'all users now share one IP for express-rate-limit' : 'each user has their own IP');
     },
-    toggleHookLoad: (id) => setHookIds((current) => toggled(current, id)),
+    toggleHookLoad: (id) => setHookIds((current) => utils.toggleInSet(current, id)),
     toggleFailure, setRunning, startTrace, advanceTrace, jumpTrace, stepTrace, toggleTracePlay,
     selectNode, clearSelection: () => setSelected(null), startMission, reset,
   };

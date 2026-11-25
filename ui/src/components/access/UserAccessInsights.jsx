@@ -7,18 +7,16 @@ import {
 import utils from '../../utils/function_utils';
 
 const { Text } = Typography;
-const number = (value) => Number(value) || 0;
-
 export default function UserAccessInsights({ data, loading, onOpenUser }) {
     const overview = data?.overview ?? {};
-    const total = number(overview.total_users);
-    const active = number(overview.active_users);
-    const setupRequired = number(overview.setup_required_users);
+    const total = utils.toNumber(overview.total_users);
+    const active = utils.toNumber(overview.active_users);
+    const setupRequired = utils.toNumber(overview.setup_required_users);
     const ready = Math.max(0, active - setupRequired);
     const readiness = total ? Math.round((ready / total) * 100) : 0;
     const setupUsers = (data?.recentUsers ?? []).filter((user) => Number(user.forced_password_change) === 1).slice(0, 3);
     const roles = (data?.roles ?? []).slice(0, 5);
-    const largestRole = Math.max(1, ...roles.map((role) => number(role.user_count)));
+    const largestRole = Math.max(1, ...roles.map((role) => utils.toNumber(role.user_count)));
 
     return (
         <aside className="grid content-start gap-3.5 xl:h-[724px]" aria-label="User access insights">
@@ -51,7 +49,7 @@ export default function UserAccessInsights({ data, loading, onOpenUser }) {
                 <div className="mb-3 flex items-center justify-between"><strong className="font-[var(--font-heading)] text-[length:var(--ads-font-size-h5)] font-semibold text-[var(--ads-text-heading)]">Role coverage</strong><span className="font-[var(--font-caption)] text-[length:var(--ads-font-size-caption)] font-semibold uppercase tracking-[0.04em] text-[var(--ads-text-muted)]">{total} users</span></div>
                 <div className="space-y-2">
                     {roles.map((role, index) => {
-                        const count = number(role.user_count);
+                        const count = utils.toNumber(role.user_count);
                         return (
                             <div className="grid h-[22px] grid-cols-[72px_minmax(0,1fr)_18px] items-center gap-2" key={role.role_name}>
                                 <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-caption)] text-[length:var(--ads-font-size-caption)] font-semibold uppercase text-[var(--ads-text-muted)]">{role.role_name}</span>

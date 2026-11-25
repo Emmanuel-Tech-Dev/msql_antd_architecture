@@ -16,12 +16,9 @@ import apiClient from '../../services/apiClient';
 import useNotification from '../../hooks/useNotification';
 import queryKeys from '../../core/queryKeys';
 import './ProfileSettings.css';
+import utils from '../../utils/function_utils';
 
 const { Paragraph, Text, Title } = Typography;
-
-function initials(name = '') {
-    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
-}
 
 export default function ProfileSettings() {
     const storedUser = useAuthStore((state) => state.user);
@@ -137,7 +134,7 @@ export default function ProfileSettings() {
                     <Card className="profile-identity-card">
                         <div className="profile-identity-card__accent" />
                         <div className="profile-avatar-control">
-                            <Avatar size={88} src={user.avatar || user.profile_picture || undefined}>{initials(watchedName)}</Avatar>
+                            <Avatar size={88} src={user.avatar || user.profile_picture || undefined}>{utils.initials(watchedName)}</Avatar>
                             <Upload
                                 accept="image/jpeg,image/png,image/webp,image/gif"
                                 beforeUpload={validateAvatar}

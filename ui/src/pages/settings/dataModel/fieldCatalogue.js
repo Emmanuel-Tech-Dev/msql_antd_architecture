@@ -23,7 +23,3 @@ export const WIDTHS = [
     { value: 24, label: 'Full' }, { value: 12, label: 'Half' }, { value: 8, label: 'Third' }, { value: 6, label: 'Quarter' },
 ];
 
-export function humanize(name) {
-    const words = String(name ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').trim().toLowerCase();
-    return words.charAt(0).toUpperCase() + words.slice(1);
-}

@@ -41,15 +41,6 @@ const HEALTH = {
     WORKING: { tag: 'Working', tone: 'info', icon: <LoadingOutlined /> },
 };
 
-const formatBytes = (bytes = 0) => {
-    if (!Number.isFinite(Number(bytes)) || Number(bytes) <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const index = Math.min(Math.floor(Math.log(Number(bytes)) / Math.log(1024)), units.length - 1);
-    return `${(Number(bytes) / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
-};
-
-const formatWhen = (value) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-
 const suggestedFileName = () => `database-backup-${new Date().toISOString().replace(/[-:.]/g, '')}.sql`;
 
 const responseFileName = (headers, fallback) => {
@@ -112,13 +103,13 @@ function StatusSummary({ overview, isBackingUp }) {
         detail = 'Keep this page open. This usually takes under a minute.';
     } else if (overview.health === 'FAILED') {
         title = `Failed ${utils.fromNow(overview.lastFailure.createdAt)}`;
-        detail = `${overview.lastFailure.error_message ?? 'The backup did not finish'}. The last good backup is from ${formatWhen(last.createdAt)}.`;
+        detail = `${overview.lastFailure.error_message ?? 'The backup did not finish'}. The last good backup is from ${utils.formatDateTime(last.createdAt)}.`;
     } else if (!last) {
         title = 'No backups yet';
         detail = 'Make your first one now, or turn on automatic backups.';
     } else {
-        title = `${formatWhen(last.createdAt)} · ${utils.fromNow(last.createdAt)}`;
-        detail = [madeBy(last), last.destination === 'SERVER' ? 'kept on the server' : 'downloaded', formatBytes(last.size_bytes)].join(' · ');
+        title = `${utils.formatDateTime(last.createdAt)} · ${utils.fromNow(last.createdAt)}`;
+        detail = [madeBy(last), last.destination === 'SERVER' ? 'kept on the server' : 'downloaded', utils.formatBytes(last.size_bytes)].join(' · ');
     }
 
     return (
@@ -208,7 +199,7 @@ function ScheduleCard({ schedule, onSaved }) {
             {schedule.value.enabled && schedule.nextRunAt && !isDirty && (
                 <div className="flex items-center gap-2 rounded-[var(--ads-radius-md)] bg-[var(--ads-surface-sunken)] px-3 py-2.5 font-medium">
                     <ClockCircleOutlined className="text-[var(--ads-accent)]" />
-                    Next backup: {formatWhen(schedule.nextRunAt)}
+                    Next backup: {utils.formatDateTime(schedule.nextRunAt)}
                 </div>
             )}
             <p className="m-0 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-subtle)]">
@@ -275,7 +266,7 @@ export default function DatabaseBackup() {
     };
 
     const confirmDelete = (backup) => Modal.confirm({
-        title: `Delete the backup from ${formatWhen(backup.createdAt)}?`,
+        title: `Delete the backup from ${utils.formatDateTime(backup.createdAt)}?`,
         content: 'The file is removed from the server. This cannot be undone; the history keeps a note that it existed.',
         okText: 'Delete',
         okButtonProps: { danger: true },
@@ -291,7 +282,7 @@ export default function DatabaseBackup() {
     });
 
     const columns = [
-        { key: 'when', title: 'When', render: (_, backup) => <span className="font-medium">{formatWhen(backup.createdAt)}</span> },
+        { key: 'when', title: 'When', render: (_, backup) => <span className="font-medium">{utils.formatDateTime(backup.createdAt)}</span> },
         {
             key: 'by', title: 'Made by',
             render: (_, backup) => (
@@ -308,7 +299,7 @@ export default function DatabaseBackup() {
                 return <span className="inline-flex items-center gap-1.5 text-[var(--ads-text-muted)]"><CloudServerOutlined />{backup.deletedAt ? 'Deleted from server' : 'On the server'}</span>;
             },
         },
-        { key: 'size', title: 'Size', align: 'right', responsive: ['sm'], render: (_, backup) => <span className={DATA_CLASS}>{backup.size_bytes ? formatBytes(backup.size_bytes) : '—'}</span> },
+        { key: 'size', title: 'Size', align: 'right', responsive: ['sm'], render: (_, backup) => <span className={DATA_CLASS}>{backup.size_bytes ? utils.formatBytes(backup.size_bytes) : '—'}</span> },
         { key: 'status', title: 'Status', render: (_, backup) => (backup.status === 'DONE' ? <Tag tone="success">Done</Tag> : <Tag tone="danger">Failed</Tag>) },
         {
             key: 'actions', title: <span className="sr-only">Actions</span>, align: 'right',
@@ -320,7 +311,7 @@ export default function DatabaseBackup() {
                     <span className="inline-flex gap-1">
                         <Button type="text" size="small" icon={<DownloadOutlined />} loading={downloadingId === backup.id} onClick={() => downloadCopy(backup)}>Download</Button>
                         <Tooltip title="Delete from the server">
-                            <Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label={`Delete the backup from ${formatWhen(backup.createdAt)}`} onClick={() => confirmDelete(backup)} />
+                            <Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label={`Delete the backup from ${utils.formatDateTime(backup.createdAt)}`} onClick={() => confirmDelete(backup)} />
                         </Tooltip>
                     </span>
                 );
@@ -404,7 +395,7 @@ export default function DatabaseBackup() {
                         />
                         <div className="flex flex-wrap items-center gap-3 border-t border-[var(--ads-border-subtle)] px-5 py-3 text-[length:var(--ads-font-size-body-sm)] text-[var(--ads-text-muted)]">
                             <span className="flex-1">
-                                Showing {overview.history.length} of {overview.total} · {overview.keptCount} kept on the server ({formatBytes(overview.keptBytes)})
+                                Showing {overview.history.length} of {overview.total} · {overview.keptCount} kept on the server ({utils.formatBytes(overview.keptBytes)})
                             </span>
                             {overview.history.length < overview.total && limit < 50 && (
                                 <Button type="link" size="small" onClick={() => setLimit((current) => Math.min(current + 20, 50))}>Show more</Button>

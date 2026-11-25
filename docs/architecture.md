@@ -218,7 +218,8 @@ Two channels push from the server to the browser:
 
 | System | How it works | Files |
 |---|---|---|
-| **Migrations** | Numbered SQL files in `server/resources/migrations` (`001_…sql`). `npm run migrate` applies the ones not yet recorded, refuses duplicate numbers and stores a checksum, so an edited old migration is noticed. | `scripts/run-migration.js` |
+| **Migrations** | Two sources: the framework's (`server/resources/migrations`) and the project's (`MIGRATIONS_PATH`), each numbered `001_…sql` on its own. `npm run migrate` applies pending framework migrations, then the project's, records each with its source and a checksum (an edited old migration stops the run). A fresh install starts from `npm run db:setup`. | `core/lib/migrationRunner.js`, `scripts/run-migration.js`, `scripts/db-setup.js` |
+| **Shared helpers** | General-purpose functions (blank checks, identifiers, names, numbers, dates, JSON, files, clipboard) live in one utilities object per side, not as local copies in each file. Domain rules stay in their own modules; metadata-only helpers live in `fieldRules.js`. | `server/shared/utils/functions.js`, `ui/src/utils/function_utils.js` |
 | **Backups** | Manual and scheduled database backups with history and a SHA-256 checksum. The schedule is checked every 5 minutes, so a backup missed while the server was off runs soon after it starts. | `core/lib/databaseBackupService.js`, `backupHistoryService.js`, `route/BackupRoute.js` |
 | **Logging** | Winston (optionally Logtail): `logger.app`, `logger.error`, `logger.security` (sign-ins, permission changes, metadata saves), plus request logs. | `shared/helpers/logger.js` |
 | **Uploads** | Field uploads go to `/api/v1/uploads/:table/:column`. The field's metadata decides the allowed types and size, and the file's real content type is checked. | `core/lib/uploadServices.js`, `metadataService.uploadFieldFile` |

@@ -1,12 +1,9 @@
+import utils from '../../utils/function_utils';
 // Browser-side checks generated from the same metadata the server enforces
 // (server/core/lib/metadataSchema.js), with the same messages, so a form
 // shows the error the server would return before the request is sent.
 
 const NUMBER_TYPES = new Set(["number", "integer", "money", "percent", "duration"]);
-
-export const isBlank = (value) => value === undefined || value === null
-  || (typeof value === "string" && value.trim() === "")
-  || (Array.isArray(value) && value.length === 0);
 
 // { field, in: [...] }, { field, equals }, { field, notEmpty: true }, and
 // { all: [...] } / { any: [...] } groups. No condition means "always".
@@ -17,7 +14,7 @@ export function conditionMet(condition, values) {
   const value = values?.[condition.field];
   if (Array.isArray(condition.in)) return condition.in.map(String).includes(String(value ?? ""));
   if (Object.hasOwn(condition, "equals")) return String(value ?? "") === String(condition.equals);
-  if (condition.notEmpty) return !isBlank(value);
+  if (condition.notEmpty) return !utils.isBlank(value);
   return true;
 }
 
@@ -30,15 +27,12 @@ export const rowFieldsOf = (fields) => (Array.isArray(fields) ? fields : [])
 
 // A list field's rows, whether stored as JSON text or already parsed.
 export function parseRows(value) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== "string" || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const rows = utils.parseJson(value, []);
+  return Array.isArray(rows) ? rows : [];
 }
+
+// The primary key column of a described table ("id" when none is marked).
+export const primaryKeyOf = (metadata) => metadata.fields.find((field) => field.type === "primaryKey")?.column_name ?? "id";
 
 // The fields a form shows: visible in forms, never the primary key.
 export function formFieldsOf(metadata, { fields, section } = {}) {
@@ -67,7 +61,7 @@ export function isFieldRequired(field, values) {
 export function fieldRules(field, values = {}) {
   const label = fieldLabel(field);
   const config = field.config ?? {};
-  const present = (check) => (value) => isBlank(value) || check(value);
+  const present = (check) => (value) => utils.isBlank(value) || check(value);
   const rule = (check, message) => ({
     validator: (_, value) => (present(check)(value) ? Promise.resolve() : Promise.reject(new Error(message))),
   });

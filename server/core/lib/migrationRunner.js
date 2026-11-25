@@ -7,12 +7,12 @@
 
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
+const utils = require("../../shared/utils/functions");
 
 const FRAMEWORK_MIGRATIONS = path.resolve(__dirname, "../../resources/migrations");
 const SOURCES = ["framework", "project"];
 
-const checksum = (contents) => crypto.createHash("sha256").update(contents, "utf8").digest("hex");
+const checksum = (contents) => utils.sha256(contents);
 
 // The project's folder, when it has one (in this repository, it does not).
 function projectMigrationsDir() {

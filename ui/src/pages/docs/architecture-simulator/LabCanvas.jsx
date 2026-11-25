@@ -15,10 +15,10 @@ import {
   routeEdges,
   traceHook,
 } from './architectureSimulationModel';
+import utils from '../../../utils/function_utils';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const TRACE_SPEED = 0.045;
-const shorten = (text, length) => (text.length > length ? `${text.slice(0, length - 1)}…` : text);
 
 function bandFrames(positions) {
   return BANDS.map((band) => {
@@ -272,7 +272,7 @@ export default function LabCanvas({ lab }) {
 
   const nodeClass = (id) => {
     const classes = ['lab-node', `is-${NODES[id].band}`];
-    const load = Math.max(0, Math.min(1, lab.load.heat[id] ?? 0));
+    const load = utils.clamp(lab.load.heat[id] ?? 0, 0, 1);
     if (hoverSet) { if (!hoverSet.has(id)) classes.push('is-dim'); } else if (tracing && !routeNodes.has(id)) classes.push('is-dim');
     if (tracing && reachedNotes[id]) classes.push(reachedNotes[id].kind === 'bad' ? 'is-bad' : 'is-on');
     if (tracing && currentNode === id) classes.push('is-current');
@@ -341,10 +341,10 @@ export default function LabCanvas({ lab }) {
               <rect className="lab-node__card" width={NODE_WIDTH} height={NODE_HEIGHT} rx="9" />
               <rect className="lab-node__kind" x="0" y="12" width="4" height={NODE_HEIGHT - 24} rx="2" />
               <text className="lab-node__title" x="14" y="23">{id === 'hook' ? (lab.running ? 'Hooks' : lab.traceId) : node.title}</text>
-              <text className="lab-node__file" x="14" y="40">{shorten(node.file, 27)}</text>
-              <text className="lab-node__stat" x="14" y="60">{shorten(nodeStat(id), 25)}</text>
+              <text className="lab-node__file" x="14" y="40">{utils.truncateText(node.file, 27, '…')}</text>
+              <text className="lab-node__stat" x="14" y="60">{utils.truncateText(nodeStat(id), 25, '…')}</text>
               <rect className="lab-node__track" x="14" y="67" width={NODE_WIDTH - 28} height="4" rx="2" />
-              <rect className="lab-node__bar" x="14" y="67" width={lab.running ? (NODE_WIDTH - 28) * Math.max(0, Math.min(1, lab.load.heat[id] ?? 0)) : 0} height="4" rx="2" />
+              <rect className="lab-node__bar" x="14" y="67" width={lab.running ? (NODE_WIDTH - 28) * utils.clamp(lab.load.heat[id] ?? 0, 0, 1) : 0} height="4" rx="2" />
             </g>
           ))}
         </g>

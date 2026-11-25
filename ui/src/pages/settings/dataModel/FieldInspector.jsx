@@ -4,6 +4,7 @@ import { ArrowDownOutlined, ArrowLeftOutlined, ArrowUpOutlined, DeleteOutlined, 
 import { NOT_IN_ROWS } from '../../../core/metadata/fieldRules';
 import { FIELD_TYPE_GROUPS, LIST_TYPES, LOOKUP_TYPES, NUMBER_TYPES, OPTION_TYPES, WIDTHS, typeLabel } from './fieldCatalogue';
 import { Eyebrow } from './dataModelShared';
+import utils from '../../../utils/function_utils';
 
 const RULES = [
     { value: 'pattern', label: 'Pattern' }, { value: 'minLength', label: 'At least … characters' },
@@ -54,7 +55,6 @@ function ConditionEditor({ label, condition, onChange, otherFields }) {
 const ROW_TYPE_GROUPS = FIELD_TYPE_GROUPS
     .map((group) => ({ ...group, options: group.options.filter((option) => !NOT_IN_ROWS.has(option.value)) }))
     .filter((group) => group.options.length);
-const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 // The fields of each row of a list (or of a groupList's groups or items).
 // Each one is edited with the same inspector as a table field.
@@ -152,7 +152,7 @@ function ListSettings({ field, config, setConfig, lookups, permissions }) {
                                 <div className="grid grid-cols-2 gap-2.5">
                                     <Labelled label="List label"><Input placeholder="Items" value={children.label} onChange={(event) => setChildren('label', event.target.value || undefined)} /></Labelled>
                                     <Labelled label="Stored under" hint="Key inside each group"><Input value={children.key ?? 'items'}
-                                        onChange={(event) => KEY_PATTERN.test(event.target.value) && setChildren('key', event.target.value)} /></Labelled>
+                                        onChange={(event) => utils.isIdentifier(event.target.value) && setChildren('key', event.target.value)} /></Labelled>
                                 </div>
                                 <RowSettings config={children} onChange={setChildren} unit="Item" />
                                 <RowFieldsEditor title="Item fields" fields={children.fields} onChange={(fields) => setChildren('fields', fields)} lookups={lookups} permissions={permissions} />
@@ -190,7 +190,7 @@ export default function FieldInspector({ field, sections, lookups, permissions, 
             <Labelled label="Label"><Input value={field.col_real_name} onChange={(event) => set({ col_real_name: event.target.value })} /></Labelled>
             {inRow && (
                 <Labelled label="Key" hint="Name of this value inside each row: letters, digits and _">
-                    <Input value={field.column_name} onChange={(event) => KEY_PATTERN.test(event.target.value) && set({ column_name: event.target.value })} />
+                    <Input value={field.column_name} onChange={(event) => utils.isIdentifier(event.target.value) && set({ column_name: event.target.value })} />
                 </Labelled>
             )}
             <Labelled label="Field type"><Select value={field.type} options={inRow ? ROW_TYPE_GROUPS : FIELD_TYPE_GROUPS} onChange={(type) => set({ type })} disabled={isKey} /></Labelled>

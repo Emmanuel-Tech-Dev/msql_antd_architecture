@@ -4,15 +4,13 @@ import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import CustomTable from '../CustomTable';
 import useCan from '../../core/hooks/access/useCan';
 import { getFieldType } from '../../core/metadata/fieldTypes';
-import { fieldLabel } from '../../core/metadata/fieldRules';
+import { fieldLabel, primaryKeyOf } from '../../core/metadata/fieldRules';
 import { useTableMetadata } from '../../core/metadata/useTableMetadata';
 import useDelete from '../../hooks/useDelete';
 import useTableApi from '../../hooks/useTableApi';
 import MetadataForm from './MetadataForm';
 
 const listFieldsOf = (metadata) => metadata.fields.filter((field) => Number(field.list_visible) === 1 && field.type !== 'primaryKey');
-const primaryKeyOf = (metadata) => metadata.fields.find((field) => field.type === 'primaryKey')?.column_name ?? 'id';
-
 function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel, addTitle, editTitle, header, pageSize, formProps }) {
     const [editing, setEditing] = useState(null);
     const primaryKey = primaryKeyOf(metadata);

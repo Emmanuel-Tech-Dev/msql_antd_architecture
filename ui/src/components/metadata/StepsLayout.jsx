@@ -4,8 +4,7 @@ import { ArrowRightOutlined, CheckOutlined, ExclamationOutlined } from '@ant-des
 import useIcons from '../../hooks/useIcons';
 import { getFieldType } from '../../core/metadata/fieldTypes';
 import { fieldLabel } from '../../core/metadata/fieldRules';
-
-const isBlank = (value) => value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+import utils from '../../utils/function_utils';
 
 function displayValue(field, value) {
     const definition = getFieldType(field.type);
@@ -68,14 +67,14 @@ function SummaryPanel({ metadata, sections, current, form }) {
     const fieldsByName = Object.fromEntries(metadata.fields.map((field) => [field.column_name, field]));
     const titleColumn = metadata.table?.title_column;
     const rows = sections.slice(0, current).flatMap((section) => section.fieldNames
-        .filter((name) => name !== titleColumn && !isBlank(values[name]))
+        .filter((name) => name !== titleColumn && !utils.isBlank(values[name]))
         .slice(0, 2)
         .map((name) => ({ name, field: fieldsByName[name] })));
 
     return (
         <aside aria-label="Summary" className="flex flex-col gap-3.5 self-start rounded-[calc(var(--app-radius,6px)*2.3)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-[18px]">
             <span className="font-[var(--font-mono)] text-[11px] tracking-[0.1em] text-[var(--color-text-secondary)]">SUMMARY</span>
-            {titleColumn && !isBlank(values[titleColumn]) && <strong className="text-sm font-semibold">{values[titleColumn]}</strong>}
+            {titleColumn && !utils.isBlank(values[titleColumn]) && <strong className="text-sm font-semibold">{values[titleColumn]}</strong>}
             {rows.length ? (
                 <dl className="m-0 flex flex-col gap-2.5 text-[13px]">
                     {rows.map(({ name, field }) => (
@@ -111,8 +110,8 @@ function ReviewPanel({ metadata, sections, form, onEdit, resolveIcon }) {
                         {section.fieldNames.map((name) => (
                             <div key={name}>
                                 <dt className="text-[12.5px] text-[var(--color-text-secondary)]">{fieldLabel(fieldsByName[name])}</dt>
-                                <dd className={`m-0 mt-0.5 ${isBlank(values[name]) ? 'text-[var(--color-text-secondary)]' : 'font-medium'}`}>
-                                    {isBlank(values[name]) ? 'Not provided' : displayValue(fieldsByName[name], values[name])}
+                                <dd className={`m-0 mt-0.5 ${utils.isBlank(values[name]) ? 'text-[var(--color-text-secondary)]' : 'font-medium'}`}>
+                                    {utils.isBlank(values[name]) ? 'Not provided' : displayValue(fieldsByName[name], values[name])}
                                 </dd>
                             </div>
                         ))}

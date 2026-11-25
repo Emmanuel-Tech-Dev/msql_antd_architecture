@@ -1,10 +1,10 @@
 import { Button, Col, Form, Grid, Popover, Row } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { getFieldType } from '../../core/metadata/fieldTypes';
-import { conditionMet, fieldLabel, fieldRules, isBlank, parseRows, rowFieldsOf } from '../../core/metadata/fieldRules';
+import { conditionMet, fieldLabel, fieldRules, parseRows, rowFieldsOf } from '../../core/metadata/fieldRules';
+import utils from '../../utils/function_utils';
 
 const CHOICE_TYPES = new Set(['select', 'multiSelect', 'radio', 'checkboxGroup', 'lookup', 'multiLookup']);
-const plural = (count, word) => `${count} ${word.toLowerCase()}${count === 1 ? '' : 's'}`;
 
 // One field inside a row. Inside Form.List names are relative to the list;
 // `rowPath` is the row's full name, for conditions that read the row.
@@ -43,8 +43,8 @@ const rowCountRule = ({ label, unit, required, minRows, maxRows }) => ({
     validator: async (_, rows) => {
         const count = rows?.length ?? 0;
         if (required && count === 0) throw new Error(`${label} is required`);
-        if (minRows !== undefined && count < minRows) throw new Error(`${label} needs at least ${plural(minRows, unit)}`);
-        if (maxRows !== undefined && count > maxRows) throw new Error(`${label} allows at most ${plural(maxRows, unit)}`);
+        if (minRows !== undefined && count < minRows) throw new Error(`${label} needs at least ${utils.pluralize(minRows, unit)}`);
+        if (maxRows !== undefined && count > maxRows) throw new Error(`${label} allows at most ${utils.pluralize(maxRows, unit)}`);
     },
 });
 
@@ -187,14 +187,14 @@ export function ListCell({ value, field }) {
     const rowFields = rowFieldsOf(config.fields).slice(0, 2);
     const describe = (row) => rowFields
         .map((rowField) => ({ rowField, value: row?.[rowField.column_name] }))
-        .filter(({ value: cellValue }) => !isBlank(cellValue))
+        .filter(({ value: cellValue }) => !utils.isBlank(cellValue))
         .map(({ rowField, value: cellValue }) => getFieldType(rowField.type).cell(cellValue, row, rowField));
     const rowLabel = config.rowLabel ?? (field.type === 'groupList' ? 'Group' : 'Row');
     const childKey = config.children?.key || 'list';
     const items = field.type === 'groupList' ? rows.reduce((sum, group) => sum + parseRows(group?.[childKey]).length, 0) : 0;
     const summary = field.type === 'groupList'
-        ? `${plural(rows.length, rowLabel)} · ${plural(items, config.children?.rowLabel ?? 'Item')}`
-        : plural(rows.length, rowLabel);
+        ? `${utils.pluralize(rows.length, rowLabel)} · ${utils.pluralize(items, config.children?.rowLabel ?? 'Item')}`
+        : utils.pluralize(rows.length, rowLabel);
     const content = (
         <div className="flex min-w-[220px] flex-col gap-1">
             {rows.slice(0, 4).map((row, index) => (

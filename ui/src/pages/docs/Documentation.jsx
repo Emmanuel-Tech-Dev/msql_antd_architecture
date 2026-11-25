@@ -32,20 +32,9 @@ import HookLab from './HookLab';
 import RequestWalkthrough from './RequestWalkthrough';
 import ArchitectureSimulator from './architecture-simulator/ArchitectureSimulator';
 import './Documentation.css';
+import utils from '../../utils/function_utils';
 
 // Smooth scrolling only for people who haven't asked for less motion.
-const scrollBehavior = () => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
-
-// The clipboard can be refused (permissions, insecure origin); copying then just doesn't confirm.
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const toneIcons = {
   note: <InfoCircleOutlined />,
   warning: <WarningOutlined />,
@@ -100,7 +89,7 @@ function CodeBlock({ block }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
-    if (!(await copyText(block.value))) return;
+    if (!(await utils.copyText(block.value))) return;
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
@@ -364,12 +353,12 @@ export default function Documentation() {
 
   const selectSection = (id) => {
     navigate(id ? { pathname: '/docs', hash: id } : '/docs');
-    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+    window.scrollTo({ top: 0, behavior: (utils.prefersReducedMotion() ? 'auto' : 'smooth') });
     setMobileNavOpen(false);
   };
 
   const copyLink = async () => {
-    if (!(await copyText(window.location.href))) return;
+    if (!(await utils.copyText(window.location.href))) return;
     setLinkCopied(true);
     window.setTimeout(() => setLinkCopied(false), 1400);
   };
@@ -476,7 +465,7 @@ export default function Documentation() {
               aria-current={activeHeading === item.id ? 'location' : undefined}
               className={activeHeading === item.id ? 'is-active' : ''}
               key={item.id}
-              onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })}
+              onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: (utils.prefersReducedMotion() ? 'auto' : 'smooth'), block: 'start' })}
               type="button"
             >
               {item.title}

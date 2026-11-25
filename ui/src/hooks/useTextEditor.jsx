@@ -1,10 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import RichTextEditor from '../components/editor/RichTextEditor';
-
-function normalizeHtml(value) {
-    if (value === null || value === undefined) return '';
-    return String(value);
-}
+import utils from '../utils/function_utils';
 
 function currentHtml(editorInstance) {
     if (!editorInstance || editorInstance.isEmpty) return '';
@@ -22,8 +18,8 @@ export default function useTextEditor(options = {}) {
         ...defaultEditorProps
     } = options;
     const editorInstanceRef = useRef(null);
-    const baselineRef = useRef(normalizeHtml(initialContent));
-    const [content, setContentState] = useState(() => normalizeHtml(initialContent));
+    const baselineRef = useRef(utils.asText(initialContent));
+    const [content, setContentState] = useState(() => utils.asText(initialContent));
     const [editorChanged, setEditorChanged] = useState(false);
 
     const getContent = useCallback(() => {
@@ -34,7 +30,7 @@ export default function useTextEditor(options = {}) {
     const getEditor = useCallback(() => editorInstanceRef.current, []);
 
     const setContent = useCallback((nextContent, { markDirty = true } = {}) => {
-        const nextHtml = normalizeHtml(nextContent);
+        const nextHtml = utils.asText(nextContent);
         if (!markDirty) baselineRef.current = nextHtml;
         setContentState(nextHtml);
         setEditorChanged(markDirty);
@@ -52,7 +48,7 @@ export default function useTextEditor(options = {}) {
     }, [content]);
 
     const reset = useCallback((nextContent = baselineRef.current) => {
-        const nextHtml = normalizeHtml(nextContent);
+        const nextHtml = utils.asText(nextContent);
         baselineRef.current = nextHtml;
         setContentState(nextHtml);
         setEditorChanged(false);
@@ -84,7 +80,7 @@ export default function useTextEditor(options = {}) {
             <RichTextEditor
                 {...defaultEditorProps}
                 {...overrideProps}
-                initialContent={normalizeHtml(editorInitialContent)}
+                initialContent={utils.asText(editorInitialContent)}
                 onReady={(instance) => {
                     editorInstanceRef.current = instance;
                     if (instance) {

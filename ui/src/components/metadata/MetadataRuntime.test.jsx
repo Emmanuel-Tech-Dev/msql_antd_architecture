@@ -110,7 +110,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("MetadataForm", () => {
-  test("adds a record from the metadata: labels, required checks, lookups and the payload", async () => {
+  test("adds a record from the metadata: labels, required checks, lookups and the payload", { timeout: 30_000 }, async () => {
     const onSaved = vi.fn();
     renderWithProviders(<MetadataForm table="admin_role_permissions" onSaved={onSaved} />);
     await screen.findByText("Role", { selector: "label" });

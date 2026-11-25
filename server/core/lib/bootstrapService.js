@@ -8,7 +8,6 @@ const { SENSITIVE_COLUMNS } = require("../config/sensitiveData");
 // framework_bootstrap_* registry (migration 001). The browser only names a
 // profile; it never names a table, a column or a filter.
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const ENVIRONMENTS = { development: "dev", staging: "staging", production: "prod" };
 // Never loaded at startup, even if a dataset is registered for them.
 const BLOCKED_SOURCES = new Set(["admin_credentials", "token_blacklist", "user_activity_logs"]);
@@ -64,7 +63,7 @@ async function loadDataset(dataset, { permissions, privileged }) {
   }
   const physicalColumns = await model.getTableColumns(source);
   const checkColumn = (column) => {
-    if (!IDENTIFIER.test(column ?? "") || !physicalColumns.includes(column)
+    if (!utils.isIdentifier(column) || !physicalColumns.includes(column)
       || SENSITIVE_COLUMNS.has(column.toLowerCase())) {
       throw new AppError("ERR_INVALID_INPUT",
         `Bootstrap dataset ${dataset.dataset_key} uses unavailable column ${column}`);
@@ -86,7 +85,7 @@ async function loadDataset(dataset, { permissions, privileged }) {
 // A REQUIRED dataset that fails fails the whole request; an OPTIONAL one is
 // left out and named in `unavailable`.
 async function loadBootstrapProfile(profileKey, { permissions = [], privileged = false } = {}) {
-  if (!IDENTIFIER.test(profileKey ?? "")) {
+  if (!utils.isIdentifier(profileKey)) {
     throw new AppError("ERR_INVALID_INPUT", "Bootstrap requires a profile key");
   }
 

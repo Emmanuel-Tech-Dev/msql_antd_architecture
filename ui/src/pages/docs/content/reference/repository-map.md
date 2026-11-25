@@ -50,7 +50,7 @@ summary: A practical map of the server and UI folders so a new maintainer knows 
 | Middleware | authMiddleWare.js, authorization.js, validateTable.js, validateRequest.js, requestLogger.js, errorHandler.js | Request trust pipeline |
 | Routes | authRoute.js, baseRoute.js, acessRoute.js, MetadataRoute.js, MetadataAdminRoute.js, UserDirectoryRoute.js, AdminStatisticsRoute.js, BackupRoute.js, LogRoute.js, UiSettingsRoute.js | HTTP contracts grouped by capability |
 | Shared helpers | AppError.js, erroCodes.js, logger.js, otpService.js, tokenBlacklist.js, cacheManager.js, settingsManager.js | Cross-cutting infrastructure |
-| Utilities | functions.js, templates.js | Redaction, crypto/query helpers, and email/template material |
+| Utilities | functions.js, templates.js | The server's general-purpose helpers (identifiers, blank checks, names, hashing, JSON, query helpers, redaction) and email/template material. Add new general helpers here, not in the file that needs them |
 | Schema | auth.schema/createUserScheme.js | Create-user request validation |
 | Resources | migrations/*.sql, seeds/generated_acl_seed.sql | Database evolution and generated ACL baseline |
 | Scripts | run-migration.js, generate-acl-seed-from-schema.js | Repeatable maintenance automation |
@@ -87,7 +87,7 @@ summary: A practical map of the server and UI folders so a new maintainer knows 
 | Public documentation | pages/docs/*, pages/docs/architecture-simulator/* | Architecture reference, live hook lab, the Framework Load Lab, and public onboarding |
 | Development pages | pages/Test.jsx (shown at /admin/home until a framework home page exists), pages/admin/Test.jsx (/admin/testing) | Development surfaces; not part of the reusable framework |
 | Specialized components | map/*, userInfo/* | Map provider layer (Google Maps, Mapbox) and user information blocks |
-| Utilities | function_utils.js, common_functions.js, lookup_utils.js, Settings.js | Formatting, validation, lookup conversion, environment constants |
+| Utilities | function_utils.js, common_functions.js, lookup_utils.js, Settings.js | The UI's general-purpose helpers (formatting, blank checks, identifiers, files, clipboard, reduced motion), lookup conversion, environment constants. Add new general helpers to function_utils.js |
 
 ## Where a change belongs
 

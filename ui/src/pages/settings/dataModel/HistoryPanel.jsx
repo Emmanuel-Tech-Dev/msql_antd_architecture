@@ -4,16 +4,10 @@ import dayjs from 'dayjs';
 import { useRestoreVersion, useTableExport, useTableVersions } from '../../../core/metadata/useMetadataAdmin';
 import { downloadText, parseCsv, toCsv } from '../../../utils/csv';
 import { Panel } from './dataModelShared';
+import utils from '../../../utils/function_utils';
 
 const FIELD_COLUMNS = ['column_name', 'col_real_name', 'type', 'form_visible', 'list_visible', 'required', 'editable', 'col_span', 'section_key'];
 const NUMERIC_COLUMNS = new Set(['form_visible', 'list_visible', 'required', 'editable', 'col_span']);
-const readFile = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-});
-
 // Saved versions with what changed, restore, and moving a definition in and
 // out as JSON, a field CSV or a migration file.
 export default function HistoryPanel({ table, dirty, settings, fields, onLoadDraft }) {
@@ -40,7 +34,7 @@ export default function HistoryPanel({ table, dirty, settings, fields, onLoadDra
     // Imports go into the draft only; nothing is saved until "Save as".
     const importFile = async (file) => {
         try {
-            const text = await readFile(file);
+            const text = await utils.readFileAsText(file);
             if (file.name.toLowerCase().endsWith('.csv')) {
                 const { rows } = parseCsv(text);
                 const byColumn = Object.fromEntries(rows.map((row) => [row.column_name, row]));

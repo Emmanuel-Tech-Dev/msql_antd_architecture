@@ -9,16 +9,146 @@ import { saveAs } from "file-saver";
 
 import dayjs from "dayjs";
 
+// A table, column or key name: letters, digits and _, not starting with a digit.
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 const utils = {
+  IDENTIFIER,
+
+  isIdentifier(value) {
+    return IDENTIFIER.test(value ?? "");
+  },
+
   parseJson(value, fallback) {
     if (value === null || value === undefined || value === "") return fallback;
     if (typeof value === "object") return value;
     try {
       return JSON.parse(value);
-    } catch (_error) {
-      console.log(_error);
+    } catch {
       return fallback;
     }
+  },
+
+  // Nothing entered: undefined, null, "", whitespace only, or an empty list.
+  isBlank(value) {
+    return value === undefined || value === null
+      || (typeof value === "string" && value.trim() === "")
+      || (Array.isArray(value) && value.length === 0);
+  },
+
+  blankToUndefined(value) {
+    return value === null || value === "" ? undefined : value;
+  },
+
+  // A list from an array or from comma-separated text.
+  toList(value) {
+    return Array.isArray(value) ? value : String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+  },
+
+  toggleInSet(set, value) {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value); else next.add(value);
+    return next;
+  },
+
+  toNumber(value) {
+    return Number(value) || 0;
+  },
+
+  clamp(value, minimum, maximum) {
+    return Math.max(minimum, Math.min(maximum, value));
+  },
+
+  // Whole-number percentage of part in total; 0 when there is no total.
+  percentOf(part, total) {
+    return total ? Math.round((part / total) * 100) : 0;
+  },
+
+  // "1 contact", "3 contacts".
+  pluralize(count, word) {
+    return `${count} ${String(word).toLowerCase()}${count === 1 ? "" : "s"}`;
+  },
+
+  // "a, b or c".
+  listPhrase(words) {
+    return words.length > 1 ? `${words.slice(0, -1).join(", ")} or ${words.at(-1)}` : words[0] ?? "";
+  },
+
+  // "created_by" -> "Created by", "phoneNo" -> "Phone no"
+  humanize(name) {
+    const words = String(name ?? "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").trim().toLowerCase();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  },
+
+  // Up to two initials ("Ama Mensah" -> "AM"); "U" when there is no name.
+  initials(name) {
+    return String(name ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U";
+  },
+
+  // Text for an editor or input: null and undefined become "".
+  asText(value) {
+    return value === null || value === undefined ? "" : String(value);
+  },
+
+  joinUrl(base, path) {
+    return `${String(base).replace(/\/$/, "")}/${String(path).replace(/^\//, "")}`;
+  },
+
+  // The file name at the end of a URL ("…/photo%201.png?x=1" -> "photo 1.png").
+  fileNameFromUrl(url, fallback = "file") {
+    return decodeURIComponent(String(url).split("/").pop()?.split("?")[0] || fallback);
+  },
+
+  // "14:05:09", for log lines.
+  timeOfDay(date = new Date()) {
+    return date.toTimeString().slice(0, 8);
+  },
+
+  // 25 Nov 2026, 14:05 in the viewer's locale.
+  formatDateTime(value) {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  },
+
+  // A date-only value ("2026-11-25") as "25 Nov", or "25 Nov 2026" with the year.
+  formatDay(value, { withYear = false } = {}) {
+    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", ...(withYear ? { year: "numeric" } : {}) })
+      .format(new Date(`${value}T00:00:00`));
+  },
+
+  // True when the viewer asked for less motion: the operating system's
+  // setting or the app's own (Appearance › reduce motion).
+  prefersReducedMotion() {
+    if (typeof window === "undefined") return false;
+    return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+      || document.documentElement.dataset.motion === "reduced";
+  },
+
+  // Copies text; false when the browser refuses (permissions, insecure page).
+  async copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
+  },
+
+  readFileAsDataUrl(file, errorMessage = "The file could not be read.") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error(errorMessage));
+      reader.readAsDataURL(file);
+    });
   },
   getCurrentDate() {
     const date = dayjs().format("MMMM D, YYYY");
@@ -109,7 +239,6 @@ const utils = {
 
   formatNumber: (value) => {
     value = Number(value);
-    console.log("Converted to number:", value); // Debugging statement
     if (isNaN(value)) return "0";
     if (value < 1000) return value.toString();
     const units = ["", "K", "M", "B", "T", "Q"];
@@ -118,12 +247,10 @@ const utils = {
     while (value >= 1000 && unitIndex < units.length - 1) {
       value /= 1000;
       unitIndex++;
-      console.log("Value after division:", value, "Unit index:", unitIndex); // Debugging statement
     }
 
     const formattedValue =
       value.toFixed(1).replace(/\.0$/, "") + units[unitIndex];
-    console.log("Formatted value:", formattedValue); // Debugging statement
     return formattedValue;
   },
   // Purals
@@ -260,9 +387,9 @@ const utils = {
   //         message.error("Failed to generate PDF");
   //       });
   //   },
-  truncateText: (title, maxLength) => {
+  truncateText: (title, maxLength, ellipsis = "...") => {
     if (title.length > maxLength) {
-      return title.slice(0, maxLength - 3) + "...";
+      return title.slice(0, maxLength - ellipsis.length) + ellipsis;
     }
     return title;
   },
@@ -537,12 +664,12 @@ const utils = {
     return d?.format(format);
   },
 
-  formatBytes: (bytes) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  // "0 B", "512 B", "1.5 MB".
+  formatBytes: (bytes = 0) => {
+    if (!Number.isFinite(Number(bytes)) || Number(bytes) <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    const index = Math.min(Math.floor(Math.log(Number(bytes)) / Math.log(1024)), units.length - 1);
+    return `${(Number(bytes) / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
   },
 
   formatUptime: (seconds) => {

@@ -1,13 +1,14 @@
 const AppError = require("../../shared/helpers/AppError");
 const logger = require("../../shared/helpers/logger");
 const Model = require("../model/model");
+const utils = require("../../shared/utils/functions");
 const { SENSITIVE_COLUMNS, SENSITIVE_TABLES } = require("../config/sensitiveData");
 const { previewLookup } = require("./metadataService");
 const { validateRecordAgainstMetadata } = require("./metadataSchema");
 const { upgradeLegacyField } = require("./legacyDynamicForm");
 const { clearTableCache } = require("./schemaCache");
 const {
-  checkField, definitionMigration, describeChanges, guessField, humanize, newTableMigration, requireIdentifier,
+  checkField, definitionMigration, describeChanges, guessField, newTableMigration,
 } = require("./metadataScaffold");
 
 // The metadata builder (Settings › Data model). Only reachable with
@@ -36,7 +37,7 @@ const toStored = (record, keys) => Object.fromEntries(keys
   .map((key) => [key, JSON_SETTINGS.has(key) && record[key] !== null && record[key] !== undefined ? JSON.stringify(record[key]) : record[key]]));
 
 function describableTable(table) {
-  requireIdentifier(table, "table name");
+  utils.requireIdentifier(table, "table name");
   if (isHidden(table)) throw new AppError("ERR_ACCESS_DENIED", `${table} cannot be described`);
   return table;
 }
@@ -68,7 +69,7 @@ async function listTables() {
     const settings = settingsOf.get(table);
     return {
       table,
-      label: settings?.label ?? humanize(table),
+      label: settings?.label ?? utils.humanize(table),
       described: Boolean(settings),
       enabled: settings ? Number(settings.enabled) === 1 : false,
       columns: columnsOf.get(table) ?? 0,
@@ -101,7 +102,7 @@ async function scaffoldTable(table) {
     if (lookupSuggestion && !lookups.some((lookup) => lookup.lookup_key === lookupSuggestion.lookup_key)) lookups.push(lookupSuggestion);
   }
   const titleColumn = fields.find((field) => /name|title|label/.test(field.column_name) && field.type === "text")?.column_name ?? null;
-  const label = humanize(table);
+  const label = utils.humanize(table);
   return {
     table: { table_name: table, label, singular_label: label.replace(/s$/, ""), title_column: titleColumn, form_layout: "modal", form_columns: 1, sections: [], stepper: null, enabled: 1 },
     fields,
@@ -167,7 +168,7 @@ async function saveDefinition(table, definition, { actorUserId, note } = {}) {
         .executeInTransaction();
     }
     for (const lookup of definition.lookups ?? []) {
-      await tx.builder().insert("metadata_lookups", { lookup_key: requireIdentifier(lookup.lookup_key, "lookup key"), ...toStored(lookup, LOOKUP_SETTINGS) })
+      await tx.builder().insert("metadata_lookups", { lookup_key: utils.requireIdentifier(lookup.lookup_key, "lookup key"), ...toStored(lookup, LOOKUP_SETTINGS) })
         .onDuplicateKeyUpdate({ lookup_key: lookup.lookup_key })
         .executeInTransaction();
     }
@@ -223,7 +224,7 @@ async function listLookups() {
 }
 
 async function saveLookup(lookupKey, lookup, { actorUserId } = {}) {
-  requireIdentifier(lookupKey, "lookup key");
+  utils.requireIdentifier(lookupKey, "lookup key");
   await previewLookup({ ...lookup, lookup_key: lookupKey }, { parent: "__check__", limit: 1 });
   const row = { lookup_key: lookupKey, ...toStored(lookup, LOOKUP_SETTINGS), updated_by: actorUserId ?? null };
   await new Model().insert("metadata_lookups", row)

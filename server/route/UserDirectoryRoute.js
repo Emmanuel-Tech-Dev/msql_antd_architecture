@@ -1,5 +1,6 @@
 const db = require("../core/config/conn");
 const Model = require("../core/model/model");
+const utils = require("../shared/utils/functions");
 
 const ACCESS_STATES = [
   "READY",
@@ -18,21 +19,11 @@ const SORT_COLUMNS = {
   createdAt: "directory.createdAt",
 };
 
-function positiveInteger(value, fallback, maximum = 100) {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return Math.min(parsed, maximum);
-}
-
 function csv(value) {
   return String(value ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function placeholders(values) {
-  return values.map(() => "?").join(", ");
 }
 
 function directoryCte() {
@@ -115,8 +106,8 @@ class UserDirectoryRoute {
 
   async list(req, res, next) {
     try {
-      const page = positiveInteger(req.query.page, 1, 100000);
-      const limit = positiveInteger(req.query.limit, 10, 100);
+      const page = utils.clampInteger(req.query.page, 1, 100000);
+      const limit = utils.clampInteger(req.query.limit, 10, 100);
       const offset = (page - 1) * limit;
       const roleNames = csv(
         req.query.role_name_in ?? req.query.role_id_in ?? req.query.role_name,
@@ -149,7 +140,7 @@ class UserDirectoryRoute {
           SELECT 1
             FROM admin_user_roles filter_role
            WHERE filter_role.user_id = directory.custom_id
-             AND filter_role.role_id IN (${placeholders(roleNames)})
+             AND filter_role.role_id IN (${utils.placeholders(roleNames)})
         )`);
         params.push(...roleNames);
       }
@@ -168,7 +159,7 @@ class UserDirectoryRoute {
       const stateCountConditions = [...conditions];
       const stateCountParams = [...params];
       if (accessStates.length) {
-        conditions.push(`directory.access_state IN (${placeholders(accessStates)})`);
+        conditions.push(`directory.access_state IN (${utils.placeholders(accessStates)})`);
         params.push(...accessStates);
       }
 

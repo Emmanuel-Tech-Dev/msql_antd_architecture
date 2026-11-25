@@ -24,6 +24,7 @@ import { FONT_OPTIONS, parseThemePack, themePackCsv } from './appearance/themePa
 import { COLLAPSE_BREAKPOINTS, FONT_ROLES, LAYOUT_STYLES, describeChanges, paletteKey } from './appearance/appearanceFields';
 import ColourSection from './appearance/ColourSection';
 import AppearancePreview from './appearance/AppearancePreview';
+import utils from '../../utils/function_utils';
 
 const SECTIONS = [
     { id: 'theme', label: 'Theme' },
@@ -37,9 +38,6 @@ const SECTIONS = [
 const SECTION_CLASS = 'scroll-mt-24 rounded-[var(--ads-radius-lg)] border border-[var(--ads-border)] bg-[var(--ads-surface)] p-5';
 const CAPTION_CLASS = 'font-[family-name:var(--ads-font-caption)] text-[length:var(--ads-font-size-caption)] font-semibold uppercase tracking-[0.12em] text-[var(--ads-text-muted)]';
 const ROW_CLASS = 'grid grid-cols-1 items-center gap-x-4 gap-y-2 border-t border-[var(--ads-border-subtle)] pt-3 sm:grid-cols-[200px_minmax(0,1fr)_auto]';
-
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    || document.documentElement.dataset.motion === 'reduced';
 
 function SectionHeading({ title, description, children }) {
     return (
@@ -200,7 +198,7 @@ export default function AppearanceSettings() {
         if (section.collapsible) toggleFold(section.id, true);
         setActiveSection(section.id);
         requestAnimationFrame(() => document.getElementById(section.id)?.scrollIntoView({
-            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+            behavior: utils.prefersReducedMotion() ? 'auto' : 'smooth',
             block: 'start',
         }));
     };

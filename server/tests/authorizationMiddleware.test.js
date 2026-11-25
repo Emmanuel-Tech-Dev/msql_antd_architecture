@@ -1,5 +1,6 @@
 jest.mock("../core/model/model", () => jest.fn());
 jest.mock("../shared/utils/functions", () => ({
+  ...jest.requireActual("../shared/utils/functions"),
   getSystemOpenRoute: jest.fn(),
 }));
 

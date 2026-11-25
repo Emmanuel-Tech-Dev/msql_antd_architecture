@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { App, Button, Spin, Upload } from 'antd';
 import { CloudUploadOutlined, DeleteOutlined, FileOutlined } from '@ant-design/icons';
 import { useDataProvider } from '../../core/provider/DataProvider';
+import utils from '../../utils/function_utils';
 
 const DEFAULT_ACCEPT = {
     image: 'image/jpeg,image/png,image/webp,image/gif',
@@ -9,7 +10,6 @@ const DEFAULT_ACCEPT = {
 };
 const TYPE_NAMES = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WebP', 'image/gif': 'GIF', 'application/pdf': 'PDF' };
 
-const fileNameOf = (url) => decodeURIComponent(String(url).split('/').pop()?.split('?')[0] || 'file');
 const acceptedNames = (accept) => accept.split(',').map((type) => TYPE_NAMES[type.trim()] ?? type.trim()).join(', ');
 
 // A file or image field: the file is uploaded as soon as it is chosen or
@@ -57,13 +57,13 @@ export default function UploadField({ table, column, kind = 'file', accept, maxS
                 <span className="flex min-w-0 grow flex-col gap-0.5">
                     {uploading
                         ? <span className="truncate text-sm font-medium">{uploading}</span>
-                        : <a href={value} target="_blank" rel="noreferrer" className="truncate text-sm font-medium">{fileNameOf(value)}</a>}
+                        : <a href={value} target="_blank" rel="noreferrer" className="truncate text-sm font-medium">{utils.fileNameFromUrl(value)}</a>}
                     <span className={`text-[12.5px] ${uploading ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-success)]'}`}>
                         {uploading ? 'Uploading…' : 'Uploaded'}
                     </span>
                 </span>
                 {!uploading && !disabled && (
-                    <Button type="text" aria-label={`Remove ${fileNameOf(value)}`} icon={<DeleteOutlined />} onClick={() => onChange?.(null)} className="!size-11" />
+                    <Button type="text" aria-label={`Remove ${utils.fileNameFromUrl(value)}`} icon={<DeleteOutlined />} onClick={() => onChange?.(null)} className="!size-11" />
                 )}
             </div>
         );

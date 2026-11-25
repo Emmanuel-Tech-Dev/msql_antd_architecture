@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const AppError = require("../../shared/helpers/AppError");
+const utils = require("../../shared/utils/functions");
 const Model = require("../model/model");
 const { canReadField, canWriteField, findMissingLookupValues } = require("./metadataService");
 const { upgradeLegacyField } = require("./legacyDynamicForm");
@@ -18,10 +19,6 @@ const DATE_TYPES = new Set(["date", "dateTime"]);
 const LIST_TYPES = new Set(["list", "groupList"]);
 // What a row of a list or groupList cannot hold (in this version).
 const NOT_IN_ROWS = new Set(["list", "groupList", "file", "image", "primaryKey", "generatedId", "password"]);
-
-const isBlank = (value) => value === undefined || value === null
-  || (typeof value === "string" && value.trim() === "")
-  || (Array.isArray(value) && value.length === 0);
 
 const text = z.union([z.string(), z.number()]).transform(String);
 const list = z.union([z.array(text), text])
@@ -151,14 +148,8 @@ const rowFieldsOf = (fields) => (Array.isArray(fields) ? fields : [])
   .filter((field) => field?.column_name && !NOT_IN_ROWS.has(field.type));
 
 function parseRows(value) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== "string") return null;
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+  const rows = utils.parseJson(value, null);
+  return Array.isArray(rows) ? rows : null;
 }
 
 // Each row against its fields, with the same checks as a whole record.
@@ -176,7 +167,7 @@ function checkRows(fields, rows, where, issues) {
       const column = field.column_name;
       const value = row[column];
       if (!conditionMet(field.config?.visibleWhen, row)) continue;
-      if (isBlank(value)) {
+      if (utils.isBlank(value)) {
         if (isRequired(field, row)) issues.push(`${place}: ${field.col_real_name || column} is required`);
         cleaned[column] = null;
         continue;
@@ -232,7 +223,7 @@ function listSchema(field) {
 function fieldSchema(field) {
   const check = valueSchema(field);
   return z.any().transform((value, ctx) => {
-    if (isBlank(value)) return TEXT_TYPES.has(field.type) && value !== undefined ? value : null;
+    if (utils.isBlank(value)) return TEXT_TYPES.has(field.type) && value !== undefined ? value : null;
     const result = check.safeParse(value);
     if (result.success) return result.data;
     for (const issue of result.error.issues) ctx.addIssue({ code: "custom", message: issue.message });
@@ -249,7 +240,7 @@ function conditionMet(condition, values) {
   const value = values[condition.field];
   if (Array.isArray(condition.in)) return condition.in.map(String).includes(String(value ?? ""));
   if (Object.hasOwn(condition, "equals")) return String(value ?? "") === String(condition.equals);
-  if (condition.notEmpty) return !isBlank(value);
+  if (condition.notEmpty) return !utils.isBlank(value);
   return true;
 }
 
@@ -281,7 +272,7 @@ function requiredErrors(writable, values, mode, existing) {
   for (const field of writable) {
     const column = field.column_name;
     const checked = mode === "create" || Object.hasOwn(values, column);
-    if (checked && isRequired(field, merged) && isBlank(merged[column])) {
+    if (checked && isRequired(field, merged) && utils.isBlank(merged[column])) {
       errors[column] = `${field.col_real_name || column} is required`;
     }
   }
@@ -304,7 +295,7 @@ async function rowLookupErrors(field, value) {
   const collect = (fields, rows, where) => rows.forEach((row, index) => {
     for (const rowField of rowFieldsOf(fields)) {
       const wanted = row?.[rowField.column_name];
-      if (rowField.config?.lookup && !isBlank(wanted)) checks.push({ rowField, row, wanted, place: `${where} ${index + 1}` });
+      if (rowField.config?.lookup && !utils.isBlank(wanted)) checks.push({ rowField, row, wanted, place: `${where} ${index + 1}` });
     }
   });
   const rows = parseRows(value) ?? [];
@@ -325,14 +316,14 @@ async function rowLookupErrors(field, value) {
 async function lookupErrors(fields, values, merged) {
   const errors = {};
   for (const field of fields) {
-    if (LIST_TYPES.has(field.type) && !isBlank(values[field.column_name])) {
+    if (LIST_TYPES.has(field.type) && !utils.isBlank(values[field.column_name])) {
       const message = await rowLookupErrors(field, values[field.column_name]);
       if (message) errors[field.column_name] = message;
       continue;
     }
     const lookupKey = field.config?.lookup;
     const value = values[field.column_name];
-    if (!lookupKey || isBlank(value)) continue;
+    if (!lookupKey || utils.isBlank(value)) continue;
     const wanted = field.type === "multiLookup" ? String(value).split(",") : [value];
     const missing = await findMissingLookupValues(lookupKey, wanted, merged);
     if (missing.length) {

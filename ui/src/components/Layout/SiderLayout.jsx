@@ -37,6 +37,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../hooks/useTheme';
 import { PageLoading } from '../feedback/AppLoading';
 import './SiderLayout.css';
+import utils from '../../utils/function_utils';
 
 const { Sider, Header, Content, Footer } = Layout;
 
@@ -60,16 +61,6 @@ function resolveColors(theme, token, overrides = {}) {
     return { ...defaults, ...overrides };
 }
 
-function getUserInitials(name = '') {
-    return String(name)
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('') || 'U';
-}
-
 function getSiderScrollbarStyle(colors, style = {}) {
     return {
         '--app-sider-scrollbar-bg': colors.siderBg,
@@ -81,7 +72,7 @@ function getSiderScrollbarStyle(colors, style = {}) {
 function UserAvatar({ user, ...props }) {
     return (
         <Avatar src={user?.avatar || undefined} {...props}>
-            {getUserInitials(user?.name)}
+            {utils.initials(user?.name)}
         </Avatar>
     );
 }

@@ -8,6 +8,7 @@ import {
   toDataProviderError,
   unwrapResponseEnvelope,
 } from "../data/contracts";
+import utils from "../../utils/function_utils";
 
 const buildQueryParams = ({ pagination, filters, sorters } = {}) => {
   const params = {};
@@ -35,12 +36,6 @@ const buildQueryParams = ({ pagination, filters, sorters } = {}) => {
 
 // strips trailing slash from base, leading slash from path
 // so any combination always produces one clean slash between them
-const joinUrl = (base, path) => {
-  const cleanBase = base.replace(/\/$/, "");
-  const cleanPath = path.replace(/^\//, "");
-  return `${cleanBase}/${cleanPath}`;
-};
-
 const mysqlOrmProvider = (baseUrl) => ({
   getList: async ({ resource, pagination, filters, sorters, meta }) => {
     try {
@@ -58,7 +53,7 @@ const mysqlOrmProvider = (baseUrl) => ({
           }
         : {};
 
-      const url = joinUrl(baseUrl, resolvedPath);
+      const url = utils.joinUrl(baseUrl, resolvedPath);
       const { data } = await apiClient.get(
         queryString ? `${url}?${queryString}` : url,
         { headers },
@@ -76,7 +71,7 @@ const mysqlOrmProvider = (baseUrl) => ({
   getOne: async ({ resource, id }) => {
     try {
       const { data } = await apiClient.get(
-        joinUrl(baseUrl, `api/${resource}/${id}`),
+        utils.joinUrl(baseUrl, `api/${resource}/${id}`),
       );
       return normalizeRecordResponse(data);
     } catch (e) {
@@ -91,7 +86,7 @@ const mysqlOrmProvider = (baseUrl) => ({
         { encodeValuesOnly: true },
       );
       const { data } = await apiClient.get(
-        `${joinUrl(baseUrl, `api/${resource}/table`)}?${queryString}`,
+        `${utils.joinUrl(baseUrl, `api/${resource}/table`)}?${queryString}`,
       );
       return normalizeListResponse(data);
     } catch (e) {
@@ -102,7 +97,7 @@ const mysqlOrmProvider = (baseUrl) => ({
   create: async ({ resource, variables }) => {
     try {
       const { data } = await apiClient.post(
-        joinUrl(baseUrl, `api/${resource}`),
+        utils.joinUrl(baseUrl, `api/${resource}`),
         variables,
       );
       return normalizeRecordResponse(data);
@@ -114,7 +109,7 @@ const mysqlOrmProvider = (baseUrl) => ({
   update: async ({ resource, id, variables }) => {
     try {
       const { data } = await apiClient.put(
-        joinUrl(baseUrl, `api/${resource}/${id}`),
+        utils.joinUrl(baseUrl, `api/${resource}/${id}`),
         variables,
       );
       return normalizeRecordResponse(data);
@@ -126,7 +121,7 @@ const mysqlOrmProvider = (baseUrl) => ({
   deleteOne: async ({ resource, id }) => {
     try {
       const { data } = await apiClient.delete(
-        joinUrl(baseUrl, `api/${resource}/${id}`),
+        utils.joinUrl(baseUrl, `api/${resource}/${id}`),
       );
       return normalizeRecordResponse(data);
     } catch (e) {
@@ -138,7 +133,7 @@ const mysqlOrmProvider = (baseUrl) => ({
     try {
       // if url is already absolute use it directly
       // otherwise join cleanly with baseUrl
-      const resolvedUrl = url.startsWith("http") ? url : joinUrl(baseUrl, url);
+      const resolvedUrl = url.startsWith("http") ? url : utils.joinUrl(baseUrl, url);
 
       const { data } = await apiClient({
         url: resolvedUrl,

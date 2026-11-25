@@ -13,6 +13,7 @@ import useGoogleLogin from "../../core/hooks/auth/useGoogleLogin";
 import useNotification from "../../hooks/useNotification";
 import { useCustom } from "../../core/hooks/data/useCustom";
 import { resolvePostLoginPath } from "../../core/navigation/routeResolver";
+import utils from "../../utils/function_utils";
 
 const { Text, Title } = Typography;
 
@@ -22,9 +23,6 @@ const IDENTIFIER_FIELDS = {
   custom_id: { label: "registration number", example: "REG-000123" },
   phone_no: { label: "phone number", example: "024 123 4567" },
 };
-
-const listPhrase = (words) =>
-  words.length > 1 ? `${words.slice(0, -1).join(", ")} or ${words.at(-1)}` : words[0] ?? "";
 
 const flow = [
   ["01", "Capture", "Every request begins in one accountable queue."],
@@ -40,7 +38,7 @@ export default function Login() {
   const { data: loginOptions } = useCustom({ url: "auth/login_options", unwrap: true });
   const identifierFields = (loginOptions?.data?.identifiers ?? ["email", "custom_id"])
     .map((column) => IDENTIFIER_FIELDS[column] ?? { label: column.replaceAll("_", " "), example: "" });
-  const identifierPhrase = listPhrase(identifierFields.map((field) => field.label));
+  const identifierPhrase = utils.listPhrase(identifierFields.map((field) => field.label));
   const identifierLabel = identifierPhrase.charAt(0).toUpperCase() + identifierPhrase.slice(1);
 
   const finishLogin = (response) => {
@@ -187,7 +185,7 @@ export default function Login() {
             >
               <Input
                 prefix={<MailOutlined />}
-                placeholder={listPhrase(identifierFields.map((field) => field.example).filter(Boolean))}
+                placeholder={utils.listPhrase(identifierFields.map((field) => field.example).filter(Boolean))}
                 autoComplete="username"
               />
             </Form.Item>

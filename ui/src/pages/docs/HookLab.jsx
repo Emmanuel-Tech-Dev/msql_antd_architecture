@@ -53,6 +53,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { hookCategories, hookPlaygroundCatalog } from './hookPlaygroundCatalog';
 import { semanticDemoComponents } from './HookSemanticDemos';
 import './HookLab.css';
+import utils from '../../utils/function_utils';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -378,7 +379,7 @@ function CodeWorkbench({ entry }) {
   const [draft, setDraft] = useState(entry.source);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(draft);
+    if (!(await utils.copyText(draft))) return;
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
   };
@@ -468,14 +469,11 @@ export default function HookLab() {
     window.requestAnimationFrame(() => list.querySelector(`[data-hook="${next.key}"]`)?.focus());
   };
 
+  // A refused clipboard changes nothing: the path stays visible to copy by hand.
   const copySource = async () => {
-    try {
-      await navigator.clipboard.writeText(active.importPath);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      // The clipboard was refused; the path stays visible to copy by hand.
-    }
+    if (!(await utils.copyText(active.importPath))) return;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
   };
 
   return (

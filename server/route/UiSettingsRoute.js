@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const Model = require("../core/model/model");
+const utils = require("../shared/utils/functions");
 const authorizationEvents = require("../core/lib/authorizationEvents");
 const AppError = require("../shared/helpers/AppError");
 const logger = require("../shared/helpers/logger");
@@ -60,9 +61,9 @@ const siderSchema = z
     defaultCollapsed: z.boolean(),
     headerHeight: z.number().min(48).max(96),
     isGrouped: z.boolean(),
-    groupKey: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+    groupKey: z.string().regex(utils.IDENTIFIER),
     groupVariant: z.enum(["dropdown", "group"]),
-    orderKey: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+    orderKey: z.string().regex(utils.IDENTIFIER),
     bottomKey: z.union([adminPath, z.array(adminPath).max(10)]),
     defaultHeader: z.boolean(),
     defaultFooter: z.boolean(),

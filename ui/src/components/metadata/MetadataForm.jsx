@@ -5,7 +5,7 @@ import queryKeys from '../../core/queryKeys';
 import useCreate from '../../core/hooks/data/useCreate';
 import useUpdate from '../../core/hooks/data/useUpdate';
 import { getFieldType } from '../../core/metadata/fieldTypes';
-import { formFieldsOf, isWritableField } from '../../core/metadata/fieldRules';
+import { formFieldsOf, isWritableField, primaryKeyOf } from '../../core/metadata/fieldRules';
 import { useTableMetadata } from '../../core/metadata/useTableMetadata';
 import { getFormLayout, registerFormLayout } from '../../core/metadata/formLayouts';
 import useIcons from '../../hooks/useIcons';
@@ -17,8 +17,6 @@ import StepsLayout from './StepsLayout';
 if (!getFormLayout('steps')) registerFormLayout('steps', StepsLayout);
 
 const { Text, Title } = Typography;
-
-const primaryKeyOf = (metadata) => metadata.fields.find((field) => field.type === 'primaryKey')?.column_name ?? 'id';
 
 function startingValues(fields, mode, record, initialValues) {
     return Object.fromEntries(fields.map((field) => {

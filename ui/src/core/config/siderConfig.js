@@ -1,3 +1,4 @@
+import utils from '../../utils/function_utils';
 const VARIANTS = new Set(['default', 'sider', 'none', 'icon-rail', 'floating', 'top', 'premium', 'business']);
 const BREAKPOINTS = new Set(['xs', 'sm', 'md', 'lg', 'xl', 'xxl']);
 const THEMES = new Set(['light', 'dark']);
@@ -5,7 +6,6 @@ const GROUP_VARIANTS = new Set(['dropdown', 'group']);
 const COLOR_MODES = new Set(['light', 'dark', 'system']);
 const DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
 const FONT_FAMILIES = new Set(['Inter', 'Newsreader', 'IBM Plex Mono', 'Geist', 'Geist Mono']);
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i;
 
 // The framework's default theme. It is
@@ -128,12 +128,8 @@ const safeAdminPath = (value, fallback) => {
 function parseSettingValue(value) {
     if (value && typeof value === 'object' && !Array.isArray(value)) return value;
     if (typeof value !== 'string') return {};
-    try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    } catch {
-        return {};
-    }
+    const parsed = utils.parseJson(value, {});
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 }
 
 // Chart colours are optional in a theme. A theme that does not set them gets
@@ -180,9 +176,9 @@ export function normalizeSiderConfig(value) {
         defaultCollapsed: typeof input.defaultCollapsed === 'boolean' ? input.defaultCollapsed : defaults.defaultCollapsed,
         headerHeight: boundedNumber(input.headerHeight, defaults.headerHeight, 48, 96),
         isGrouped: typeof input.isGrouped === 'boolean' ? input.isGrouped : defaults.isGrouped,
-        groupKey: IDENTIFIER.test(input.groupKey ?? '') ? input.groupKey : defaults.groupKey,
+        groupKey: utils.isIdentifier(input.groupKey) ? input.groupKey : defaults.groupKey,
         groupVariant: GROUP_VARIANTS.has(input.groupVariant) ? input.groupVariant : defaults.groupVariant,
-        orderKey: IDENTIFIER.test(input.orderKey ?? '') ? input.orderKey : defaults.orderKey,
+        orderKey: utils.isIdentifier(input.orderKey) ? input.orderKey : defaults.orderKey,
         bottomKey: safeAdminPath(input.bottomKey, defaults.bottomKey),
         defaultHeader: typeof input.defaultHeader === 'boolean' ? input.defaultHeader : defaults.defaultHeader,
         defaultFooter: typeof input.defaultFooter === 'boolean' ? input.defaultFooter : defaults.defaultFooter,

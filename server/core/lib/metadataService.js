@@ -7,23 +7,15 @@ const uploadServices = require("./uploadServices");
 const { recordUpload } = require("./uploadTracking");
 const { upgradeLegacyField } = require("./legacyDynamicForm");
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // Never a lookup source, whatever a lookup row says.
 const BLOCKED_SOURCES = new Set([...SENSITIVE_TABLES, "user_activity_logs"]);
-
-function requireIdentifier(value, label) {
-  if (!IDENTIFIER.test(value ?? "")) {
-    throw new AppError("ERR_INVALID_INPUT", `Invalid ${label}`);
-  }
-  return value;
-}
 
 // A described table: its settings, its fields in form order, and the
 // lookups those fields use (with the field each lookup depends on). Fields
 // the user may not see are left out; fields they may not change come back
 // read-only.
 async function getTableMetadata(table, access) {
-  requireIdentifier(table, "table name");
+  utils.requireIdentifier(table, "table name");
   const [settings] = await new Model()
     .select(["table_name", "label", "singular_label", "description", "icon", "title_column",
       "default_sort", "search_columns", "form_layout", "form_columns", "sections", "stepper", "version"],
@@ -69,7 +61,7 @@ async function getTableMetadata(table, access) {
 // A lookup definition with its source checked: the table exists, is not a
 // blocked source, and every column it names is real and not sensitive.
 async function loadLookup(lookupKey) {
-  requireIdentifier(lookupKey, "lookup key");
+  utils.requireIdentifier(lookupKey, "lookup key");
   const [lookup] = await new Model()
     .select(["lookup_key", "source_table", "value_column", "label_column", "extra_columns",
       "base_filters", "depends_on", "filter_column", "sort", "max_rows", "required_permission"],
@@ -85,7 +77,7 @@ async function loadLookup(lookupKey) {
 
 async function prepareLookup(lookup) {
   const lookupKey = lookup.lookup_key;
-  requireIdentifier(lookup.source_table, "lookup source table");
+  utils.requireIdentifier(lookup.source_table, "lookup source table");
   if (BLOCKED_SOURCES.has(lookup.source_table)) {
     throw new AppError("ERR_ACCESS_DENIED", "This source is not available as a lookup");
   }
@@ -96,7 +88,7 @@ async function prepareLookup(lookup) {
   }
   const physicalColumns = await model.getTableColumns(lookup.source_table);
   const checkColumn = (column) => {
-    if (!IDENTIFIER.test(column ?? "") || !physicalColumns.includes(column)
+    if (!utils.isIdentifier(column) || !physicalColumns.includes(column)
       || SENSITIVE_COLUMNS.has(column.toLowerCase())) {
       throw new AppError("ERR_INVALID_INPUT", `Lookup ${lookupKey} uses unavailable column ${column}`);
     }
@@ -118,8 +110,6 @@ function filteredLookupQuery({ lookup, model, checkColumn }, columns, parent) {
   return query;
 }
 
-const isBlank = (value) => value === undefined || value === null || value === "";
-
 // A field's config may guard it with permissions: readPermission to see it,
 // writePermission (or, failing that, readPermission) to change it.
 const holds = ({ permissions = [], privileged = false } = {}, permission) => !permission || privileged || permissions.includes(permission);
@@ -137,7 +127,7 @@ async function getLookupOptions(lookupKey, { parent, permissions = [], privilege
       resource: lookupKey,
     });
   }
-  if (lookup.depends_on && isBlank(parent)) return [];
+  if (lookup.depends_on && utils.isBlank(parent)) return [];
 
   const extraColumns = (lookup.extra_columns ?? []).map(checkColumn);
   const columns = [...new Set([checkColumn(lookup.value_column), checkColumn(lookup.label_column), ...extraColumns])];
@@ -176,7 +166,7 @@ async function findMissingLookupValues(lookupKey, values, record = {}) {
   const { lookup, checkColumn } = source;
   const parent = lookup.depends_on ? record[lookup.depends_on] : undefined;
   const wanted = [...new Set(values.map(String))];
-  if (lookup.depends_on && isBlank(parent)) return wanted;
+  if (lookup.depends_on && utils.isBlank(parent)) return wanted;
 
   const valueColumn = checkColumn(lookup.value_column);
   const rows = await filteredLookupQuery(source, [valueColumn], parent)
@@ -197,8 +187,8 @@ const UPLOAD_TYPES = {
 // may upload for it; the field's metadata decides the accepted types and size,
 // and the upload service checks the content really is that type.
 async function uploadFieldFile(table, column, file, { permissions = [], privileged = false, actorId = null } = {}) {
-  requireIdentifier(table, "table name");
-  requireIdentifier(column, "column name");
+  utils.requireIdentifier(table, "table name");
+  utils.requireIdentifier(column, "column name");
   if (!privileged && !permissions.includes(`create:${table}`) && !permissions.includes(`update:${table}`)) {
     throw new AppError("ERR_ACCESS_DENIED", null, { message: `Missing create:${table} or update:${table}`, resource: table });
   }

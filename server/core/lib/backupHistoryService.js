@@ -5,6 +5,7 @@
 const path = require("path");
 const { z } = require("zod");
 const Model = require("../model/model");
+const utils = require("../../shared/utils/functions");
 const AppError = require("../../shared/helpers/AppError");
 const logger = require("../../shared/helpers/logger");
 const backupService = require("./databaseBackupService");
@@ -23,10 +24,6 @@ const scheduleSchema = z
     keep: z.number().int().min(1).max(60),
   })
   .strict();
-
-function parseStored(value) {
-  return typeof value === "string" ? JSON.parse(value) : value;
-}
 
 // Keeps the database's message short and free of connection details.
 function failureReason(error) {
@@ -83,7 +80,7 @@ async function getSchedule() {
       "The backup schedule is not set up. Run the database migrations.",
     );
   return {
-    value: parseStored(setting.setting_value),
+    value: utils.parseJson(setting.setting_value, null),
     version: setting.version,
   };
 }

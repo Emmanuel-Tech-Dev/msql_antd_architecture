@@ -3,21 +3,13 @@
 // and groupList field types, so old definitions keep working without a data
 // migration. Old nested data keeps its inner key "list".
 
+const utils = require("../../shared/utils/functions");
+
 const TYPE_MAP = {
   text: "text", number: "number", textArea: "textarea",
   jsonSelect: "select", csvSelect: "select", jsonRadio: "radio", csvRadio: "radio",
   jsonCheck: "checkboxGroup", csvCheck: "checkboxGroup", jsonMultiSelect: "multiSelect", csvMultiSelect: "multiSelect",
 };
-
-function parse(value) {
-  if (!value) return null;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
 
 function legacyOptions(definition) {
   const { options } = definition ?? {};
@@ -47,8 +39,8 @@ function legacyRowFields(definitions) {
 
 function upgradeLegacyField(field) {
   if (field.type !== "dynaFormSimple" && field.type !== "dynaFormNested") return field;
-  const definitions = parse(field.options) ?? {};
-  const config = parse(field.config) ?? field.config ?? {};
+  const definitions = utils.parseJson(field.options, {});
+  const config = utils.parseJson(field.config, {});
   if (field.type === "dynaFormSimple") {
     return { ...field, type: "list", config: { ...config, fields: config.fields ?? legacyRowFields(definitions) } };
   }

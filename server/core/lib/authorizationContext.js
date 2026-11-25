@@ -1,6 +1,4 @@
-function uniqueStrings(values = []) {
-  return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))];
-}
+const utils = require("../../shared/utils/functions");
 
 function buildHttpAuthorizationContext({
   req,
@@ -11,14 +9,14 @@ function buildHttpAuthorizationContext({
 }) {
   const requestedMethod = String(req?.method ?? "").toUpperCase();
   const requestedPath = String(req?.path ?? req?.originalUrl ?? "").trim();
-  const resourceNames = uniqueStrings(matchedResources.map((resource) => resource?.resource));
-  const routePatterns = uniqueStrings(matchedResources.map((resource) => resource?.resource_path));
+  const resourceNames = utils.uniqueIds(matchedResources.map((resource) => resource?.resource));
+  const routePatterns = utils.uniqueIds(matchedResources.map((resource) => resource?.resource_path));
   const primaryResource = matchedResources[0];
   return {
     subject: {
       id: String(req?.user?.sub ?? "").trim(),
-      roles: uniqueStrings(authority?.roleNames ?? []),
-      permissions: uniqueStrings(authority?.effectivePermissions ?? []),
+      roles: utils.uniqueIds(authority?.roleNames ?? []),
+      permissions: utils.uniqueIds(authority?.effectivePermissions ?? []),
       privileged: authority?.privileged === true,
       attributes: {
         accountStatus: authority?.account?.status,
@@ -52,4 +50,4 @@ function buildHttpAuthorizationContext({
   };
 }
 
-module.exports = { buildHttpAuthorizationContext, uniqueStrings };
+module.exports = { buildHttpAuthorizationContext };

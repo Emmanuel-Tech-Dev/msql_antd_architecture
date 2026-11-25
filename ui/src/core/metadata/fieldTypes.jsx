@@ -8,6 +8,7 @@ import IconSelect from '../../components/metadata/IconSelect';
 import IconCell from '../../components/metadata/IconCell';
 import ListField, { ListCell } from '../../components/metadata/ListField';
 import { parseRows, rowFieldsOf } from './fieldRules';
+import utils from '../../utils/function_utils';
 
 // One definition per field type, shared by MetadataForm (input, value
 // conversion) and MetadataTable (cell). Built-in types are registered the
@@ -40,8 +41,6 @@ export function getFieldType(type) {
 const options = (field) => (field.config?.options ?? []).map((option) => ({ value: String(option.value), label: option.label, description: option.description }));
 const displayedAsChoices = (field) => ['chips', 'cards'].includes(field.config?.display);
 const optionLabel = (field, value) => options(field).find((option) => option.value === String(value))?.label ?? value;
-const toList = (value) => (Array.isArray(value) ? value : String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
-const blankToUndefined = (value) => (value === null || value === '' ? undefined : value);
 const DATE_TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
 
 const text = {
@@ -85,7 +84,7 @@ registerFieldType('groupList', repeating);
 
 registerFieldType('icon', {
   input: ({ disabled, placeholder }) => <IconSelect disabled={disabled} placeholder={placeholder} />,
-  toForm: (value) => blankToUndefined(value),
+  toForm: (value) => utils.blankToUndefined(value),
   fromForm: (value) => value ?? null,
   cell: (value) => (value ? <IconCell name={value} /> : ''),
 });
@@ -94,7 +93,7 @@ const upload = (kind) => ({
     <UploadField kind={kind} table={table} column={field.column_name} disabled={disabled}
       accept={field.config?.accept?.join(',')} maxSizeMb={field.config?.maxSizeMb} />
   ),
-  toForm: (value) => blankToUndefined(value) ?? null,
+  toForm: (value) => utils.blankToUndefined(value) ?? null,
 });
 registerFieldType('image', {
   ...upload('image'),
@@ -145,9 +144,9 @@ registerFieldType('radio', {
 });
 
 const multiChoice = {
-  toForm: (value) => toList(value),
-  fromForm: (value) => toList(value),
-  cell: (value, record, field) => toList(value).map((item) => <Tag key={item}>{optionLabel(field, item)}</Tag>),
+  toForm: (value) => utils.toList(value),
+  fromForm: (value) => utils.toList(value),
+  cell: (value, record, field) => utils.toList(value).map((item) => <Tag key={item}>{optionLabel(field, item)}</Tag>),
 };
 registerFieldType('multiSelect', {
   ...multiChoice,
@@ -172,7 +171,7 @@ registerFieldType('multiLookup', {
   input: ({ disabled, placeholder, field, lookupDependsOn }) => (
     <LookupSelect multiple disabled={disabled} placeholder={placeholder} lookupKey={field.config?.lookup} dependsOn={lookupDependsOn} />
   ),
-  cell: (value) => toList(value).map((item) => <Tag key={item}>{item}</Tag>),
+  cell: (value) => utils.toList(value).map((item) => <Tag key={item}>{item}</Tag>),
 });
 
 registerFieldType('switch', {
@@ -185,15 +184,15 @@ registerFieldType('switch', {
 
 const dateType = (format, picker) => ({
   input: ({ disabled }) => picker(disabled),
-  toForm: (value) => (blankToUndefined(value) ? dayjs(value) : undefined),
+  toForm: (value) => (utils.blankToUndefined(value) ? dayjs(value) : undefined),
   fromForm: (value) => (value ? dayjs(value).format(format) : null),
-  cell: (value) => (blankToUndefined(value) ? dayjs(value).format(format.replace(':ss', '')) : ''),
+  cell: (value) => (utils.blankToUndefined(value) ? dayjs(value).format(format.replace(':ss', '')) : ''),
 });
 registerFieldType('date', dateType('YYYY-MM-DD', (disabled) => <DatePicker className="!w-full" disabled={disabled} />));
 registerFieldType('dateTime', dateType(DATE_TIME_FORMAT, (disabled) => <DatePicker className="!w-full" showTime disabled={disabled} />));
 registerFieldType('time', {
   input: ({ disabled }) => <TimePicker className="!w-full" disabled={disabled} />,
-  toForm: (value) => (blankToUndefined(value) ? dayjs(value, 'HH:mm:ss') : undefined),
+  toForm: (value) => (utils.blankToUndefined(value) ? dayjs(value, 'HH:mm:ss') : undefined),
   fromForm: (value) => (value ? dayjs(value).format('HH:mm:ss') : null),
   cell: (value) => value ?? '',
 });

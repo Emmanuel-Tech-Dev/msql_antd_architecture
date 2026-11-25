@@ -1,14 +1,14 @@
 const AppError = require("../../shared/helpers/AppError");
+const utils = require("../../shared/utils/functions");
 const { tableSchema } = require("../lib/schemaCache");
 const { SENSITIVE_TABLES, isSensitiveColumn } = require("../config/sensitiveData");
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // The table behind /api/:resources: it must exist, must not be one kept out
 // of the generic API, and only its non-sensitive columns, less those the
 // metadata guards with a permission the user lacks, are readable or writable.
 async function resolveTableDefinition(requestedTable, access) {
   const table = String(requestedTable ?? "").trim().toLowerCase();
-  if (!IDENTIFIER.test(table)) {
+  if (!utils.isIdentifier(table)) {
     throw new AppError("ERR_INVALID_INPUT", "Invalid table name");
   }
 
