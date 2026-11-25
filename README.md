@@ -178,7 +178,7 @@ The active `ui_settings` document controls workspace layout, density, colors, br
 
 - Serve both UI and API over HTTPS.
 - Use secure, independent, rotated secrets.
-- Restrict CORS to environment-managed origins.
+- Set the UI's address in `ALLOWED_ORIGINS` or `createServer({ origins })`; with neither, production refuses cross-origin browsers.
 - Run Node under a supervised process manager.
 - Use a least-privilege MySQL account.
 - Keep logs and backups outside public web roots.

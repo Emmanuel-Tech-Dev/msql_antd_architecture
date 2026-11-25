@@ -37,6 +37,7 @@ The server is a CommonJS Express application, shipped as the package @msql-antd/
 | beforeAuth / afterAuth | Express middleware | Before the token check / after authorization, before any route |
 | policies | ABAC policies ({ id, description, evaluate }) | Added to the framework's engine; deny-only, like the core policies |
 | paths | { logs, backups, uploads, migrations } folders | Default: LOG_PATH, BACKUP_PATH, UPLOAD_PATH, MIGRATIONS_PATH, then resources/<name> in the folder the server runs from. migrations is the project's own folder; the framework's migrations always come from the framework |
+| origins | Browser origins allowed by CORS and the socket: exact URLs ("https://app.example.com") or regular expressions (/^https:\/\/[a-z0-9-]+\.example\.com$/) | Added to ALLOWED_ORIGINS. With neither: http://localhost:5173 and :3001 in development, no cross-origin browser in production (start-up logs a warning) |
 | port | A port number | Default: PORT, then 3000 |
 
 ```js server/index.js

@@ -16,6 +16,9 @@
 //               MIGRATIONS_PATH, then resources/<name> in the folder the
 //               server runs from. `migrations` is the project's own folder;
 //               the framework's stay in the framework
+//   origins     browser origins allowed by CORS and the socket: URL strings or
+//               regular expressions, added to ALLOWED_ORIGINS. With neither,
+//               localhost:5173 and :3001 in development, none in production
 //   port        default PORT, then 3000
 //
 // Returns { app, server, start }. start() loads settings, starts realtime and
@@ -37,6 +40,7 @@ function createServer({
   afterAuth = [],
   policies = [],
   paths,
+  origins = [],
   port = process.env.PORT || 3000,
 } = {}) {
   applyPaths(paths);
@@ -58,7 +62,7 @@ function createServer({
   const errorHandler = require("./core/middleware/errorHandler");
   const requestLogger = require("./core/middleware/requestLogger");
   const { createRateLimits } = require("./core/middleware/rateLimits");
-  const { validateOrigin } = require("./core/config/origins");
+  const { allowedOrigins, setAllowedOrigins, validateOrigin } = require("./core/config/origins");
   const { initRealtime } = require("./core/realtime/socketServer");
   const AuthRoute = require("./route/authRoute");
   const LogRoute = require("./route/LogRoute");
@@ -76,6 +80,7 @@ function createServer({
   const settings = new SettingsManager();
 
   for (const policy of policies) defaultAbacEngine.registry.register(policy);
+  setAllowedOrigins(origins);
 
   app.disable("x-powered-by");
   // Behind a reverse proxy (nginx, a load balancer) set TRUST_PROXY, e.g. 1 for
@@ -175,7 +180,10 @@ function createServer({
       scheduleAutomaticBackups();
       scheduleUploadCleanup();
       await new Promise((resolve) => server.listen(port, resolve));
-      logger.app("Server started", { port: Number(port) });
+      logger.app("Server started", { port: Number(port), allowedOrigins: allowedOrigins().map(String) });
+      if (!allowedOrigins().length) {
+        logger.security("No allowed origins: browsers on other addresses cannot call this API. Set createServer({ origins }) or ALLOWED_ORIGINS.");
+      }
       return server;
     } catch (error) {
       logger.critical("Server startup failed", {

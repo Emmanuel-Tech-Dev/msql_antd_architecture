@@ -33,6 +33,7 @@ const resources = (name) => path.join(__dirname, "resources", name);
 
 createServer({
   routes: [InvoiceRoute],
+  origins: ["https://invoices.example.com"], // the UI's address; ALLOWED_ORIGINS adds more
   paths: {
     logs: resources("logs"),
     backups: resources("backups"),

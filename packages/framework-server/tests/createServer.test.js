@@ -33,6 +33,7 @@ describe("createServer", () => {
     beforeAuth: [markRequest],
     afterAuth: [afterAuthMiddleware],
     policies: [branchPolicy],
+    origins: ["https://invoices.example.com/"],
     paths: { logs: "/tmp/project/logs", backups: "/tmp/project/backups", migrations: "/tmp/project/migrations" },
   });
   const paths = app._router.stack.map((layer) => layer.route?.path ?? layer.name);
@@ -46,6 +47,24 @@ describe("createServer", () => {
 
       const refused = await fetch(`http://127.0.0.1:${server.address().port}/api/v1/invoices/summary`);
       expect(refused.status).toBe(401);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
+  test("CORS allows the origins passed to createServer and refuses others", async () => {
+    const server = await listen(app);
+    const preflight = (origin) => fetch(`http://127.0.0.1:${server.address().port}/api/v1/invoices/summary`, {
+      method: "OPTIONS",
+      headers: { Origin: origin, "Access-Control-Request-Method": "GET" },
+    });
+    try {
+      const allowed = await preflight("https://invoices.example.com");
+      expect(allowed.headers.get("access-control-allow-origin")).toBe("https://invoices.example.com");
+      expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
+
+      const refused = await preflight("https://elsewhere.example.com");
+      expect(refused.headers.get("access-control-allow-origin")).toBeNull();
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }

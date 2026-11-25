@@ -21,6 +21,7 @@ summary: Environment configuration, migrations, deployment, logging, backup, mon
 | REFRESH_TOKEN_SECRET | Signs refresh tokens | Different from access-token secret |
 | ENCRYPTION_KEY | Encryption and OTP-related utilities | Provide valid key material; never commit it |
 | CLIENT_URL | Password-reset destination | Canonical HTTPS UI origin |
+| ALLOWED_ORIGINS | Comma-separated browser origins allowed to call the API (CORS and the socket), added to createServer({ origins }) | Every UI address, e.g. https://app.example.com. Unset in production means no browser on another address can call the API |
 | EMAIL_USER / EMAIL_PASS | Email OTP and reset delivery | Use an application credential or mail provider |
 
 ## Optional environment
@@ -90,7 +91,7 @@ Pending framework migrations run first, then the project's, each in number order
 - Regularly perform a restore drill. A backup is not proven until it restores successfully.
 
 :::danger Production gate
-Replace development CORS origins with environment-managed origins, use HTTPS, secure cookies, a supervised Node process, restricted MySQL credentials, protected log/backup directories, and an external backup copy before exposing the service.
+Set the UI's address in ALLOWED_ORIGINS or createServer({ origins }) (without it, production refuses cross-origin browsers), use HTTPS, secure cookies, a supervised Node process, restricted MySQL credentials, protected log/backup directories, and an external backup copy before exposing the service.
 :::
 
 ```shell Release verification
