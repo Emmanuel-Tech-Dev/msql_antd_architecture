@@ -45,7 +45,7 @@ summary: Repeatable procedures for new tables, pages, resources, forms, lookups,
 
 1. **Write a route class** — constructor(app) registers handlers, like route/baseRoute.js. Reuse validateRecordAgainstMetadata and throwFieldErrors for described tables, and syncRecordFiles if it saves uploaded files.
 2. **Pass it to createServer** — createServer({ routes: [InvoiceRoute] }) in the project's server/index.js. It is registered after authorization and before the generic /api/:resources routes.
-3. **Give it a resource** — Add an API resource for its method and path in Settings › Resources and link it to a permission and roles; without one, authorization refuses it.
+3. **Give it a resource** — One API_ENDPOINT row per method and path in Resources › Resource catalogue, a link to a permission in Resources › Policy links, and the permission on a role; without the whole chain, authorization refuses it. The steps and matching rules (:id, a trailing *, ALL) are in Identity and access › How an API request is allowed.
 4. **Call it from the UI** — dataProvider.custom or apiClient, or MetadataForm onSubmit for a form that saves through it.
 
 ## Add an appearance setting

@@ -47,6 +47,46 @@ summary: Session lifecycle, role inheritance, user-specific ALLOW/DENY authority
 Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. After the role check passes, the ABAC engine runs policies over the subject, resource and environment; policies can only deny.
 :::
 
+## How an API request is allowed
+
+Access is a chain of three links, and all three must exist:
+
+```text The chain
+Role  --holds-->  Permission  --unlocks-->  Endpoint (method + path)
+Finance           approve:invoices          POST /api/v1/invoices/:id/approve
+```
+
+On every request after sign-in the server takes the user's roles, collects the permissions those roles hold (plus the user's own overrides), collects every endpoint those permissions unlock, and allows the request only if one of them matches its method and path. Anything else is refused with 403. SuperAdmin and dev skip this check. ABAC policies run after it and can still refuse.
+
+| An endpoint resource is | Field in Resources › Resource catalogue |
+| --- | --- |
+| A unique name | Resource Name, e.g. approve:invoices:by_id |
+| Its kind | Type: API_ENDPOINT (BROWSER_ROUTE is a page, not an endpoint) |
+| The address | Path, e.g. /api/v1/invoices/:id/approve |
+| The method | HTTP Method: GET, POST, PUT, PATCH, DELETE, or ALL |
+
+| Matching rule | Example |
+| --- | --- |
+| The method must be the same, unless the row says ALL (or *) | A GET row does not allow DELETE on the same path |
+| A part starting with : matches any value in that position | /api/v1/invoices/:id/approve matches /api/v1/invoices/7/approve |
+| A trailing * matches that path and everything below it | /api/v1/reports/* matches /api/v1/reports/2026/q1 |
+| Every other part must match exactly; a trailing slash is ignored | /api/v1/invoices does not match /api/v1/invoice |
+
+- One row is one method on one path. The same path with GET and DELETE is two rows, so one role can read while another can delete. ALL covers every method with one row, but then they cannot be told apart.
+- Create an endpoint once and link it as often as you need: one permission can unlock several endpoints (read:invoices unlocks list, table, filters, query and by id), and one endpoint can be linked to several permissions.
+- A permission with no linked endpoints lets nothing through on the server (it still works for page checks with Can and useCan). An endpoint no permission unlocks is refused for everyone but SuperAdmin and dev.
+
+## Example: protect your own route
+
+For POST /api/v1/invoices/:id/approve, registered with createServer({ routes }):
+
+1. **Create the endpoint** — Resources › Resource catalogue › Add: name approve:invoices:by_id, type API_ENDPOINT, path /api/v1/invoices/:id/approve, method POST.
+2. **Create the permission** — Permissions › Add permission: approve:invoices (skip if it exists).
+3. **Link them** — Resources › Policy links › Add: permission approve:invoices, resource approve:invoices:by_id.
+4. **Give the permission to a role** — Roles: add approve:invoices to Finance.
+
+Members of Finance can now call the route; everyone else gets 403. For the generic table routes none of this is manual: Grant table access (below) creates the permissions, the endpoints and the links, and a migration from the data-model builder does the same for a new table. Only step 4, the role, remains.
+
 ## Grant table access
 
 Access to a table is a set of rows: one permission per action (read:invoices), the API endpoints it unlocks, and the links between them. Permissions › Grant table access creates them in one go.
