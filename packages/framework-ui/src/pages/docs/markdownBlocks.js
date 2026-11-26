@@ -7,7 +7,9 @@
 //   - item                      bullets
 //   1. **Step** — text          steps
 //   | a | b |                   table (header, separator, rows; \| inside a cell)
-//   :::flow … :::               flow (one "- item" per line)
+//   :::flow … :::               flow: one "- item" per line; optional "# Phase"
+//                               lines group the items, and "- [option] item"
+//                               marks a step where the project's own code runs
 //   :::lifecycle Example … :::  request round trip, one line each:
 //                                 out|turn|back Zone | Step | detail
 //                                 refuse 403 | reason       (for the step above)
@@ -31,6 +33,15 @@ function parseFrontMatter(lines) {
     return [line.slice(0, at).trim(), line.slice(at + 1).trim()];
   }));
   return { meta, start: end + 1 };
+}
+
+function parseFlow(lines) {
+  const flow = { items: [] };
+  for (const line of lines) {
+    if (line.startsWith('- ')) flow.items.push(line.slice(2));
+    if (line.startsWith('# ')) (flow.phases ??= []).push({ name: line.slice(2).trim(), from: flow.items.length });
+  }
+  return flow;
 }
 
 function parseLifecycle(lines) {
@@ -83,7 +94,7 @@ export function parseDocument(text) {
       const body = [];
       for (index += 1; index < lines.length && lines[index] !== ':::'; index += 1) body.push(lines[index]);
       if (kind === 'flow') {
-        blocks.push({ type: 'flow', title: takeTitle(), items: body.filter((item) => item.startsWith('- ')).map((item) => item.slice(2)) });
+        blocks.push({ type: 'flow', title: takeTitle(), ...parseFlow(body) });
       } else if (kind === 'lifecycle') {
         blocks.push({ type: 'lifecycle', title: takeTitle(), example: name.join(' '), ...parseLifecycle(body) });
       } else {
@@ -142,6 +153,13 @@ export function parseDocument(text) {
   return { meta, blocks };
 }
 
+function flowLines(block) {
+  return block.items.flatMap((item, index) => [
+    ...(block.phases || []).filter((phase) => phase.from === index).map((phase) => `# ${phase.name}`),
+    `- ${item}`,
+  ]);
+}
+
 function lifecycleToMarkdown(block) {
   const lines = [`:::lifecycle${block.example ? ` ${block.example}` : ''}`];
   for (const step of block.steps) {
@@ -165,7 +183,7 @@ export function blocksToMarkdown(meta, blocks) {
       case 'callout': return `:::${block.tone} ${block.title}\n${block.text}\n:::`;
       case 'bullets': return `${heading}${block.items.map((item) => `- ${item}`).join('\n')}`;
       case 'steps': return `${heading}${block.items.map((item, at) => `${at + 1}. **${item.title}** — ${item.text}`).join('\n')}`;
-      case 'flow': return `${heading}:::flow\n${block.items.map((item) => `- ${item}`).join('\n')}\n:::`;
+      case 'flow': return `${heading}:::flow\n${flowLines(block).join('\n')}\n:::`;
       case 'lifecycle': return `${heading}${lifecycleToMarkdown(block)}`;
       case 'table': return `${heading}| ${block.columns.map(cell).join(' | ')} |\n| ${block.columns.map(() => '---').join(' | ')} |\n${block.rows.map((row) => `| ${row.map(cell).join(' | ')} |`).join('\n')}`;
       case 'code': return `\`\`\`${block.language} ${block.title}\n${block.value}\n\`\`\``;

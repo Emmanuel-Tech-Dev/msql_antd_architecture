@@ -15,18 +15,25 @@ The server is a CommonJS Express application, shipped as the package @msql-antd/
 ## Startup sequence
 
 :::flow
+# Prepare
 - Load environment variables
 - Create Express and HTTP server
 - Initialize request logging, cookies, JSON parsing, rate limiting, CORS, and Helmet
-- Run the project's beforeAuth middleware
-- Register public authentication routes, then the project's publicRoutes
-- Install authentication, the per-user rate limit and authorization, then the project's afterAuth middleware
+# Before sign-in
+- [beforeAuth] Run the project's middleware
+- [publicRoutes] Register public authentication routes, then the project's public routes
+# Sign-in wall
+- [afterAuth] Install authentication, the per-user rate limit and authorization, then the project's middleware
+# Routes
 - Register logs, backup, UI settings, statistics, user directory, metadata, metadata builder and access-control routes
-- Register the project's routes, then the generic /api/:resources routes last
+- [routes] Register the project's routes, then the generic /api/:resources routes last
+# Finish
 - Install the not-found and central error handlers
 - Initialize logging and preload system settings
 - Listen on PORT and handle graceful shutdown signals
 :::
+
+Each tag beside a step is a createServer() option: the table below says what each one takes.
 
 ## Your own routes, middleware and policies
 

@@ -29,6 +29,7 @@ import {
   documentationSections,
 } from './docsContent';
 import HookLab from './HookLab';
+import FlowDiagram from './FlowDiagram';
 import RequestLifecycle from './RequestLifecycle';
 import RequestWalkthrough from './RequestWalkthrough';
 import ArchitectureSimulator from './architecture-simulator/ArchitectureSimulator';
@@ -183,22 +184,7 @@ function DocumentationBlock({ block, index }) {
     );
   }
 
-  if (block.type === 'flow') {
-    return (
-      <section className="docs-block" aria-labelledby={headingId}>
-        <h2 id={headingId}>{block.title}</h2>
-        <ol className="docs-flow">
-          {block.items.map((item, itemIndex) => (
-            <li key={itemIndex}>
-              <span>{itemIndex + 1}</span>
-              <strong>{item}</strong>
-              {itemIndex < block.items.length - 1 && <ArrowRightOutlined aria-hidden />}
-            </li>
-          ))}
-        </ol>
-      </section>
-    );
-  }
+  if (block.type === 'flow') return <FlowDiagram block={block} headingId={headingId} />;
 
   if (block.type === 'lifecycle') return <RequestLifecycle block={block} headingId={headingId} />;
   if (block.type === 'code') return <CodeBlock block={block} />;
