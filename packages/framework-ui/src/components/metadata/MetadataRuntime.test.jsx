@@ -110,7 +110,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("MetadataForm", () => {
-  test("adds a record from the metadata: labels, required checks, lookups and the payload", { timeout: 30_000 }, async () => {
+  test("adds a record from the metadata: labels, required checks, lookups and the payload", { timeout: 60_000 }, async () => {
     const onSaved = vi.fn();
     renderWithProviders(<MetadataForm table="admin_role_permissions" onSaved={onSaved} />);
     await screen.findByText("Role", { selector: "label" });
@@ -145,7 +145,7 @@ describe("MetadataForm", () => {
     expect(await screen.findByText("Permission must be one of the available choices")).toBeTruthy();
   });
 
-  test("defaults, sections, rules, conditions and a multi-select on a new record", { timeout: 30_000 }, async () => {
+  test("defaults, sections, rules, conditions and a multi-select on a new record", { timeout: 60_000 }, async () => {
     renderWithProviders(<MetadataForm table="taxes" />);
     await screen.findByText("Details");
 
@@ -174,7 +174,7 @@ describe("MetadataForm", () => {
     });
   });
 
-  test("a dependent lookup loads for the chosen parent and clears when the parent changes", { timeout: 30_000 }, async () => {
+  test("a dependent lookup loads for the chosen parent and clears when the parent changes", { timeout: 60_000 }, async () => {
     renderWithProviders(<MetadataForm table="taxes" />);
     await screen.findByText("Details");
 
@@ -205,7 +205,7 @@ describe("MetadataForm", () => {
 });
 
 describe("file and image fields", () => {
-  test("a chosen image is uploaded for its field, and saving sends the stored file's address", { timeout: 30_000 }, async () => {
+  test("a chosen image is uploaded for its field, and saving sends the stored file's address", { timeout: 60_000 }, async () => {
     renderWithProviders(<MetadataForm table="suppliers" />);
     await screen.findByText("Logo", { selector: "label" });
     await typeInto("Name", "Kumasi Timber Works");
@@ -267,7 +267,7 @@ describe("MetadataTable", () => {
 
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /assign permission/i })); });
     expect(await screen.findByText("Role", { selector: "label" })).toBeTruthy();
-  }, 30_000);
+  }, 60_000);
 
   test("selection: ticked rows reach the page, Delete selected sends them together", async () => {
     signInAs([{ role_id: "superadmin" }]);
@@ -296,14 +296,14 @@ describe("MetadataTable", () => {
     await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Delete" })); });
     await waitFor(() => expect(dataProvider.custom).toHaveBeenCalledWith(expect.objectContaining({ url: "api/admin_role_permissions", method: "delete", payload: { ids: [7] } })));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Selected records" })).toBeNull());
-  }, 30_000);
+  }, 60_000);
 
   test("without tableSelection there are no checkboxes", async () => {
     signInAs([{ role_id: "superadmin" }]);
     renderWithProviders(<MetadataTable table="admin_role_permissions" />);
     await screen.findByText("read:reports", {}, { timeout: 10_000 });
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-  }, 30_000);
+  }, 60_000);
 
   test("hides add, edit and delete from a user without those permissions", async () => {
     signInAs([{ role_id: "User" }], ["read:admin_role_permissions"]);
@@ -312,5 +312,5 @@ describe("MetadataTable", () => {
     expect(await screen.findByText("read:reports", {}, { timeout: 10_000 })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /add assignment/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /edit assignment/i })).toBeNull();
-  }, 30_000);
+  }, 60_000);
 });

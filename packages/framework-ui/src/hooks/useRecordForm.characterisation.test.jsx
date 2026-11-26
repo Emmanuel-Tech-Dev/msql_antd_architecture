@@ -111,12 +111,12 @@ const SAMPLE_RECORDS = {
 };
 
 describe.each(Object.keys(SAMPLE_RECORDS))("%s form", (table) => {
-  test("adding a record", { timeout: 30_000 }, async () => {
+  test("adding a record", { timeout: 60_000 }, async () => {
     await renderForm(table);
     expect(await describeFields()).toMatchSnapshot();
   });
 
-  test("editing a record", { timeout: 30_000 }, async () => {
+  test("editing a record", { timeout: 60_000 }, async () => {
     await renderForm(table, SAMPLE_RECORDS[table]);
     expect(await describeFields()).toMatchSnapshot();
   });
@@ -129,7 +129,7 @@ test("the resource type options come from the named lookup, not from SQL", async
 });
 
 describe("typing and saving", () => {
-  test("typing does not re-render the page, and saving sends what was typed", { timeout: 30_000 }, async () => {
+  test("typing does not re-render the page, and saving sends what was typed", { timeout: 60_000 }, async () => {
     const pageRendered = vi.fn();
     const dataProvider = await renderForm("admin_roles", undefined, { onRender: pageRendered });
     const roleInput = await waitFor(() => {
@@ -149,7 +149,7 @@ describe("typing and saving", () => {
     expect(dataProvider.create.mock.calls[0][0]).toMatchObject({ resource: "admin_roles", variables: { role_name: "Auditor" } });
   });
 
-  test("the modal's OK does not save an incomplete record", { timeout: 30_000 }, async () => {
+  test("the modal's OK does not save an incomplete record", { timeout: 60_000 }, async () => {
     const dataProvider = await renderForm("admin_roles");
     await act(async () => { fireEvent.click(document.querySelector(".ant-modal-footer .ant-btn-primary")); });
     await waitFor(() => expect(document.body.textContent).toContain("Role is required"));

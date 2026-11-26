@@ -59,7 +59,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("list fields in MetadataForm", () => {
-  test("rows are added, checked with each row field's rules and saved as an array", { timeout: 30_000 }, async () => {
+  test("rows are added, checked with each row field's rules and saved as an array", { timeout: 60_000 }, async () => {
     metadata = metadataFor([CONTACTS]);
     renderForm();
     await screen.findByText("No contacts yet.");
@@ -84,7 +84,7 @@ describe("list fields in MetadataForm", () => {
     expect(dataProvider.create.mock.calls[0][0].variables).toEqual({ name: "Kumasi Office Supplies", contacts: [{ name: "Ama Mensah" }] });
   });
 
-  test("the only row can be removed even with minRows; the minimum is checked on save", { timeout: 30_000 }, async () => {
+  test("the only row can be removed even with minRows; the minimum is checked on save", { timeout: 60_000 }, async () => {
     metadata = metadataFor([CONTACTS]);
     renderForm();
     await type((await screen.findAllByLabelText("Name"))[0], "Kumasi Office Supplies");
@@ -108,7 +108,7 @@ describe("list fields in MetadataForm", () => {
     expect(dataProvider.update.mock.calls[0][0].variables.contacts).toEqual([{ name: "Efua Owusu", channel: "phone" }]);
   });
 
-  test("a groupList holds groups, each with its own inner list", { timeout: 30_000 }, async () => {
+  test("a groupList holds groups, each with its own inner list", { timeout: 60_000 }, async () => {
     metadata = metadataFor([PRICES]);
     renderForm();
     await type((await screen.findAllByLabelText("Name"))[0], "Kumasi Office Supplies");

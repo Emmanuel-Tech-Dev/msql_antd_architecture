@@ -43,7 +43,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("MetadataForm onSubmit", () => {
-  test("saves through your own function, after the same checks, instead of the generic route", { timeout: 20000 }, async () => {
+  test("saves through your own function, after the same checks, instead of the generic route", { timeout: 60_000 }, async () => {
     const onSubmit = vi.fn(async (values) => ({ id: 77, ...values }));
     const onSaved = vi.fn();
     renderForm({ onSubmit, onSaved });
@@ -63,7 +63,7 @@ describe("MetadataForm onSubmit", () => {
     expect(dataProvider.create).not.toHaveBeenCalled();
   });
 
-  test("an error from your route with details.errors is shown under those fields", { timeout: 20000 }, async () => {
+  test("an error from your route with details.errors is shown under those fields", { timeout: 60_000 }, async () => {
     const refused = Object.assign(new Error("Validation failed"), { details: { errors: { email: "This email is already a customer" } } });
     const onSaveError = vi.fn();
     renderForm({ record: { id: 5, name: "Kofi", email: "kofi@example.com" }, onSubmit: vi.fn(async () => { throw refused; }), onSaveError });
@@ -74,7 +74,7 @@ describe("MetadataForm onSubmit", () => {
     expect(onSaveError).toHaveBeenCalledWith(refused);
     expect(dataProvider.update).not.toHaveBeenCalled();
   });
-  test("a required multi-value field accepts its list of values", { timeout: 20000 }, async () => {
+  test("a required multi-value field accepts its list of values", { timeout: 60_000 }, async () => {
     const tagsForm = {
       table: { table_name: "articles", label: "Articles", singular_label: "Article", form_layout: "modal", form_columns: 1, sections: [] },
       fields: [field("topics", "Topics", "checkboxGroup", { required: 1, config: { options: [{ value: "news", label: "News" }, { value: "sport", label: "Sport" }] } })],

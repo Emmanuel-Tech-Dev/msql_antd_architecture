@@ -37,7 +37,7 @@ function renderDrawer(dataProvider) {
 afterEach(() => cleanup());
 
 describe('Grant table access', () => {
-  test('the form comes from metadata; the preview follows it; Create posts the grant', { timeout: 30_000 }, async () => {
+  test('the form comes from metadata; the preview follows it; Create posts the grant', { timeout: 60_000 }, async () => {
     const dataProvider = {
       custom: vi.fn(async ({ url }) => {
         if (url === 'api/v1/metadata/access_table_grants') return { data: FORM };
@@ -72,7 +72,7 @@ describe('Grant table access', () => {
     expect(screen.getByText(/Created 2 permissions and linked 5 endpoints for Volunteers/)).toBeTruthy();
   });
 
-  test('nothing is previewed until a table and an action are chosen', { timeout: 20_000 }, async () => {
+  test('nothing is previewed until a table and an action are chosen', { timeout: 60_000 }, async () => {
     const dataProvider = { custom: vi.fn(async ({ url }) => (url.includes('metadata') ? { data: FORM } : { data: [] })) };
     renderDrawer(dataProvider);
     await screen.findByLabelText('Tables');

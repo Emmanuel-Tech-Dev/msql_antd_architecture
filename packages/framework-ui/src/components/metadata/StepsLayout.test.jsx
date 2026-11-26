@@ -74,7 +74,7 @@ afterEach(() => {
 });
 
 describe("stepper form", () => {
-  test("shows one step at a time and checks only that step before continuing", { timeout: 30_000 }, async () => {
+  test("shows one step at a time and checks only that step before continuing", { timeout: 60_000 }, async () => {
     renderForm();
     expect(await screen.findByLabelText("Supplier name")).toBeTruthy();
     expect(screen.queryByLabelText("City")).toBeNull();
@@ -94,7 +94,7 @@ describe("stepper form", () => {
     expect(screen.getByText("33%")).toBeTruthy();
   });
 
-  test("Back keeps what was typed, and saving on the last step sends every step's values", { timeout: 30_000 }, async () => {
+  test("Back keeps what was typed, and saving on the last step sends every step's values", { timeout: 60_000 }, async () => {
     const onSaved = vi.fn();
     renderForm({ onSaved });
     await screen.findByLabelText("Supplier name");
@@ -119,7 +119,7 @@ describe("stepper form", () => {
     expect(onSaved).toHaveBeenCalled();
   });
 
-  test("Enter in a field continues to the next step instead of saving", { timeout: 30_000 }, async () => {
+  test("Enter in a field continues to the next step instead of saving", { timeout: 60_000 }, async () => {
     renderForm();
     await screen.findByLabelText("Supplier name");
     await typeInto("Supplier name", "Kumasi Timber Works");
@@ -129,7 +129,7 @@ describe("stepper form", () => {
     expect(dataProvider.create).not.toHaveBeenCalled();
   });
 
-  test("a server error opens the step holding the field and shows the message under it", { timeout: 30_000 }, async () => {
+  test("a server error opens the step holding the field and shows the message under it", { timeout: 60_000 }, async () => {
     dataProvider.create.mockRejectedValueOnce(Object.assign(new Error("Validation failed"), {
       details: { errors: { name: "A supplier with this name already exists" } },
     }));
@@ -147,7 +147,7 @@ describe("stepper form", () => {
     expect(within(stepCard("Details")).getByText("FIX")).toBeTruthy();
   });
 
-  test("the summary shows earlier steps' values, and the review step lists every answer", { timeout: 30_000 }, async () => {
+  test("the summary shows earlier steps' values, and the review step lists every answer", { timeout: 60_000 }, async () => {
     metadata = supplierMetadata({ variant: "vertical", showSummary: true, showReview: true });
     renderForm();
     await screen.findByLabelText("Supplier name");
@@ -173,7 +173,7 @@ describe("stepper form", () => {
     await waitFor(() => expect(dataProvider.create).toHaveBeenCalled());
   });
 
-  test("on a narrow screen the stepper switches to its compact variant", { timeout: 30_000 }, async () => {
+  test("on a narrow screen the stepper switches to its compact variant", { timeout: 60_000 }, async () => {
     window.matchMedia = narrowMatchMedia;
     renderForm();
     await screen.findByLabelText("Supplier name");
@@ -181,7 +181,7 @@ describe("stepper form", () => {
     expect(screen.queryByRole("complementary", { name: "Summary" })).toBeNull();
   });
 
-  test("editing a record: fields are filled, any step can be opened, and saving updates it", { timeout: 30_000 }, async () => {
+  test("editing a record: fields are filled, any step can be opened, and saving updates it", { timeout: 60_000 }, async () => {
     const onSaved = vi.fn();
     renderForm({ onSaved, record: { id: 7, name: "Kumasi Timber Works", category: "RAW", city: "Kumasi", payment_terms: "NET30", credit_limit: 5000 } });
     expect((await screen.findByLabelText("Supplier name")).value).toBe("Kumasi Timber Works");

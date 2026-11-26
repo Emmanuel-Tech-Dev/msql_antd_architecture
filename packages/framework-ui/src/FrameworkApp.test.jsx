@@ -22,7 +22,7 @@ describe('FrameworkApp', () => {
     render(<FrameworkApp config={{ apiUrl: 'http://127.0.0.1:9' }} />);
     expect(await screen.findByText('Welcome back', {}, { timeout: 15_000 })).toBeTruthy();
     expect(frameworkConfig.apiUrl).toBe('http://127.0.0.1:9');
-  }, 20_000);
+  }, 60_000);
 });
 
 describe('framework context', () => {

@@ -26,6 +26,9 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.js"],
     include: ["src/**/*.test.{js,jsx}"],
     css: false,
+    // Form and table tests render antd in jsdom; on a 2-core CI runner, with
+    // every file in parallel, a few take 20-30 s. Give each test room.
+    testTimeout: 60_000,
   },
   optimizeDeps: {
     include: [
