@@ -56,6 +56,41 @@ describe('documentation Markdown', () => {
     ]);
   });
 
+  it('reads a lifecycle block: steps, refusals, the retry and the note', () => {
+    const { blocks } = parseDocument([
+      '## Lifecycle',
+      '',
+      ':::lifecycle PUT /api/invoices/12',
+      'out Browser | apiClient | adds the token',
+      'out API server | Sign-in check | token valid',
+      'refuse 401 | token expired',
+      'refuse 403 | password change required',
+      'turn Database | MySQL',
+      'back Browser | Page re-renders | from server state',
+      'retry Sign-in check → apiClient | Refresh once and retry.',
+      'note Refusals come back the same way.',
+      ':::',
+    ].join('\n'));
+
+    expect(blocks).toEqual([{
+      type: 'lifecycle',
+      title: 'Lifecycle',
+      example: 'PUT /api/invoices/12',
+      steps: [
+        { direction: 'out', zone: 'Browser', title: 'apiClient', text: 'adds the token', refusals: [] },
+        { direction: 'out', zone: 'API server', title: 'Sign-in check', text: 'token valid', refusals: [
+          { code: '401', text: 'token expired' },
+          { code: '403', text: 'password change required' },
+        ] },
+        { direction: 'turn', zone: 'Database', title: 'MySQL', text: '', refusals: [] },
+        { direction: 'back', zone: 'Browser', title: 'Page re-renders', text: 'from server state', refusals: [] },
+      ],
+      retry: { from: 'Sign-in check', to: 'apiClient', text: 'Refresh once and retry.' },
+      note: 'Refusals come back the same way.',
+    }]);
+    expect(parseDocument(blocksToMarkdown({ id: 'x' }, blocks)).blocks).toEqual(blocks);
+  });
+
   it('round-trips blocks through Markdown', () => {
     const blocks = [
       { type: 'bullets', title: 'Notes', items: ['a | b', 'c'] },

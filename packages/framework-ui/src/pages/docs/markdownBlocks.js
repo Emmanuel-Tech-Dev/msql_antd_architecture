@@ -8,6 +8,11 @@
 //   1. **Step** — text          steps
 //   | a | b |                   table (header, separator, rows; \| inside a cell)
 //   :::flow … :::               flow (one "- item" per line)
+//   :::lifecycle Example … :::  request round trip, one line each:
+//                                 out|turn|back Zone | Step | detail
+//                                 refuse 403 | reason       (for the step above)
+//                                 retry From step → To step | what happens
+//                                 note Text
 //   :::note|warning|danger Title … :::   callout
 //   ```lang Title … ```         code
 //   ::hook-lab, ::architecture-simulator, ::request-walkthrough   embedded demos
@@ -26,6 +31,27 @@ function parseFrontMatter(lines) {
     return [line.slice(0, at).trim(), line.slice(at + 1).trim()];
   }));
   return { meta, start: end + 1 };
+}
+
+function parseLifecycle(lines) {
+  const lifecycle = { steps: [] };
+  for (const line of lines.map((value) => value.trim()).filter(Boolean)) {
+    const at = line.indexOf(' ');
+    const keyword = line.slice(0, at);
+    const parts = line.slice(at + 1).split(' | ').map((part) => part.trim());
+    if (['out', 'turn', 'back'].includes(keyword)) {
+      const [zone, title, text = ''] = parts;
+      lifecycle.steps.push({ direction: keyword, zone, title, text, refusals: [] });
+    } else if (keyword === 'refuse') {
+      lifecycle.steps.at(-1).refusals.push({ code: parts[0], text: parts[1] || '' });
+    } else if (keyword === 'retry') {
+      const [from, to] = parts[0].split(' → ').map((part) => part.trim());
+      lifecycle.retry = { from, to, text: parts[1] || '' };
+    } else if (keyword === 'note') {
+      lifecycle.note = line.slice(at + 1).trim();
+    }
+  }
+  return lifecycle;
 }
 
 export function parseDocument(text) {
@@ -58,6 +84,8 @@ export function parseDocument(text) {
       for (index += 1; index < lines.length && lines[index] !== ':::'; index += 1) body.push(lines[index]);
       if (kind === 'flow') {
         blocks.push({ type: 'flow', title: takeTitle(), items: body.filter((item) => item.startsWith('- ')).map((item) => item.slice(2)) });
+      } else if (kind === 'lifecycle') {
+        blocks.push({ type: 'lifecycle', title: takeTitle(), example: name.join(' '), ...parseLifecycle(body) });
       } else {
         blocks.push({ type: 'callout', title: name.join(' '), text: body.join(' ').trim(), tone: kind });
       }
@@ -114,6 +142,17 @@ export function parseDocument(text) {
   return { meta, blocks };
 }
 
+function lifecycleToMarkdown(block) {
+  const lines = [`:::lifecycle${block.example ? ` ${block.example}` : ''}`];
+  for (const step of block.steps) {
+    lines.push(`${step.direction} ${step.zone} | ${step.title}${step.text ? ` | ${step.text}` : ''}`);
+    for (const refusal of step.refusals) lines.push(`refuse ${refusal.code}${refusal.text ? ` | ${refusal.text}` : ''}`);
+  }
+  if (block.retry) lines.push(`retry ${block.retry.from} → ${block.retry.to} | ${block.retry.text}`);
+  if (block.note) lines.push(`note ${block.note}`);
+  return `${lines.join('\n')}\n:::`;
+}
+
 // The reverse, used once to move the old content into Markdown files and by
 // the round-trip test.
 export function blocksToMarkdown(meta, blocks) {
@@ -127,6 +166,7 @@ export function blocksToMarkdown(meta, blocks) {
       case 'bullets': return `${heading}${block.items.map((item) => `- ${item}`).join('\n')}`;
       case 'steps': return `${heading}${block.items.map((item, at) => `${at + 1}. **${item.title}** — ${item.text}`).join('\n')}`;
       case 'flow': return `${heading}:::flow\n${block.items.map((item) => `- ${item}`).join('\n')}\n:::`;
+      case 'lifecycle': return `${heading}${lifecycleToMarkdown(block)}`;
       case 'table': return `${heading}| ${block.columns.map(cell).join(' | ')} |\n| ${block.columns.map(() => '---').join(' | ')} |\n${block.rows.map((row) => `| ${row.map(cell).join(' | ')} |`).join('\n')}`;
       case 'code': return `\`\`\`${block.language} ${block.title}\n${block.value}\n\`\`\``;
       default: return `::${block.type}${block.title ? ` ${block.title}` : ''}`;

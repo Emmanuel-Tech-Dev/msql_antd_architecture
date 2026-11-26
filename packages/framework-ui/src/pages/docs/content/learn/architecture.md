@@ -23,17 +23,31 @@ The architecture has four cooperating layers: the browser experience, the framew
 
 ## Authenticated request lifecycle
 
-:::flow
-- React hook calls the data provider
-- Axios adds the bearer access token
-- Express authenticates the token
-- Authorization resolves roles, permissions, and endpoint resources
-- validateTable resolves physical schema and removes sensitive and permission-guarded columns
-- Metadata rules check the record: types, required fields, rules, lookups, field access
-- BaseService builds the allowed operation
-- Model and QueryBuilder execute a parameterized query
-- The response is normalized and cached by React Query
-- The page rerenders from server state
+:::lifecycle Ama Mensah presses Save on invoice 12, which sends PUT /api/invoices/12
+out Browser | Page calls useUpdate() | Save on the invoice form
+out Browser | Data provider | builds PUT /api/invoices/12
+out Browser | apiClient | adds the Bearer access token
+out API server | Rate limit | per IP, then per user
+refuse 429 | Too many requests
+out API server | Sign-in check | token valid, not revoked
+refuse 401 | token expired or revoked
+refuse 403 | password change required
+out API server | Permission check | role → permission → endpoint, then ABAC
+refuse 403 | ERR_ACCESS_DENIED, or ERR_NO_RESOURCES without a role
+out API server | validateTable | real table; sensitive and guarded columns removed
+refuse 403 | sensitive table
+refuse 404 | unknown table
+out API server | Metadata rules | types, required fields, rules, lookups
+refuse 400 | details.errors, one per field
+out API server | BaseService | builds the allowed update
+out API server | Model + QueryBuilder | one parameterized query
+turn Database | MySQL | UPDATE invoices … WHERE id = ?
+back API server | Response | { data } in the response envelope
+back Browser | Data provider | normalizes the response
+back Browser | React Query | caches it and refreshes invoice lists
+back Browser | Page re-renders | from server state
+retry Sign-in check → apiClient | On 401, apiClient refreshes the token once and retries. If the refresh fails, the user is signed out.
+note A refused request skips the remaining steps: errorHandler answers with { errorCode, message } and the response comes back the same way.
 :::
 
 ## Sources of truth

@@ -29,6 +29,7 @@ import {
   documentationSections,
 } from './docsContent';
 import HookLab from './HookLab';
+import RequestLifecycle from './RequestLifecycle';
 import RequestWalkthrough from './RequestWalkthrough';
 import ArchitectureSimulator from './architecture-simulator/ArchitectureSimulator';
 import './Documentation.css';
@@ -199,6 +200,7 @@ function DocumentationBlock({ block, index }) {
     );
   }
 
+  if (block.type === 'lifecycle') return <RequestLifecycle block={block} headingId={headingId} />;
   if (block.type === 'code') return <CodeBlock block={block} />;
   if (block.type === 'hook-lab') return <HookLab />;
   if (block.type === 'request-walkthrough') return <RequestWalkthrough headingId={headingId} title={block.title} />;
