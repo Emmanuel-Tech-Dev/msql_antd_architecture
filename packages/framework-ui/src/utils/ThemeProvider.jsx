@@ -19,6 +19,7 @@ const ThemeCtx = createContext({
     hasPreference: false,
     appearance: DEFAULT_SIDER_CONFIG,
     toggle: () => {},
+    setPreference: () => {},
     clearPreference: () => {},
 });
 
@@ -108,6 +109,18 @@ export function ThemeProvider({ children }) {
         setPreferences((current) => ({ ...current, [scope]: next }));
     }, [isDark, scope]);
 
+    // 'light' or 'dark' for this person on this device; null for the default.
+    const setPreference = useCallback((value) => {
+        if (value !== 'light' && value !== 'dark') {
+            localStorage.removeItem(PREFERENCE_KEYS[scope]);
+            if (scope === 'workspace') localStorage.removeItem('theme-preference');
+            setPreferences((current) => ({ ...current, [scope]: null }));
+            return;
+        }
+        localStorage.setItem(PREFERENCE_KEYS[scope], value);
+        setPreferences((current) => ({ ...current, [scope]: value }));
+    }, [scope]);
+
     const clearPreference = useCallback(() => {
         localStorage.removeItem(PREFERENCE_KEYS[scope]);
         if (scope === 'workspace') localStorage.removeItem('theme-preference');
@@ -163,11 +176,13 @@ export function ThemeProvider({ children }) {
         preference,
         followsSystem,
         toggle,
+        setPreference,
         clearPreference,
         appearance,
     }), [
         appearance,
         clearPreference,
+        setPreference,
         configuredMode,
         followsSystem,
         isDark,

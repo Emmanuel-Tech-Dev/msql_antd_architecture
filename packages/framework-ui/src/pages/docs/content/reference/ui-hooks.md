@@ -105,7 +105,7 @@ Registries for your own field types and form layouts (registerFieldType, getFiel
 | useModal(config) | A modal you open and close from code, and its element to render | Layout and overlay hooks |
 | useDrawer(config) | The same for a side drawer | Layout and overlay hooks |
 | useNotification() | Success, error, warning and info messages in the framework's style | Filters, feedback, storage, and utility hooks |
-| useTheme() | { isDark, mode, toggle, preference, followsSystem, clearPreference, scope, isWorkspace, appearance }: light/dark state and the saved Appearance settings | Layout and overlay hooks |
+| useTheme() | { isDark, mode, toggle, setPreference, preference, followsSystem, clearPreference, scope, isWorkspace, appearance }: light/dark state and the saved Appearance settings. setPreference("light" | "dark" | null) sets this person's choice on this device (null: the workspace default) | Layout and overlay hooks |
 | useIcons(extraIcons) | The icon set used for sidebar and section icons, as name → component | Filters, feedback, storage, and utility hooks |
 
 ## Storage, charts, calendar and editor

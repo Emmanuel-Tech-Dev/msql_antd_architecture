@@ -84,6 +84,9 @@ class AuthRoute {
               "profile_picture",
               "status",
               "forced_password_change",
+              "oauth_provider",
+              "last_login",
+              "createdAt",
             ],
             "admin",
           )
