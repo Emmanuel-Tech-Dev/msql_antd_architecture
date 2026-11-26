@@ -7,6 +7,8 @@ const { releaseRecordFiles, syncRecordFiles } = require("./uploadTracking");
 
 const { isSensitiveColumn } = require("../config/sensitiveData");
 
+const MAX_BULK_DELETE = 500;
+
 class BaseService {
   constructor(request, response) {
     this.request = request;
@@ -248,6 +250,34 @@ class BaseService {
       .execute();
     if (result.affectedRows) await releaseRecordFiles(payload?.resources, existing);
     return result;
+  }
+
+  // Deletes several records of the table in one transaction: all of them or,
+  // if one cannot be deleted (a foreign key, say), none. Ids that match no
+  // record are reported, not treated as an error.
+  async deleteMany(ids) {
+    const { resources: table } = this.request.params;
+    const primaryKey = this.request.validatedResource?.primaryKey;
+    if (!primaryKey) {
+      throw new AppError("ERR_INVALID_INPUT", "Resource has no primary key");
+    }
+    const wanted = utils.uniqueIds(Array.isArray(ids) ? ids : []);
+    if (!wanted.length || wanted.length > MAX_BULK_DELETE) {
+      throw new AppError("ERR_VALIDATION_FAILED", `Send between 1 and ${MAX_BULK_DELETE} ids to delete`);
+    }
+
+    const existing = await new Model()
+      .select(this.request.validatedResource?.fields ?? ["*"], table)
+      .whereIn(primaryKey, wanted)
+      .execute();
+    if (!existing.length) return { deleted: 0, missing: wanted };
+
+    const found = existing.map((row) => row[primaryKey]);
+    const result = await new Model().transaction((tx) => tx.builder().delete(table).whereIn(primaryKey, found).executeInTransaction());
+    for (const record of existing) await releaseRecordFiles(table, record);
+
+    const foundIds = new Set(found.map(String));
+    return { deleted: result.affectedRows, missing: wanted.filter((id) => !foundIds.has(id)) };
   }
 
   async lookup(payload = {}) {

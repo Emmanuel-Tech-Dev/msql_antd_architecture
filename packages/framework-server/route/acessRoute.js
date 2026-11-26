@@ -10,6 +10,9 @@ const {
   resolveOverrides,
 } = require("../core/lib/authorityService");
 const { isPrivilegedSystemRole } = require("../core/lib/authorizationPolicy");
+const { applyTableAccess, isGrantableTable, parseCustomActions, planTableAccess, ACTIONS } = require("../core/lib/tableAccess");
+const { throwFieldErrors, validateRecordAgainstMetadata } = require("../core/lib/metadataSchema");
+const utils = require("../shared/utils/functions");
 
 const MANAGE_AUTHORITY_PERMISSION = "manage:user_authority";
 const EFFECTS = new Set(["ALLOW", "DENY"]);
@@ -56,8 +59,69 @@ class AccessRoute {
     this.saveRoutes(app);
     this.toggleUserStatus(app);
     this.assignedRoles(app);
+    this.grantTableAccess(app);
 
     return this;
+  }
+
+  // Grant table access: permissions for chosen actions on registered,
+  // non-system tables, each with the endpoints it needs. The request is the
+  // access_table_grants form; its tables lookup only offers grantable tables.
+  grantTableAccess(app) {
+    const readGrant = async (req) => {
+      const access = { permissions: req.permissions ?? [], privileged: Boolean(req.isPrivileged) };
+      const { record, errors } = await validateRecordAgainstMetadata("access_table_grants", req.body ?? {}, { access });
+      if (Object.keys(errors).length) throwFieldErrors(errors);
+
+      const tables = utils.uniqueIds(Array.isArray(record.tables) ? record.tables : String(record.tables ?? "").split(","));
+      const refused = tables.filter((table) => !isGrantableTable(table));
+      if (refused.length) {
+        throw new AppError("ERR_ACCESS_DENIED", "Access to the framework's own tables is managed on their own screens", { tables: refused });
+      }
+      const actions = utils.uniqueIds(Array.isArray(record.actions) ? record.actions : String(record.actions ?? "").split(","))
+        .filter((action) => ACTIONS.includes(action));
+      const customActions = parseCustomActions(record.custom_actions);
+      if (!actions.length && !customActions.length) {
+        throw new AppError("ERR_VALIDATION_FAILED", "Choose at least one action", { errors: { actions: "Choose at least one action, or add a custom one" } });
+      }
+      return { tables, actions, customActions };
+    };
+
+    const selectWith = (builder) => (table, columns, [column, values]) => builder().select(columns, table).whereIn(column, values);
+
+    app.post("/access/table_access/preview", async (req, res) => {
+      const grant = await readGrant(req);
+      const plan = await planTableAccess(grant, (...args) => selectWith(() => new Model())(...args).execute());
+      res.json({ success: true, data: plan });
+    });
+
+    app.post("/access/table_access", async (req, res) => {
+      const grant = await readGrant(req);
+      const labelRows = await new Model().select(["table_name", "label"], "metadata_tables").whereIn("table_name", grant.tables).execute();
+      const labels = Object.fromEntries(labelRows.map((row) => [row.table_name, row.label]));
+
+      // Planned again inside the transaction, so a change made meanwhile is
+      // seen and nothing is inserted twice.
+      const result = await new Model().transaction(async (transaction) => {
+        const plan = await planTableAccess(grant, (...args) => selectWith(() => transaction.builder())(...args).executeInTransaction());
+        const created = await applyTableAccess(plan, { labels, run: (build) => build(transaction.builder()).executeInTransaction() });
+        return { plan, created };
+      });
+
+      // A role may already hold one of these permissions, so its members'
+      // access changes now.
+      clearPermissionCache();
+      authorizationEvents.broadcast("access-changed", "table-access-granted");
+      logger.security("Table access granted", {
+        operation: "table-access.grant",
+        actorUserId: req.user?.sub,
+        tables: grant.tables,
+        actions: grant.actions,
+        customActions: grant.customActions,
+        created: result.created,
+      });
+      res.json({ success: true, data: { ...result.plan, created: result.created } });
+    });
   }
 
   getUserAuthority(app) {

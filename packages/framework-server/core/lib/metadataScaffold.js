@@ -1,6 +1,7 @@
 const mysql = require("mysql2");
 const AppError = require("../../shared/helpers/AppError");
 const utils = require("../../shared/utils/functions");
+const { ACTIONS, endpointsFor } = require("./tableAccess");
 
 // The metadata builder's pure parts: guessing a field from a database column,
 // writing migrations, and describing what changed between two versions. No
@@ -149,7 +150,7 @@ const describeValue = (value) => {
   return String(value);
 };
 const FIELD_KEYS = ["col_real_name", "type", "form_visible", "list_visible", "editable", "disabled", "required", "section_key", "col_span", "rank", "config"];
-const TABLE_KEYS = ["label", "singular_label", "title_column", "default_sort", "search_columns", "form_layout", "form_columns", "sections", "stepper", "enabled"];
+const TABLE_KEYS = ["label", "singular_label", "title_column", "default_sort", "search_columns", "form_layout", "form_columns", "sections", "stepper", "enabled", "is_system"];
 
 // What changed from one saved definition to the next, as readable lines:
 // [{ scope: "table" | "field", subject, change }].
@@ -180,7 +181,7 @@ function describeChanges(before, after) {
 
 const json = (value) => (value === null || value === undefined ? null : JSON.stringify(value));
 const TABLE_COLUMNS = ["table_name", "label", "singular_label", "description", "icon", "title_column", "default_sort",
-  "search_columns", "form_layout", "form_columns", "sections", "stepper", "enabled"];
+  "search_columns", "form_layout", "form_columns", "sections", "stepper", "enabled", "is_system"];
 const FIELD_COLUMNS = ["table_name", "column_name", "col_real_name", "type", "form_visible", "list_visible", "editable",
   "disabled", "required", "section_key", "col_span", "config", "rank"];
 const JSON_COLUMNS = new Set(["default_sort", "search_columns", "sections", "stepper", "config", "extra_columns", "base_filters", "sort"]);
@@ -204,7 +205,7 @@ function definitionMigration(definition, { lookups = [] } = {}) {
     "",
     "START TRANSACTION;",
     "",
-    upsertSql("metadata_tables", TABLE_COLUMNS, { ...definition.table, table_name: table }, TABLE_COLUMNS.filter((column) => column !== "table_name")),
+    upsertSql("metadata_tables", TABLE_COLUMNS, { ...definition.table, table_name: table, is_system: Number(definition.table.is_system ?? 0) ? 1 : 0 }, TABLE_COLUMNS.filter((column) => column !== "table_name")),
   ];
   for (const lookup of lookups) {
     const columns = ["lookup_key", "source_table", "value_column", "label_column", "extra_columns", "base_filters",
@@ -273,11 +274,8 @@ function newTableMigration(spec) {
     { column_name: "updatedAt", col_real_name: "Updated", type: "dateTime", form_visible: 0, list_visible: 0, editable: 0, disabled: 1 },
   ].map((field) => ({ disabled: 0, required: 0, section_key: null, col_span: 24, config: null, ...field }));
 
-  const permissions = ["read", "create", "update", "delete"].map((action) => `${action}:${table}`);
-  const routes = [
-    ["read", "GET", `/api/${table}/table`], ["read", "GET", `/api/${table}/:id`],
-    ["create", "POST", `/api/${table}`], ["update", "PUT", `/api/${table}/:id`], ["delete", "DELETE", `/api/${table}/:id`],
-  ];
+  const permissions = ACTIONS.map((action) => `${action}:${table}`);
+  const routes = ACTIONS.flatMap((action) => endpointsFor(table, action).map((endpoint) => ({ action, ...endpoint })));
   const label = spec.label || utils.humanize(table);
   const sql = [
     `-- ${label}: a new table designed in the metadata builder.`,
@@ -295,9 +293,9 @@ function newTableMigration(spec) {
     mysql.format("INSERT IGNORE INTO `admin_permissions` (`permission_name`, `description`, `createdAt`, `updatedAt`) VALUES ?;",
       [permissions.map((permission) => [permission, `${permission.split(":")[0]} ${label}`, NOW, NOW])]),
     mysql.format("INSERT IGNORE INTO `admin_resources` (`resource`, `resource_type`, `resource_path`, `http_method`, `description`, `is_public`, `display_order`, `createdAt`, `updatedAt`, `category`, `show_in_nav`) VALUES ?;",
-      [routes.map(([action, method, path]) => [`${action}:api:${table}:${method.toLowerCase()}:${path}`, "API_ENDPOINT", path, method, `${label}: ${method} ${path}`, 0, 0, NOW, NOW, "Data API", 0])]),
+      [routes.map(({ resource, method, path }) => [resource, "API_ENDPOINT", path, method, `${label}: ${method} ${path}`, 0, 0, NOW, NOW, "Data API", 0])]),
     mysql.format("INSERT IGNORE INTO `admin_permission_resources` (`permission`, `resource`, `resource_type`, `createdAt`, `updatedAt`) VALUES ?;",
-      [routes.map(([action, method, path]) => [`${action}:${table}`, `${action}:api:${table}:${method.toLowerCase()}:${path}`, "API_ENDPOINT", NOW, NOW])]),
+      [routes.map(({ action, resource }) => [`${action}:${table}`, resource, "API_ENDPOINT", NOW, NOW])]),
     "",
     "COMMIT;",
     "",

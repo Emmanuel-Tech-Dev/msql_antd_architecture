@@ -4,6 +4,8 @@ import utils from '../../utils/function_utils';
 // shows the error the server would return before the request is sent.
 
 const NUMBER_TYPES = new Set(["number", "integer", "money", "percent", "duration"]);
+// Types whose form value is an array; "required" means at least one item.
+const MULTI_VALUE_TYPES = new Set(["multiSelect", "multiLookup", "checkboxGroup"]);
 
 // { field, in: [...] }, { field, equals }, { field, notEmpty: true }, and
 // { all: [...] } / { any: [...] } groups. No condition means "always".
@@ -68,7 +70,9 @@ export function fieldRules(field, values = {}) {
 
   const rules = [];
   if (isFieldRequired(field, values)) {
-    rules.push({ required: true, whitespace: true, message: `${label} is required` });
+    rules.push(MULTI_VALUE_TYPES.has(field.type)
+      ? { required: true, type: "array", message: `${label} is required` }
+      : { required: true, whitespace: true, message: `${label} is required` });
   }
   if (field.type === "email") {
     rules.push(rule((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim()), `${label} must be a valid email address`));

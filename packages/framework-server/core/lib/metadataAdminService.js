@@ -25,7 +25,7 @@ const isHidden = (table) => HIDDEN_TABLES.has(table) || table.startsWith("framew
 const schemaName = () => process.env.DATABASE_NAME;
 
 const TABLE_SETTINGS = ["label", "singular_label", "description", "icon", "title_column", "default_sort", "search_columns",
-  "form_layout", "form_columns", "sections", "stepper", "enabled"];
+  "form_layout", "form_columns", "sections", "stepper", "enabled", "is_system"];
 const FIELD_SETTINGS = ["col_real_name", "type", "form_visible", "list_visible", "editable", "disabled", "required",
   "section_key", "col_span", "config", "rank"];
 const LOOKUP_SETTINGS = ["source_table", "value_column", "label_column", "extra_columns", "base_filters", "depends_on",
@@ -58,7 +58,7 @@ async function listTables() {
       .where("TABLE_SCHEMA", "=", schemaName()).where("TABLE_TYPE", "=", "BASE TABLE").orderBy("TABLE_NAME", "ASC").execute(),
     new Model().select(["TABLE_NAME", "COUNT(*) AS columns"], "information_schema.COLUMNS")
       .where("TABLE_SCHEMA", "=", schemaName()).groupBy("TABLE_NAME").execute(),
-    new Model().select(["table_name", "label", "enabled", "form_layout", "form_columns", "stepper", "sections", "version", "updatedAt"], "metadata_tables").execute(),
+    new Model().select(["table_name", "label", "enabled", "is_system", "form_layout", "form_columns", "stepper", "sections", "version", "updatedAt"], "metadata_tables").execute(),
     new Model().select(["table_name", "COUNT(*) AS fields"], "tables_metadata").groupBy("table_name").execute(),
   ]);
   const columnsOf = new Map(columnCounts.map((row) => [row.TABLE_NAME, Number(row.columns)]));
@@ -72,6 +72,7 @@ async function listTables() {
       label: settings?.label ?? utils.humanize(table),
       described: Boolean(settings),
       enabled: settings ? Number(settings.enabled) === 1 : false,
+      system: settings ? Number(settings.is_system) === 1 : false,
       columns: columnsOf.get(table) ?? 0,
       fields: fieldsOf.get(table) ?? 0,
       form: settings ? { layout: settings.form_layout, columns: Number(settings.form_columns), stepper: Boolean(settings.stepper), sections: settings.sections?.length ?? 0 } : null,

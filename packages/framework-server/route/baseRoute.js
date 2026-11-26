@@ -23,6 +23,7 @@ class BaseRoute {
     this.update(app);
     this.updateSome(app);
     this.delete(app);
+    this.deleteMany(app);
     this.bootstrap(app);
     this.getExtraMetaList(app);
 
@@ -188,6 +189,20 @@ class BaseRoute {
         message: "Operation Successful!",
         data: result,
         details: "Resource deleted successfully",
+      });
+    });
+  }
+
+  // DELETE /api/:resources with { ids }: the selected records, together.
+  deleteMany(app) {
+    app.delete("/api/:resources", validateTable, async (req, res) => {
+      const service = new BaseService(req, res);
+      const data = await service.deleteMany(req.body?.ids);
+      res.status(200).json({
+        status: "ok",
+        message: "Operation Successful!",
+        data,
+        details: `${data.deleted} deleted`,
       });
     });
   }

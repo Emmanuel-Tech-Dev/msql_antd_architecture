@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import { Alert, Button, Drawer, Modal, Skeleton, Tooltip } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, App as AntdApp, Button, Drawer, Modal, Popconfirm, Skeleton, Tooltip } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDataProvider } from '../../core/provider/DataProvider';
+import queryKeys from '../../core/queryKeys';
+import utils from '../../utils/function_utils';
 import CustomTable from '../CustomTable';
 import useCan from '../../core/hooks/access/useCan';
 import { getFieldType } from '../../core/metadata/fieldTypes';
@@ -11,7 +15,7 @@ import useTableApi from '../../hooks/useTableApi';
 import MetadataForm from './MetadataForm';
 
 const listFieldsOf = (metadata) => metadata.fields.filter((field) => Number(field.list_visible) === 1 && field.type !== 'primaryKey');
-function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel, addTitle, editTitle, header, pageSize, formProps }) {
+function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel, addTitle, editTitle, header, pageSize, formProps, tableSelection = false, onSelectionChange, bulkActions }) {
     const [editing, setEditing] = useState(null);
     const primaryKey = primaryKeyOf(metadata);
     const singular = metadata.table?.singular_label ?? 'record';
@@ -25,6 +29,43 @@ function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel
         primaryKey,
         { table, defaultLimit: pageSize, maxLimit: 100, searchable: metadata.table?.search_columns ?? [] },
     );
+
+    const { message } = AntdApp.useApp();
+    const dataProvider = useDataProvider();
+    const queryClient = useQueryClient();
+    const [deleting, setDeleting] = useState(false);
+    const { setAllowSelection, selectedRows, selectedRowKeys, setSelectedRowKeys, setSelectedRows, runRequest } = tableApi;
+
+    useEffect(() => {
+        setAllowSelection(Boolean(tableSelection));
+    }, [setAllowSelection, tableSelection]);
+
+    // The page hears about every change of selection, for its own bulk actions.
+    const selectionListener = useRef(onSelectionChange);
+    useEffect(() => { selectionListener.current = onSelectionChange; }, [onSelectionChange]);
+    useEffect(() => { selectionListener.current?.(selectedRows, selectedRowKeys); }, [selectedRowKeys, selectedRows]);
+
+    const clearSelection = () => {
+        setSelectedRowKeys([]);
+        setSelectedRows([]);
+    };
+    const refresh = () => {
+        runRequest();
+        queryClient.invalidateQueries({ queryKey: queryKeys.lists(table) });
+    };
+    const deleteSelected = async () => {
+        setDeleting(true);
+        try {
+            const { data } = await dataProvider.custom({ url: `api/${table}`, method: 'delete', payload: { ids: selectedRowKeys }, unwrap: true });
+            message.success(`${utils.pluralize(data.deleted, singular)} deleted`);
+            clearSelection();
+            refresh();
+        } catch (error) {
+            message.error(error?.message ?? `The selected ${singular.toLowerCase()} records could not be deleted`);
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     const searchColumns = metadata.table?.search_columns ?? [];
     const fieldColumns = listFieldsOf(metadata).map((field) => {
@@ -80,6 +121,25 @@ function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel
     return (
         <>
             {header ? header({ addButton }) : addButton && <div className="mb-3 flex justify-end">{addButton}</div>}
+            {tableSelection && selectedRowKeys.length > 0 && (
+                <div role="region" aria-label="Selected records" className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--app-radius,8px)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-layout)] px-3 py-2">
+                    <strong className="text-[13px]">{selectedRowKeys.length} selected</strong>
+                    <span className="flex-1" />
+                    {bulkActions?.({ selectedRows, selectedRowKeys, clearSelection, refresh })}
+                    {canDelete && (
+                        <Popconfirm
+                            title={`Delete ${utils.pluralize(selectedRowKeys.length, singular)}?`}
+                            description="They are deleted together: if one cannot be deleted, none are."
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={deleteSelected}
+                        >
+                            <Button danger icon={<DeleteOutlined />} loading={deleting}>Delete selected</Button>
+                        </Popconfirm>
+                    )}
+                    <Button onClick={clearSelection}>Clear</Button>
+                </div>
+            )}
             <CustomTable tableConfig={tableApi} columns={[...fieldColumns, ...(actionColumn ? [actionColumn] : [])]} />
             <Container open={Boolean(editing)} title={title} onClose={close} onCancel={close} destroyOnHidden {...containerProps}>
                 {form}
@@ -90,7 +150,10 @@ function MetadataTableView({ table, metadata, columns: columnOverrides, addLabel
 
 // A table's list with search, sort and paging, and its add / edit / delete,
 // all from the table's metadata. `columns` adjusts a column by name (title,
-// render, ...); `header({ addButton })` places the add button.
+// render, ...); `header({ addButton })` places the add button. With
+// `tableSelection`, rows can be ticked: Delete selected (for delete:<table>),
+// `onSelectionChange(rows, keys)` and `bulkActions({ selectedRows,
+// selectedRowKeys, clearSelection, refresh })` for the page's own actions.
 export default function MetadataTable({ table, pageSize = 10, metadata: draftMetadata, ...props }) {
     const loaded = useTableMetadata(draftMetadata ? null : table);
     const metadata = draftMetadata ?? loaded.data;

@@ -66,6 +66,46 @@ A complete list screen from a table's metadata: columns, search, pagination, and
 | addLabel / addTitle / editTitle | from the table's singular name | Button and modal titles |
 | formProps | — | Props passed to the MetadataForm in the modal (slots, onSubmit, initialValues…) |
 | metadata | — | A draft definition instead of the saved one (the builder's preview uses this) |
+| tableSelection | false | Adds a checkbox to each row. While rows are ticked, a bar shows "N selected", Delete selected (for people with delete:<table>), your bulkActions and Clear |
+| onSelectionChange(rows, keys) | — | Called whenever the selection changes, with the ticked rows and their primary keys |
+| bulkActions({ selectedRows, selectedRowKeys, clearSelection, refresh }) | — | Your own buttons in the selection bar, for example a bulk update through your own route |
+
+Delete selected sends DELETE /api/<table> with the ticked ids: one request, one transaction, so either all are deleted or (when one cannot be, a foreign key for example) none. Selection covers the rows on the current page.
+
+```jsx A bulk update through your own route
+<MetadataTable
+  table="invoices"
+  tableSelection
+  bulkActions={({ selectedRowKeys, clearSelection, refresh }) => (
+    <Button onClick={async () => {
+      await apiClient.post('/api/v1/invoices/mark-paid', { ids: selectedRowKeys })
+      clearSelection()
+      refresh()
+    }}>Mark paid</Button>
+  )}
+/>
+```
+
+The route is yours: register it with createServer({ routes }) and give it an API resource and a permission, like any project route.
+
+Who sees which button is decided by permissions. Delete selected appears only for people with delete:<table>; anyone without it still gets the checkboxes and your own actions. Your buttons follow the same rule when you check them with useCan:
+
+```jsx Your own action for permitted people only
+function InvoiceList() {
+  const canMarkPaid = useCan('update:invoices')
+  return (
+    <MetadataTable
+      table="invoices"
+      tableSelection
+      bulkActions={({ selectedRowKeys, refresh }) => canMarkPaid && (
+        <Button onClick={() => markPaid(selectedRowKeys).then(refresh)}>Mark paid</Button>
+      )}
+    />
+  )
+}
+```
+
+To keep Delete selected off a table altogether, don't give anyone delete:<table>; the server refuses bulk and single deletes without it either way.
 
 ## MetadataForm and MetadataFields
 

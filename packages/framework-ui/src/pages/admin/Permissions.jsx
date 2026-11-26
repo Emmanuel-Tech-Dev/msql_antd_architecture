@@ -1,6 +1,9 @@
-import { Card, Tabs, Tag, Typography } from 'antd';
-import { KeyOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import { Button, Card, Space, Tabs, Tag, Typography } from 'antd';
+import { KeyOutlined, TableOutlined } from '@ant-design/icons';
 import MetadataTable from '../../components/metadata/MetadataTable';
+import GrantTableAccess from '../../components/access/GrantTableAccess';
+import useCan from '../../core/hooks/access/useCan';
 import { PageHeader } from '../../components/PageHeader';
 import { AdminEntity, AdminSectionHeader } from './AdminWorkspace';
 import './AdminWorkspace.css';
@@ -37,6 +40,9 @@ const ROLE_PERMISSION_COLUMNS = {
 };
 
 export default function Permissions() {
+    const [granting, setGranting] = useState(false);
+    const canGrant = useCan('manage:permissions');
+
     return (
         <PageHeader
             className="admin-page"
@@ -60,9 +66,17 @@ export default function Permissions() {
                                             eyebrow="Capability catalogue"
                                             title="Permission definitions"
                                             description="Create stable, action-oriented capabilities that roles and direct user authority can reference."
-                                            action={addButton}
+                                            action={(
+                                                <Space wrap>
+                                                    {addButton}
+                                                    {canGrant && (
+                                                        <Button type="primary" icon={<TableOutlined />} onClick={() => setGranting(true)}>Grant table access</Button>
+                                                    )}
+                                                </Space>
+                                            )}
                                         />
                                     )}
+                                    tableSelection
                                 />
                             ),
                         },
@@ -84,12 +98,14 @@ export default function Permissions() {
                                             action={addButton}
                                         />
                                     )}
+                                    tableSelection
                                 />
                             ),
                         },
                     ]}
                 />
             </Card>
+            <GrantTableAccess open={granting} onClose={() => setGranting(false)} />
         </PageHeader>
     );
 }

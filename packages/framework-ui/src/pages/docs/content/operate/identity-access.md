@@ -47,6 +47,25 @@ summary: Session lifecycle, role inheritance, user-specific ALLOW/DENY authority
 Roles remain the reusable baseline. Direct user overrides handle exceptional authority without copying a role or changing every user assigned to it. After the role check passes, the ABAC engine runs policies over the subject, resource and environment; policies can only deny.
 :::
 
+## Grant table access
+
+Access to a table is a set of rows: one permission per action (read:invoices), the API endpoints it unlocks, and the links between them. Permissions › Grant table access creates them in one go.
+
+1. **Choose tables** — Only registered project tables are offered, by their label (the grantable_tables lookup: metadata_tables rows that are enabled and not is_system). The database's own table list is never shown.
+2. **Tick actions** — Read, Create, Update, Delete; custom actions (export, approve) create a permission with no endpoints, for checks in pages and policies.
+3. **Check the preview** — Each permission shows New, Adds N endpoints (it exists but an endpoint is missing) or Already there. Running it twice changes nothing.
+4. **Create** — Everything is written in one transaction, signed-in users' permission caches are cleared, and the grant is logged as a security event (table-access.grant).
+5. **Give it to a role** — Nobody can use a permission until a role (or a user override) holds it; do that under Roles.
+
+| Action | Endpoints (for a table t) |
+| --- | --- |
+| read | GET /api/t, GET /api/t/table, GET /api/t/filters, POST /api/t/query, GET /api/t/:id |
+| create | POST /api/t, POST /api/t/bulk |
+| update | PUT /api/t/:id |
+| delete | DELETE /api/t/:id, DELETE /api/t (several, with { ids }) |
+
+The routes (POST /access/table_access/preview and POST /access/table_access) need manage:permissions, which SuperAdmin and dev hold. The form itself is metadata (access_table_grants), checked on the server like any metadata form. The framework's own tables (admin, admin_*, metadata_*, framework_*, settings and the sensitive tables) are refused by the server even if their is_system flag is turned off.
+
 ## ABAC policies
 
 | Rule | Detail |

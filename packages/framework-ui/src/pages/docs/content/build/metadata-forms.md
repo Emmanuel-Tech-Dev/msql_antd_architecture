@@ -38,6 +38,7 @@ A described table has one row in metadata_tables (its labels, list and form sett
 | sections | [{ "key", "title", "description", "icon" }] in order: the form's groups, and the steps of a stepper. A collapsed flag can be stored but the form does not use it yet. |
 | stepper | null for an ordinary form, or the stepper settings: see Multi-step forms. |
 | enabled / version | A disabled table falls back to the generic API without rules; version counts saves. |
+| is_system | 1 for the framework's own tables: never offered by Grant table access (Permissions page). Set in the builder's table inspector (System table). |
 
 ## Field columns (tables_metadata)
 

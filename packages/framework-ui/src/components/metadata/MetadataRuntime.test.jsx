@@ -269,6 +269,42 @@ describe("MetadataTable", () => {
     expect(await screen.findByText("Role", { selector: "label" })).toBeTruthy();
   }, 30_000);
 
+  test("selection: ticked rows reach the page, Delete selected sends them together", async () => {
+    signInAs([{ role_id: "superadmin" }]);
+    const custom = dataProvider.custom;
+    dataProvider.custom = vi.fn(async (request) => (request.method === "delete" ? { data: { deleted: 1, missing: [] } } : custom(request)));
+    const onSelectionChange = vi.fn();
+    renderWithProviders(
+      <MetadataTable
+        table="admin_role_permissions"
+        tableSelection
+        onSelectionChange={onSelectionChange}
+        bulkActions={({ selectedRowKeys }) => <button type="button">Approve {selectedRowKeys.length}</button>}
+      />,
+    );
+    await screen.findByText("read:reports", {}, { timeout: 10_000 });
+    expect(screen.queryByRole("region", { name: "Selected records" })).toBeNull();
+
+    const rowCheckbox = screen.getAllByRole("checkbox").find((box) => box.closest("tr")?.getAttribute("data-row-key") === "7");
+    await act(async () => { fireEvent.click(rowCheckbox); });
+    const bar = await screen.findByRole("region", { name: "Selected records" });
+    expect(within(bar).getByText("1 selected")).toBeTruthy();
+    expect(within(bar).getByRole("button", { name: "Approve 1" })).toBeTruthy();
+    expect(onSelectionChange).toHaveBeenLastCalledWith([expect.objectContaining({ id: 7 })], [7]);
+
+    await act(async () => { fireEvent.click(within(bar).getByRole("button", { name: /Delete selected/ })); });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Delete" })); });
+    await waitFor(() => expect(dataProvider.custom).toHaveBeenCalledWith(expect.objectContaining({ url: "api/admin_role_permissions", method: "delete", payload: { ids: [7] } })));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Selected records" })).toBeNull());
+  }, 30_000);
+
+  test("without tableSelection there are no checkboxes", async () => {
+    signInAs([{ role_id: "superadmin" }]);
+    renderWithProviders(<MetadataTable table="admin_role_permissions" />);
+    await screen.findByText("read:reports", {}, { timeout: 10_000 });
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  }, 30_000);
+
   test("hides add, edit and delete from a user without those permissions", async () => {
     signInAs([{ role_id: "User" }], ["read:admin_role_permissions"]);
     renderWithProviders(<MetadataTable table="admin_role_permissions" />);

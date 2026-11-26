@@ -74,4 +74,26 @@ describe("MetadataForm onSubmit", () => {
     expect(onSaveError).toHaveBeenCalledWith(refused);
     expect(dataProvider.update).not.toHaveBeenCalled();
   });
+  test("a required multi-value field accepts its list of values", { timeout: 20000 }, async () => {
+    const tagsForm = {
+      table: { table_name: "articles", label: "Articles", singular_label: "Article", form_layout: "modal", form_columns: 1, sections: [] },
+      fields: [field("topics", "Topics", "checkboxGroup", { required: 1, config: { options: [{ value: "news", label: "News" }, { value: "sport", label: "Sport" }] } })],
+      lookups: [],
+    };
+    dataProvider.custom = vi.fn(async () => ({ data: tagsForm }));
+    const onSubmit = vi.fn(async (values) => values);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AntdApp><DataProviderContext.Provider value={dataProvider}><MetadataForm table="articles" onSubmit={onSubmit} /></DataProviderContext.Provider></AntdApp>
+      </QueryClientProvider>,
+    );
+    await screen.findByLabelText("News");
+    await click("Add article");
+    expect(await screen.findByText("Topics is required")).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Sport")); });
+    await click("Add article");
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ topics: ["sport"] }, expect.anything()), { timeout: 5000 });
+  });
 });

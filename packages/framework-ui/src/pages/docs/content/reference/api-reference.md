@@ -40,6 +40,7 @@ summary: Endpoint families, access expectations, payload shapes, response envelo
 | POST /api/:resources/bulk | Create up to 500 records |
 | PUT /api/:resources/:id | Update writable fields |
 | DELETE /api/:resources/:id | Delete by primary key |
+| DELETE /api/:resources | Delete several: body { ids: [...] }, up to 500, in one transaction (all or none). Returns { deleted, missing }. Covered by delete:<table> |
 
 ## Framework and administration
 

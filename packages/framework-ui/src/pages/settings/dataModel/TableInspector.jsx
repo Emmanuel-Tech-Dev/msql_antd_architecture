@@ -39,6 +39,12 @@ export default function TableInspector({ settings, fields, onChange }) {
             <div className="flex flex-col gap-1.5 text-[13px] font-semibold">Columns
                 <Segmented block value={Number(settings.form_columns) || 1} onChange={(form_columns) => set({ form_columns })} options={[{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]} />
             </div>
+            <label className="flex items-start justify-between gap-3 text-[13px] font-semibold">
+                <span className="flex flex-col gap-0.5">System table
+                    <span className="text-[12.5px] font-normal text-[var(--color-text-secondary)]">Hidden from Grant table access on the Permissions page. The framework&apos;s own tables are never offered there, whatever this says.</span>
+                </span>
+                <Switch checked={Number(settings.is_system) === 1} onChange={(checked) => set({ is_system: checked ? 1 : 0 })} />
+            </label>
 
             <div className="flex flex-col gap-2">
                 <span className="text-[13px] font-semibold">Sections</span>

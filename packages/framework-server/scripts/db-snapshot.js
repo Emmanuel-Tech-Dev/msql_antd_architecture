@@ -77,7 +77,9 @@ async function main() {
     rows.admin_role_permissions = rows.admin_role_permissions.filter((link) => roles.has(link.role_id) && permissions.has(link.permission));
     rows.admin_role_browser_routes = rows.admin_role_browser_routes.filter((link) => roles.has(link.role_id) && resources.has(link.resource));
     rows.system_settings = rows.system_settings.filter((setting) => !PRIVATE_SETTINGS.has(setting.key));
-    const described = (table) => FRAMEWORK_TABLES.has(table) || table === "system_resources";
+    // Framework forms described in metadata with no table behind them.
+    const FRAMEWORK_FORMS = new Set(["access_table_grants"]);
+    const described = (table) => FRAMEWORK_TABLES.has(table) || FRAMEWORK_FORMS.has(table) || table === "system_resources";
     rows.metadata_tables = rows.metadata_tables.filter((row) => described(row.table_name));
     rows.tables_metadata = rows.tables_metadata.filter((row) => described(row.table_name));
     rows.metadata_lookups = rows.metadata_lookups.filter((row) => described(row.source_table));
