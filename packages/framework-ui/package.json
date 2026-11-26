@@ -1,6 +1,6 @@
 {
   "name": "@msql-antd/framework-ui",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React and Ant Design UI for the msql-antd framework: providers, hooks, metadata-driven forms and tables, and the admin pages.",
   "type": "module",
   "engines": {

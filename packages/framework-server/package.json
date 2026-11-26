@@ -1,6 +1,6 @@
 {
   "name": "@msql-antd/framework-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Express and MySQL server for the msql-antd framework: auth, ACL and ABAC, generic CRUD, metadata, migrations, backups and logs.",
   "main": "index.js",
   "exports": {

@@ -2,6 +2,16 @@
 
 All three packages (`@msql-antd/framework-server`, `@msql-antd/framework-ui`, `@msql-antd/create`) share one version. After upgrading, run `npm run migrate`.
 
+## 0.2.1 — 2026-11-26
+
+### Fixed
+- The generic list routes (GET /api/<table>, GET /api/<table>/table, POST /api/<table>/query) did not limit the page size, so ?limit=100000 returned the whole table in one request. Limits are now capped at 100 (or the table config's maxLimit, at most 500); the default is 20.
+
+### Docs
+- Reference › Query builder: every Model method and the forms it accepts (chained where, where with an array, orWhere groups, joins and aliases, paging, aggregates, writes, transactions, full-text search), the SQL each produces, the errors it throws, and the list URL syntax.
+
+No migrations.
+
 ## 0.2.0 — 2026-11-26
 
 ### New
