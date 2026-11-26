@@ -1,6 +1,6 @@
 {
   "name": "@msql-antd/create",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Creates a new project on the msql-antd framework: npm init @msql-antd <folder>.",
   "bin": {
     "create-msql-antd": "index.js"

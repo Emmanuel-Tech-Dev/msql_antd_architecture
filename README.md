@@ -135,7 +135,7 @@ Open:
 
 ## Release the packages
 
-All three packages share one version. Raise `version` in `packages/framework-server`, `packages/framework-ui` and `packages/create` (and the starter's template dependencies follow its version), commit, then tag:
+All three packages share one version. Raise `version` in `packages/framework-server`, `packages/framework-ui` and `packages/create` (the starter's template dependencies follow its version) and in the two example apps' dependencies, add the release notes to [CHANGELOG.md](CHANGELOG.md), commit, then tag:
 
 ```bash
 git tag v0.2.0

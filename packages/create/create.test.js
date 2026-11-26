@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+const VERSION = `^${require("./package.json").version}`;
 const create = (...args) => spawnSync(process.execPath, [path.join(__dirname, "index.js"), ...args], { encoding: "utf8" });
 
 test("creates a project with the names, package versions and files filled in", () => {
@@ -15,8 +16,8 @@ test("creates a project with the names, package versions and files filled in", (
 
   const read = (file) => fs.readFileSync(path.join(target, file), "utf8");
   assert.equal(JSON.parse(read("package.json")).name, "acme-invoices");
-  assert.equal(JSON.parse(read("server/package.json")).dependencies["@msql-antd/framework-server"], "^0.1.0");
-  assert.equal(JSON.parse(read("ui/package.json")).dependencies["@msql-antd/framework-ui"], "^0.1.0");
+  assert.equal(JSON.parse(read("server/package.json")).dependencies["@msql-antd/framework-server"], VERSION);
+  assert.equal(JSON.parse(read("ui/package.json")).dependencies["@msql-antd/framework-ui"], VERSION);
   assert.match(read("server/.env"), /DATABASE_NAME=acme_invoices/);
   assert.match(read("ui/index.html"), /<title>Acme Invoices<\/title>/);
   assert.ok(fs.existsSync(path.join(target, ".gitignore")));
