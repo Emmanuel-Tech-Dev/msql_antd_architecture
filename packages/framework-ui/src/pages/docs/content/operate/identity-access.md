@@ -76,16 +76,9 @@ On every request after sign-in the server takes the user's roles, collects the p
 - Create an endpoint once and link it as often as you need: one permission can unlock several endpoints (read:invoices unlocks list, table, filters, query and by id), and one endpoint can be linked to several permissions.
 - A permission with no linked endpoints lets nothing through on the server (it still works for page checks with Can and useCan). An endpoint no permission unlocks is refused for everyone but SuperAdmin and dev.
 
-## Example: protect your own route
+## Protecting your own routes
 
-For POST /api/v1/invoices/:id/approve, registered with createServer({ routes }):
-
-1. **Create the endpoint** — Resources › Resource catalogue › Add: name approve:invoices:by_id, type API_ENDPOINT, path /api/v1/invoices/:id/approve, method POST.
-2. **Create the permission** — Permissions › Add permission: approve:invoices (skip if it exists).
-3. **Link them** — Resources › Policy links › Add: permission approve:invoices, resource approve:invoices:by_id.
-4. **Give the permission to a role** — Roles: add approve:invoices to Finance.
-
-Members of Finance can now call the route; everyone else gets 403. For the generic table routes none of this is manual: Grant table access (below) creates the permissions, the endpoints and the links, and a migration from the data-model builder does the same for a new table. Only step 4, the role, remains.
+The step-by-step guide is Build › Access › Protect your own API route: register the endpoint, create the permission, link them, and give the permission to a role. For a table's generic routes, Grant table access (below) creates the whole chain; only the role remains.
 
 ## Grant table access
 
@@ -95,7 +88,7 @@ Access to a table is a set of rows: one permission per action (read:invoices), t
 2. **Tick actions** — Read, Create, Update, Delete; custom actions (export, approve) create a permission with no endpoints, for checks in pages and policies.
 3. **Check the preview** — Each permission shows New, Adds N endpoints (it exists but an endpoint is missing) or Already there. Running it twice changes nothing.
 4. **Create** — Everything is written in one transaction, signed-in users' permission caches are cleared, and the grant is logged as a security event (table-access.grant).
-5. **Give it to a role** — Nobody can use a permission until a role (or a user override) holds it; do that under Roles.
+5. **Give it to a role** — Nobody can use a permission until a role (or a user override) holds it. Tick them under Roles › Configure access › Capabilities: create, read, edit and delete have their own columns, and any other action (export, approve, manage) is in the Other actions column of the same row. Then press Save role policy.
 
 | Action | Endpoints (for a table t) |
 | --- | --- |
