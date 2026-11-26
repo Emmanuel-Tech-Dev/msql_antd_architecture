@@ -419,7 +419,7 @@ export function ChangePasswordDemo() {
 }
 
 export function IdentityDemo() {
-  return <DemoPanel note="useIdentity delegates identity ownership to AuthProvider. The current mysql provider returns this asynchronously."><Card className="hook-semantic__identity"><Avatar size={58}>DU</Avatar><div><Title level={4}>Demo User</Title><p>demo@example.com</p><Tag color="green">Authenticated identity</Tag></div></Card></DemoPanel>;
+  return <DemoPanel note="useIdentity reads the signed-in user through AuthProvider and returns { user, isLoading, error }; user is null while signed out."><Card className="hook-semantic__identity"><Avatar size={58}>DU</Avatar><div><Title level={4}>Demo User</Title><p>demo@example.com</p><Tag color="green">Authenticated identity</Tag></div></Card></DemoPanel>;
 }
 
 export function PermissionsDemo() {
@@ -448,7 +448,7 @@ export function RouteGuardDemo() {
 }
 
 export function FrameworkDemo() {
-  return <DemoPanel note="This hook cannot execute yet: FrameworkProvider imports FrameworkContext but does not mount FrameworkContext.Provider."><Alert type="warning" showIcon title="Provider wiring required" description="Define a stable context value containing the intended framework services, mount FrameworkContext.Provider, and then enable the useFramework demo." /><div className="hook-semantic__provider-flow"><span>FrameworkProvider</span><i>missing value</i><span>FrameworkContext.Provider</span><i>then</i><span>useFramework()</span></div></DemoPanel>;
+  return <DemoPanel note="FrameworkProvider mounts one context with the framework's services; useFramework returns it."><div className="hook-semantic__provider-flow"><span>FrameworkProvider</span><i>provides</i><span>dataProvider · authProvider · accessProvider · resourceProvider · queryClient</span><i>read by</i><span>useFramework()</span></div></DemoPanel>;
 }
 
 export function ScrollToTopDemo() {

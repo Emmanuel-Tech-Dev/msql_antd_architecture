@@ -1,10 +1,11 @@
 import { forwardRef, useImperativeHandle } from "react";
 import { Spin } from "antd";
 import useMap from "../../hooks/useMap";
+import { frameworkConfig } from "../../core/config/frameworkConfig";
 
 const MapView = forwardRef(function MapView(
   {
-    provider = "mapbox",
+    provider = frameworkConfig.mapProvider || "mapbox",
     center,
     zoom,
     markers,

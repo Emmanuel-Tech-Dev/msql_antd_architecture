@@ -437,7 +437,9 @@ forgot.mutate({ email });`],
 reset.mutate({ token, password });`],
   ['useChangePassword', 'Change an authenticated password and clear rotated-token caches.', 'POST', '/auth/change-password', `const change = useChangePassword();
 change.mutate({ currentPassword, newPassword });`],
-  ['useIdentity', 'Read the current identity through AuthProvider.', 'GET', '/auth/auth_user', `const identity = useIdentity();`],
+  ['useIdentity', 'Read the signed-in user through AuthProvider; re-read on sign-in and sign-out.', 'STORE', 'authProvider.getIdentity()', `const { user, isLoading } = useIdentity();
+if (isLoading) return <Spin />;
+return <Avatar>{utils.initials(user?.name)}</Avatar>;`],
   ['usePermissions', 'Read the current user, roles, permissions, and resources from auth state.', 'STORE', 'authStore', `const { user, roles, permissions, resources } = usePermissions();`],
   ['useAuthorizationEvents', 'Subscribe to access and UI-setting server-sent events.', 'SSE', '/auth/access-events', `useAuthorizationEvents(isAuthenticated);`],
 ];
@@ -473,14 +475,14 @@ return <Outlet />;`,
   }),
   integrationEntry({
     key: 'core-useFramework', name: 'useFramework', category: 'Core context', importPath: 'src/core/hooks/useFramework.js',
-    status: 'Provider wiring required',
-    summary: 'Intended to read FrameworkContext, but the current FrameworkProvider does not mount that context provider.',
-    method: 'CONTEXT', endpoint: 'FrameworkContext', result: 'Blocked until FrameworkContext.Provider is added with a defined value contract',
-    example: `// Current status: this throws because FrameworkContext.Provider
-// is not mounted by FrameworkProvider yet.
-// Define the context value before using this hook in feature code.
+    summary: 'Reads the framework services FrameworkProvider mounts: the data, auth, access and resource providers and the query client.',
+    method: 'CONTEXT', endpoint: 'FrameworkContext', result: '{ dataProvider, authProvider, accessProvider, resourceProvider, queryClient }',
+    example: `const { dataProvider, queryClient } = useFramework();
 
-const framework = useFramework();`,
+const closeMonth = async () => {
+  await dataProvider.custom({ url: 'api/v1/invoices/close-month', method: 'post' });
+  queryClient.invalidateQueries({ queryKey: ['invoices'] });
+};`,
   }),
 ];
 

@@ -91,6 +91,15 @@ export { default as useTextEditor } from './hooks/useTextEditor.jsx';
 export { default as useLocalForage } from './hooks/useLocalForage.jsx';
 export { default as useGlobalSelect } from './hooks/useGlobalSelect.jsx';
 export { useTheme } from './hooks/useTheme.jsx';
+export { default as useSider } from './hooks/useSider.jsx';
+export { default as useMap } from './hooks/useMap';
+export { default as useMasonry } from './hooks/useMasonary.jsx';
+export { default as useDraggable } from './hooks/useDraggable.jsx';
+export { default as useScrollToTop } from './hooks/useScrolToTop.jsx';
+export { default as useTableState } from './hooks/table/useTableState.jsx';
+export { default as useTableQuery } from './hooks/table/useTableQuery.jsx';
+export { default as useTableColumns } from './hooks/table/useTableColumns.jsx';
+export { default as useRowSelection } from './hooks/table/useRowSelection.jsx';
 
 // Shared clients and helpers
 export { default as apiClient } from './services/apiClient';

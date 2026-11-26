@@ -25,6 +25,19 @@ describe('FrameworkApp', () => {
   }, 20_000);
 });
 
+describe('framework context', () => {
+  it('useFramework returns the providers and the query client', async () => {
+    window.history.pushState({}, '', '/services');
+    function Services() {
+      const { dataProvider, authProvider, accessProvider, resourceProvider, queryClient } = framework.useFramework();
+      const ready = [dataProvider.getList, authProvider.login, accessProvider.can, resourceProvider.getResource, queryClient.invalidateQueries];
+      return <p>{ready.every((fn) => typeof fn === 'function') ? 'services ready' : 'missing'}</p>;
+    }
+    render(<FrameworkApp publicRoutes={<Route path="/services" element={<Services />} />} />);
+    expect(await screen.findByText('services ready')).toBeTruthy();
+  });
+});
+
 describe('configureFramework', () => {
   it('keeps known settings and ignores unknown or empty ones', () => {
     configureFramework({ socketUrl: 'http://socket.test', mapProvider: undefined, unknown: 'x' });

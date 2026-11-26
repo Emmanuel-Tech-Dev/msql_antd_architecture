@@ -261,10 +261,11 @@ class QueryBuilder {
     return this;
   }
 
-  limitRange(start, end) {
-    if (start.toString().trim() === "")
-      throw "Parameter 1 is required for limit to work";
-    this.sql += ` LIMIT ${start} ${end ? "," + end : ""} `;
+  // MySQL's LIMIT offset, count: limitRange(40, 20) skips 40 rows and takes 20.
+  // With one argument it is the same as limit(count).
+  limitRange(offset, count) {
+    if (count === undefined || count === null) return this.limit(offset);
+    this.query += ` LIMIT ${this.normalizeLimit(offset, "offset")}, ${this.normalizeLimit(count)}`;
     return this;
   }
 
@@ -274,8 +275,9 @@ class QueryBuilder {
     return this;
   }
 
+  // The SQL text with its joins, without running it (getSQL() also gives the params).
   getSql() {
-    return this.sql;
+    return utils.buildQuery(this.query, this.buildJoins());
   }
 
   // OFFSET

@@ -7,8 +7,8 @@ const files = import.meta.glob('./content/*/*.md', { query: '?raw', import: 'def
 export const documentationMeta = {
   product: 'MySQL ORM Framework',
   edition: 'Production architecture guide',
-  version: '1.2',
-  updated: '24 November 2026',
+  version: '1.3',
+  updated: '26 November 2026',
 };
 
 export const documentationTracks = [

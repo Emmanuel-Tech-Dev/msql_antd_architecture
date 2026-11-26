@@ -13,52 +13,56 @@ import { frameworkConfig } from "../../core/config/frameworkConfig";
 
 const EMPTY_OPTIONS = Object.freeze({});
 
+// Any record with a position: { lat, lng }, { latitude, longitude } or
+// { lng, lat } columns. Projects with other column names pass getPosition.
+const positionOf = (record) => {
+  const lat = Number(record?.lat ?? record?.latitude);
+  const lng = Number(record?.lng ?? record?.lon ?? record?.longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+};
+
+const titleOf = (record) =>
+  record?.name ?? record?.title ?? record?.label
+  ?? ([record?.first_name, record?.last_name].filter(Boolean).join(" ") || "Destination");
+
+const descriptionOf = (record) => record?.address ?? record?.location ?? record?.description ?? "";
+
+const resolve = (value, record, fallback) => (typeof value === "function" ? value(record) : value ?? fallback(record));
+
+// Directions from the viewer (or a fixed origin) to one record on the map.
 export default function DirectionsMap({
-  beneficiary,
+  destination,
+  getPosition = positionOf,
+  title,
+  description,
+  origin,
+  travelMode = "driving",
+  loading = false,
+  emptyMessage = "This record has no map location saved yet.",
+  onRoute,
   provider = frameworkConfig.mapProvider || "mapbox",
   providerOptions = EMPTY_OPTIONS,
+  height = 380,
+  className = "",
 }) {
   const mapActions = useRef(null);
   const [routing, setRouting] = useState(false);
   const [route, setRoute] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
-  const [userPosition, setUserPosition] = useState(null);
+  const [startPosition, setStartPosition] = useState(null);
 
-  const destination = useMemo(() => {
-    const lat = Number(beneficiary?.latitude);
-    const lng = Number(beneficiary?.longitude);
-    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-  }, [beneficiary?.latitude, beneficiary?.longitude]);
+  const target = useMemo(() => (destination ? getPosition(destination) : null), [destination, getPosition]);
+  const label = resolve(title, destination, titleOf);
+  const detail = resolve(description, destination, descriptionOf);
 
   const markers = useMemo(() => {
-    if (!destination) return [];
-    const beneficiaryName = [beneficiary?.first_name, beneficiary?.last_name]
-      .filter(Boolean)
-      .join(" ");
-    const result = [
-      {
-        id: "beneficiary",
-        position: destination,
-        color: "#5e6ad2",
-        title: beneficiaryName || "Beneficiary",
-        popup:
-          [beneficiaryName, beneficiary?.address || beneficiary?.community]
-            .filter(Boolean)
-            .join(" — ") || "Beneficiary",
-      },
-    ];
-
-    if (userPosition) {
-      result.push({
-        id: "current-user",
-        position: userPosition,
-        color: "#10b981",
-        title: "Your location",
-        popup: "Your location",
-      });
+    if (!target) return [];
+    const result = [{ id: "destination", position: target, title: label, popup: [label, detail].filter(Boolean).join(" — ") }];
+    if (startPosition) {
+      result.push({ id: "start", position: startPosition, color: "#10b981", title: origin ? "Start" : "Your location" });
     }
     return result;
-  }, [beneficiary, destination, userPosition]);
+  }, [detail, label, origin, startPosition, target]);
 
   const behaviors = useMemo(
     () => ({
@@ -72,146 +76,108 @@ export default function DirectionsMap({
           })),
         });
         setRouting(false);
+        onRoute?.(result);
       },
       onError: (error) => {
-        message.error(error.message || "Failed to load the map or route");
+        message.error(error.message || "The map or the route could not be loaded");
         setRouting(false);
       },
     }),
-    [],
+    [onRoute],
   );
 
   const getDirections = async () => {
-    if (!destination) return;
+    if (!target) return;
     setRouting(true);
     try {
-      const origin = await getBrowserPosition();
-      setUserPosition(origin);
-      setRoute({
-        origin,
-        destination,
-        travelMode: "driving",
-        color: "#5e6ad2",
-        fitBounds: true,
-      });
+      const start = origin ? getPosition(origin) ?? origin : await getBrowserPosition();
+      setStartPosition(start);
+      setRoute({ origin: start, destination: target, travelMode });
     } catch (error) {
       setRouting(false);
-      if (error.code === 1) {
-        message.error("Location access denied — please allow location access");
-      } else {
-        message.error(error.message || "Unable to determine your location");
-      }
+      message.error(error.code === 1
+        ? "Location access was refused. Allow location access in the browser to get directions."
+        : error.message || "Your location could not be found");
     }
   };
 
   const clearRoute = () => {
     setRoute(null);
     setRouteInfo(null);
-    setUserPosition(null);
-    if (destination) {
-      mapActions.current?.setCenter(destination, { zoom: 14 });
-    }
+    setStartPosition(null);
+    if (target) mapActions.current?.setCenter(target, { zoom: 14 });
   };
 
-  if (!beneficiary) {
+  if (loading) {
     return (
-      <div className="flex h-[380px] items-center justify-center rounded-lg bg-[#0f1011]">
-        <Spin tip="Loading beneficiary details..." />
+      <div className="flex items-center justify-center rounded-lg bg-[var(--ads-surface-sunken)]" style={{ height }}>
+        <Spin />
       </div>
     );
   }
 
-  if (!destination) {
-    return (
-      <Alert
-        type="warning"
-        title="No location set"
-        description="This beneficiary does not have a map location saved. Edit their profile to add one."
-        showIcon
-      />
-    );
+  if (!target) {
+    return <Alert type="warning" showIcon title="No location" description={emptyMessage} />;
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${className}`}>
       <MapView
         ref={mapActions}
         provider={provider}
         providerOptions={providerOptions}
-        center={destination}
+        center={target}
         zoom={14}
         markers={markers}
         route={route}
         behaviors={behaviors}
-        className="rounded-lg border border-white/10"
-        style={{ height: 380 }}
+        className="rounded-lg border border-[var(--ads-border)]"
+        style={{ height }}
       />
 
       {routeInfo ? (
-        <div className="rounded-lg border border-white/5 p-2">
-          <div className="mb-4 flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <CarOutlined className="text-[#5e6ad2]" />
-              <span className="text-sm font-semibold">{routeInfo.distance}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ClockCircleOutlined className="text-[#10b981]" />
-              <span className="text-sm font-semibold">{routeInfo.duration}</span>
-            </div>
-            <Button
-              size="small"
-              onClick={clearRoute}
-              className="ml-auto border-white/10 text-[#8a8f98]"
-            >
-              Clear Route
-            </Button>
+        <div className="rounded-lg border border-[var(--ads-border-subtle)] p-3">
+          <div className="mb-3 flex items-center gap-6">
+            <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ads-text-heading)]">
+              <CarOutlined className="text-[var(--ads-accent)]" />{routeInfo.distance}
+            </span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ads-text-heading)]">
+              <ClockCircleOutlined className="text-[var(--ads-success)]" />{routeInfo.duration}
+            </span>
+            <Button size="small" onClick={clearRoute} className="ml-auto">Clear route</Button>
           </div>
-
-          <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+          <ol className="m-0 max-h-48 list-none space-y-2 overflow-y-auto p-0 pr-1">
             {routeInfo.steps.map((step, index) => (
-              <div
-                key={`${step.instruction}-${index}`}
-                className="flex items-start gap-3 border-b border-white/4 py-1.5 last:border-0"
-              >
-                <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(94,106,210,0.15)] text-[10px] font-bold text-[#7170ff]">
+              <li key={`${step.instruction}-${index}`} className="flex items-start gap-3 border-b border-[var(--ads-border-subtle)] py-1.5 last:border-0">
+                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--ads-accent-soft)] text-[10px] font-bold text-[var(--ads-accent)]">
                   {index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-[#4b4c4c]">
-                    {step.instruction}
-                  </div>
-                  <div className="mt-0.5 text-xs text-[#62666d]">
-                    {step.distance}
-                  </div>
-                </div>
-              </div>
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-[var(--ads-text)]">{step.instruction}</span>
+                  <span className="mt-0.5 block text-xs text-[var(--ads-text-muted)]">{step.distance}</span>
+                </span>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-5 rounded-lg border border-white/5 p-2">
+        <div className="flex items-center justify-between gap-5 rounded-lg border border-[var(--ads-border-subtle)] p-3">
           <div>
-            <div className="text-sm font-medium">Get Directions</div>
-            <div className="mt-0.5 text-xs text-[#62666d]">
-              Navigate from your current location to this beneficiary
+            <div className="text-sm font-medium text-[var(--ads-text-heading)]">Get directions</div>
+            <div className="mt-0.5 text-xs text-[var(--ads-text-muted)]">
+              {origin ? "From the starting point" : "From your current location"} to {label}
             </div>
           </div>
-          <Button
-            type="primary"
-            icon={<AimOutlined />}
-            loading={routing}
-            onClick={getDirections}
-            className="border-none bg-[#5e6ad2]"
-          >
-            {routing ? "Locating..." : "Start Navigation"}
+          <Button type="primary" icon={<AimOutlined />} loading={routing} onClick={getDirections}>
+            {routing ? "Finding the route…" : "Start navigation"}
           </Button>
         </div>
       )}
 
-      {beneficiary.address && (
-        <div className="flex items-start gap-2 px-1 pb-2 text-xs text-[#8a8f98]">
-          <EnvironmentOutlined className="mt-0.5 flex-shrink-0 text-[#5e6ad2]" />
-          <span>{beneficiary.address}</span>
+      {detail && (
+        <div className="flex items-start gap-2 px-1 text-xs text-[var(--ads-text-muted)]">
+          <EnvironmentOutlined className="mt-0.5 flex-shrink-0 text-[var(--ads-accent)]" />
+          <span>{detail}</span>
         </div>
       )}
     </div>

@@ -533,52 +533,6 @@ const utils = {
     }
   },
 
-  bootstrap: (valuesStore, settingsStore, fetchItems = null, auto = true) => {
-    if (auto) {
-      const states = settingsStore.getStates();
-      Object.keys(states)?.forEach(async (p) => {
-        const params = states[p];
-        if (typeof params == "object" && params?.url) {
-          let data = {
-            critfdx: params?.critfdx,
-            critval: params?.critval,
-            logical: params?.logical,
-            table: params?.table,
-            getall: params?.getall,
-            fields: params?.fields,
-          };
-
-          let res = await utils.requestWithReauth(
-            params.method,
-            params.url,
-            null,
-            data,
-          );
-          valuesStore.setValue(params.storeName, res);
-        }
-      });
-    }
-    // Only call fetchItems if explicitly provided and auto is not already handling it
-    if (fetchItems && !auto) {
-      fetchItems?.forEach(async (params) => {
-        let data = {
-          critfdx: params?.critfdx,
-          critval: params?.critval,
-          logical: params?.logical,
-          table: params?.table,
-          getall: params?.getall,
-          fields: params?.fields,
-        };
-        let res = await utils.requestWithReauth(
-          params.method,
-          params.url,
-          null,
-          data,
-        );
-        valuesStore.setValue(params.storeName, res);
-      });
-    }
-  },
 
   //   DynamicIcon: ({ iconClass, size = "16px", className = "" }) => {
   //     return (
@@ -727,24 +681,14 @@ const utils = {
     return { valid: true, ...data }; // If validation is not required, return true
   },
 
+  // Checks each { name, value, validator, required } like validateSoftData;
+  // stops at the first failure and names its field.
   validateSoftListData(data) {
     const valids = [];
-    for (let i = 0; i < data.length; i++) {
-      const val = data[i].value;
-      const name = data[i].name;
-      const validator = data[i].validator.split("(");
-      const args = validator[1]?.replace(")", "").split(",") || [];
-      const required = data[i].required;
-      if (required) {
-        const valid = utils.ValidationFactory[validator](val, ...args);
-        if (!valid) {
-          return { valid, name };
-        } else {
-          valids.push({ ...data[i] });
-        }
-      } else {
-        valids.push({ ...data[i] });
-      }
+    for (const item of data) {
+      const { valid } = utils.validateSoftData(item);
+      if (!valid) return { valid, name: item.name };
+      valids.push({ ...item });
     }
     return { data: valids, valid: true };
   },
@@ -1065,13 +1009,13 @@ const utils = {
     },
 
     //TELEPHONE NUMBER VALIDATION
+    // 7 to 15 digits, an optional leading +, and spaces, dashes, dots or
+    // brackets between them: "0241234567", "+233 24 123 4567", "(030) 221-1234".
     validateTelephoneNumber: function (val) {
-      let pattern = /^$/;
-      if (pattern.test(val?.trim())) {
-        return true;
-      } else {
-        return false;
-      }
+      const text = String(val ?? "").trim();
+      if (!/^\+?[\d\s().-]+$/.test(text)) return false;
+      const digits = text.replace(/\D/g, "").length;
+      return digits >= 7 && digits <= 15;
     },
 
     //LOOSE VALIDATION

@@ -20,6 +20,12 @@ describe("shared server utilities", () => {
     expect(utils.clampInteger("x", 10, 100)).toBe(10);
   });
 
+  test("no token or OTP helpers: AuthService and otpService own those", () => {
+    for (const name of ["generateToken", "generateAuthTokens", "generateStudentTokens", "verifyToken", "verifyRefreshToken", "generateOtpSecret", "generateOtpCode", "verifyOtp"]) {
+      expect(name in utils).toBe(false);
+    }
+  });
+
   test("hashing and JSON", () => {
     expect(utils.sha256("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     expect(utils.parseJson('{"a":1}', null)).toEqual({ a: 1 });

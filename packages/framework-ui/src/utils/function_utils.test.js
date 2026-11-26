@@ -32,6 +32,18 @@ describe("shared UI utilities", () => {
     expect(utils.parseJson("{bad", "fallback")).toBe("fallback");
   });
 
+  test("soft validators", () => {
+    const phone = utils.ValidationFactory.validateTelephoneNumber;
+    expect([phone("0241234567"), phone("+233 24 123 4567"), phone("(030) 221-1234")]).toEqual([true, true, true]);
+    expect([phone("12345"), phone("call me"), phone(""), phone("+1234567890123456")]).toEqual([false, false, false, false]);
+    expect(utils.validateSoftListData([
+      { name: "email", value: "a@b.co", validator: "validateSimpleEmail", required: true },
+      { name: "first_name", value: "Al", validator: "validateAlphaMinCharLength(3)", required: true },
+    ])).toEqual({ valid: false, name: "first_name" });
+    expect(utils.validateSoftListData([{ name: "first_name", value: "Ama", validator: "validateAlphaMinCharLength(3)", required: true }]).valid).toBe(true);
+    expect("bootstrap" in utils).toBe(false);
+  });
+
   test("urls and files", () => {
     expect(utils.joinUrl("http://x/", "/api/a")).toBe("http://x/api/a");
     expect(utils.fileNameFromUrl("https://f/x/photo%201.png?v=1")).toBe("photo 1.png");

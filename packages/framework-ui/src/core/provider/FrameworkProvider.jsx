@@ -182,20 +182,31 @@ export default function FrameworkProvider({
     resources = [],
     children,
 }) {
-    if (import.meta.env.DEV) {
-        validateProvider(dataProvider, 'dataProvider');
-        validateAuthProvider(authProvider);
-    }
+    // Checked in every build: a project's own provider with a missing method
+    // fails here, by name, instead of deep inside a hook.
+    validateProvider(dataProvider, 'dataProvider');
+    validateAuthProvider(authProvider);
 
     const accessProvider = useMemo(() => createAccessProvider(), []);
+    // Reads the live registry, so the value itself never has to change.
+    const resourceProvider = useMemo(() => ({
+        getResource: (name) => useResourceStore.getState().getResource(name),
+        getBrowserRoutes: () => useResourceStore.getState().getBrowserRoutes(),
+        isReady: () => useResourceStore.getState().isReady,
+    }), []);
+    const framework = useMemo(
+        () => ({ dataProvider, authProvider, accessProvider, resourceProvider, queryClient }),
+        [accessProvider, authProvider, dataProvider, resourceProvider],
+    );
 
     return (
         <QueryClientProvider client={queryClient}>
+          <FrameworkContext.Provider value={framework}>
             <TopProgress />
             <DataProviderContext.Provider value={dataProvider}>
                 <AuthProviderContext.Provider value={authProvider}>
                     <AccessProviderContext.Provider value={accessProvider}>
-                        <ResourceProviderContext.Provider value={{}}>
+                        <ResourceProviderContext.Provider value={resourceProvider}>
                             <FrameworkBootstrap
                                 dataProvider={dataProvider}
                                 authProvider={authProvider}
@@ -207,6 +218,7 @@ export default function FrameworkProvider({
                     </AccessProviderContext.Provider>
                 </AuthProviderContext.Provider>
             </DataProviderContext.Provider>
+          </FrameworkContext.Provider>
         </QueryClientProvider>
     );
 }
