@@ -1,11 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo } from 'react';
 import { Badge, Checkbox, Empty, Skeleton, Typography } from 'antd';
+import utils from '../../utils/function_utils';
 import CustomTable from '../CustomTable';
 import useAccessControl from '../../hooks/useAccessControl';
 import useTableApi from '../../hooks/useTableApi';
 import { ACCESS_HEADING_CLASS, ACCESS_STATUS_CLASS } from './accessTailwind';
 
 const { Text, Title } = Typography;
+const CRUD_ACTIONS = ['create', 'read', 'update', 'delete'];
 
 const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDirtyChange, onSavingChange }, ref) {
     const {
@@ -34,11 +36,12 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
     const dataSource = useMemo(() => {
         const grouped = {};
         (allPermissions ?? []).forEach((permission) => {
-            const [action, resource = 'general'] = String(permission.permission_name ?? '').split(':');
+            const [action, ...rest] = String(permission.permission_name ?? '').split(':');
+            const resource = rest.join(':') || 'general';
             if (!grouped[resource]) {
                 grouped[resource] = {
                     key: resource,
-                    resourceLabel: resource.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+                    resourceLabel: resource.split(/[_:]/).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
                     permissions: {},
                 };
             }
@@ -68,13 +71,37 @@ const PermissionMatrix = forwardRef(function PermissionMatrix({ role_name, onDir
             key: 'resourceLabel',
             render: (value) => <Text strong>{value}</Text>,
         },
-        ...['create', 'read', 'update', 'delete'].map((action) => ({
+        ...CRUD_ACTIONS.map((action) => ({
             title: action === 'update' ? 'Edit' : action,
             key: action,
             align: 'center',
             width: 110,
             render: (_, record) => renderCheckbox(record, action),
         })),
+        {
+            // approve:invoices, export:invoices, manage:permissions …: every
+            // action that is not one of the four above.
+            title: 'Other actions',
+            key: 'other',
+            render: (_, record) => {
+                const others = Object.keys(record.permissions).filter((action) => !CRUD_ACTIONS.includes(action)).sort();
+                if (!others.length) return <span className="text-[var(--color-text-disabled)]" aria-label="No other actions">—</span>;
+                return (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {others.map((action) => (
+                            <Checkbox
+                                key={action}
+                                aria-label={`${action} ${record.resourceLabel}`}
+                                checked={assignedSet.has(record.permissions[action])}
+                                onChange={(event) => handleToggle(record.permissions[action], event.target.checked)}
+                            >
+                                {utils.humanize(action)}
+                            </Checkbox>
+                        ))}
+                    </div>
+                );
+            },
+        },
     ];
 
     if (loading) return <Skeleton active paragraph={{ rows: 10 }} />;
