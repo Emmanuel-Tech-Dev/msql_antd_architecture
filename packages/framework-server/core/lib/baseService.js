@@ -88,7 +88,9 @@ class BaseService {
       .select(readableFields, resources)
       .tableQueryParams(query, resolvedOptions);
 
-    const result = await model.paginate(query?.page, query?.limit);
+    // limit is capped by maxLimit: ?limit=100000 must not return the whole table.
+    const limit = utils.clampInteger(query?.limit, resolvedOptions.defaultLimit, resolvedOptions.maxLimit);
+    const result = await model.paginate(utils.clampInteger(query?.page, 1, Number.MAX_SAFE_INTEGER), limit);
     return utils.redactSensitiveData(result);
   }
 
@@ -98,7 +100,7 @@ class BaseService {
     const query = this.request.query;
     const result = await new Model()
       .select(readableFields, resources)
-      .paginate(query?.page, query?.limit);
+      .paginate(utils.clampInteger(query?.page, 1, Number.MAX_SAFE_INTEGER), utils.clampInteger(query?.limit, 20, 100));
 
     return utils.redactSensitiveData(result);
   }
@@ -146,7 +148,7 @@ class BaseService {
         defaultLimit: 20,
         exclude: this.request.validatedResource?.restricted ?? [],
       });
-    const result = await model.paginate(paginate.page, paginate.limit);
+    const result = await model.paginate(utils.clampInteger(paginate.page, 1, Number.MAX_SAFE_INTEGER), utils.clampInteger(paginate.limit, 20, 100));
 
     return utils.redactSensitiveData(result);
   }

@@ -38,7 +38,7 @@ Everything except createServer loads the first time you read it, so the folders 
 
 ## Model: build and run a query
 
-new Model() starts an empty query. Chain methods, then run it with execute(), first(), count(), exists() or paginate(). Values always travel as ? parameters; names are quoted and checked, so a value from a request never becomes SQL.
+The full guide, with every method, every form it accepts (chained where, where with an array, orWhere groups, joins, aliases, aggregates), the exact SQL each one produces and the list URL syntax, is on Query builder. In short: new Model() starts an empty query. Chain methods, then run it with execute(), first(), count(), exists() or paginate(). Values always travel as ? parameters; names are quoted and checked, so a value from a request never becomes SQL.
 
 ```js Read
 const open = await new Model()
