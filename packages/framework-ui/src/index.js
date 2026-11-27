@@ -47,6 +47,7 @@ export { default as useResetPassword } from './core/hooks/auth/useResetPassword'
 export { default as useChangePassword } from './core/hooks/auth/useChangePassword';
 export { default as useCan } from './core/hooks/access/useCan';
 export { default as useRouteGuard } from './core/hooks/access/useRouteGuard';
+export { toRoutePath } from './core/navigation/routeResolver';
 export { Can, PageLink } from './components/access/Can.jsx';
 
 // Metadata-driven forms and tables

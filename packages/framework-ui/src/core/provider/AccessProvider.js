@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import useAuthStore from "../../store/authStore";
 import { useResourceStore } from "./ResourceProvider";
+import { toRoutePath } from "../navigation/routeResolver";
 
 export const AccessProviderContext = createContext(null);
 
@@ -45,7 +46,7 @@ export function checkAccess({
   if (isPrivilegedRole(roles)) return { can: true };
 
   if (action === "navigate") {
-    const route = browserRoutes.find((item) => item.resource_path === resource);
+    const route = browserRoutes.find((item) => item.resource_path === toRoutePath(resource));
     if (!route) return { can: false, reason: "Route is not assigned" };
     if (isPublicRoute(route)) return { can: true };
     return roles.length

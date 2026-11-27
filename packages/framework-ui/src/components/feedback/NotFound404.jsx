@@ -3,28 +3,16 @@ import { ArrowLeftOutlined, HomeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import { useNavigationRoutes } from '../../core/provider/ResourceProvider';
-
-function toAbsolutePath(path) {
-  if (!path) return null;
-  const cleaned = String(path).trim();
-  return cleaned.startsWith('/') ? cleaned : `/${cleaned}`;
-}
+import { isWorkspacePath } from '../../core/navigation/routeResolver';
 
 export default function NotFound404() {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigationRoutes = useNavigationRoutes();
-  const firstAdminRoute = navigationRoutes.find((route) => {
-    const path = toAbsolutePath(route?.resource_path);
-    return (
-      path &&
-      path.startsWith('/admin') &&
-      path !== '/admin/404'
-    );
-  });
-  const homePath = isAuthenticated
-    ? toAbsolutePath(firstAdminRoute?.resource_path) || '/admin/home'
-    : '/login';
+  const firstPage = navigationRoutes.find((route) =>
+    isWorkspacePath(route?.resource_path) && route.resource_path !== '/admin/404',
+  );
+  const homePath = isAuthenticated ? firstPage?.resource_path || '/admin' : '/login';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">

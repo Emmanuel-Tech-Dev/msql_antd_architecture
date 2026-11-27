@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo } from "react";
 import { create } from "zustand";
+import { toRoutePath } from "../navigation/routeResolver";
 
 export const useResourceStore = create((set, get) => ({
   // JS resource configs keyed by resource name
@@ -35,6 +36,7 @@ export function mergeResources(jsResources = [], adminResources = []) {
   // Only browser routes — API endpoint auth is the server's concern
   const browserRoutes = adminResources
     .filter((r) => r.resource_type === "BROWSER_ROUTE")
+    .map((r) => ({ ...r, resource_path: toRoutePath(r.resource_path) }))
     .sort(
       (a, b) =>
         (a.order ?? a.display_order ?? 0) -

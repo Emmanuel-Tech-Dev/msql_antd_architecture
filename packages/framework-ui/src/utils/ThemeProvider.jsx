@@ -3,6 +3,7 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { useStore as useValuesStore } from '../store/values-store';
 import { DEFAULT_SIDER_CONFIG, resolveSiderConfig } from '../core/config/siderConfig';
+import { isWorkspacePath } from '../core/navigation/routeResolver';
 import {
     applyVariables,
     createAdsStyle,
@@ -43,7 +44,7 @@ const PREFERENCE_KEYS = {
 
 export function ThemeProvider({ children }) {
     const location = useLocation();
-    const scope = location.pathname.startsWith('/admin') ? 'workspace' : 'public';
+    const scope = isWorkspacePath(location.pathname) ? 'workspace' : 'public';
     const rows = useValuesStore((state) => state.ui_settings);
     const workspaceAppearance = useMemo(() => resolveSiderConfig(rows ?? []), [rows]);
     const scopedAppearance = scope === 'workspace' ? workspaceAppearance : PUBLIC_APPEARANCE;

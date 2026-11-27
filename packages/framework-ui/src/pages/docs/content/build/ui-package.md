@@ -64,7 +64,35 @@ createRoot(document.getElementById('root')).render(
 | resources | Your resources. Users (admin) and Roles (admin_roles) are already included |
 | routes | Route elements rendered inside /admin, next to the framework's pages. Give one an index route to choose the page after sign-in |
 | publicRoutes | Route elements outside sign-in, next to /login and /docs |
+| areas | More signed-in areas beside /admin, each with the same layout, sidebar and route guard: { finance: financeRoutes } serves /finance/… |
 | dataProvider / authProvider | Replace the MySQL ORM providers. Leave them out to use mysqlOrmProvider(config.apiUrl) and mysqlOrmAuthProvider() |
+
+## Areas beyond /admin
+
+A page does not have to live under /admin. Name each extra area in areas, and give its pages paths relative to the area. Register each page as a BROWSER_ROUTE row with its full path (/finance/payroll); a short Path such as payroll always means /admin/payroll.
+
+```jsx main.jsx: an /admin area and a /finance area
+const adminRoutes = <Route path="invoices" element={<Invoices />} />
+
+const financeRoutes = (
+  <>
+    <Route path="payroll" element={<Payroll />} />
+    <Route path="budgets" element={<Budgets />} />
+  </>
+)
+
+<FrameworkApp config={config} routes={adminRoutes} areas={{ finance: financeRoutes }} />
+```
+
+| Behaviour | /admin | Another area (/finance) |
+| --- | --- | --- |
+| Layout, sidebar, theme | AppLayout, the workspace theme | The same |
+| Signed out | Sent to /login, then back to the page | The same |
+| A page the user may not open | The 404 page | The same |
+| The area's own address | /admin opens the user's first page by Sidebar Order | /finance opens the user's first page in /finance, or else their first page anywhere |
+| The framework's own pages | Users, Roles, Settings … | Not repeated: they stay under /admin |
+
+The sidebar lists every page the user may open, whatever its area, so one sidebar moves between /admin and /finance. Choose area names that do not clash with the framework's own paths (login, docs, 404) or your publicRoutes.
 
 The sidebar is not a prop: it comes from the BROWSER_ROUTE rows in admin_resources, filtered by the signed-in user's permissions. Add the row, map its permission, and the link appears.
 

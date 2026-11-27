@@ -65,7 +65,7 @@ const routes = (
 | --- | --- | --- |
 | Resource Name | Invoices | The label in the sidebar and on the Navigation access tab. Must be unique |
 | Type | BROWSER_ROUTE | A page (API_ENDPOINT is for server routes) |
-| Path | /admin/invoices | Exactly the address from step 2, with /admin in front |
+| Path | invoices | The route's path from step 2. A short name is placed under /admin (invoices means /admin/invoices); writing the full /admin/invoices works the same |
 | HTTP Method | ALL | Not used for pages; leave ALL |
 | Icon | FileTextOutlined | The sidebar icon (any Ant Design icon name) |
 | Sidebar Order | 20 | Lower numbers come first |
@@ -84,7 +84,7 @@ const routes = (
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | The link appears but the page is blank or shows a 403 error | The role can open the page but not its data | Give the role read access to the table (Give a role access to a table) |
-| The 404 page for a user who has the role | The Path in Resources does not match the route exactly | Make the Path /admin/ plus the route's path, with no trailing slash |
+| The 404 page for a user who has the role | The Path in Resources does not match the route | Make the Path the route's path from main.jsx (invoices), or /admin/ plus it (/admin/invoices) |
 | The page opens but has no sidebar link | Show in navigation is Hide | Edit the resource and set Show |
 | Only SuperAdmin sees the page | The page is not switched on for any role | Roles › Configure access › Navigation access, then Save role policy |
 | A blank screen even for SuperAdmin | The route is missing from main.jsx, or the component failed to load | Check the routes passed to FrameworkApp and the browser console |

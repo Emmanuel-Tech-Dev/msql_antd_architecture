@@ -6,6 +6,7 @@ import { DataProviderContext, validateProvider } from './DataProvider';
 import { AuthProviderContext, validateAuthProvider } from './AuthProvider';
 import { AccessProviderContext, createAccessProvider, isPrivilegedRole } from './AccessProvider';
 import { ResourceProviderContext, useResourceStore, mergeResources } from './ResourceProvider';
+import { toRoutePath } from '../navigation/routeResolver';
 import { FrameworkContext } from './FrameworkContext';
 import { useStore as useValuesStore } from '../../store/values-store';
 import queryClient from '../queryClient';
@@ -131,7 +132,7 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
         const authByPath = new Map(
             (authBrowserResources ?? [])
                 .filter((r) => r?.resource_path)
-                .map((r) => [r.resource_path, r]),
+                .map((r) => [toRoutePath(r.resource_path), r]),
         );
         const authByName = new Map(
             (authBrowserResources ?? [])
@@ -146,7 +147,7 @@ function FrameworkBootstrap({ dataProvider, authProvider, resources, children })
                 return override
                     ? {
                         ...route,
-                        resource_path: override.resource_path ?? route.resource_path,
+                        resource_path: toRoutePath(override.resource_path) ?? route.resource_path,
                         resource: override.resource ?? route.resource,
                         icon: override.icon ?? route.icon,
                     }

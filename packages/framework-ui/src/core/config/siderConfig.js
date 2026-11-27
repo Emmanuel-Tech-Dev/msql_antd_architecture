@@ -1,4 +1,5 @@
 import utils from '../../utils/function_utils';
+import { isWorkspaceArea, isWorkspacePath } from '../navigation/routeResolver';
 const VARIANTS = new Set(['default', 'sider', 'none', 'icon-rail', 'floating', 'top', 'premium', 'business']);
 const BREAKPOINTS = new Set(['xs', 'sm', 'md', 'lg', 'xl', 'xxl']);
 const THEMES = new Set(['light', 'dark']);
@@ -117,12 +118,14 @@ const safeString = (value, fallback, maximum = 80) => {
     return value.trim().slice(0, maximum);
 };
 
-const safeAdminPath = (value, fallback) => {
+const isWorkspacePage = (path) => typeof path === 'string' && isWorkspacePath(path) && !isWorkspaceArea(path);
+
+const safeWorkspacePath = (value, fallback) => {
     if (Array.isArray(value)) {
-        const paths = value.filter((path) => typeof path === 'string' && path.startsWith('/admin/'));
+        const paths = value.filter(isWorkspacePage);
         return paths.length ? paths.slice(0, 10) : fallback;
     }
-    return typeof value === 'string' && value.startsWith('/admin/') ? value : fallback;
+    return isWorkspacePage(value) ? value : fallback;
 };
 
 function parseSettingValue(value) {
@@ -179,7 +182,7 @@ export function normalizeSiderConfig(value) {
         groupKey: utils.isIdentifier(input.groupKey) ? input.groupKey : defaults.groupKey,
         groupVariant: GROUP_VARIANTS.has(input.groupVariant) ? input.groupVariant : defaults.groupVariant,
         orderKey: utils.isIdentifier(input.orderKey) ? input.orderKey : defaults.orderKey,
-        bottomKey: safeAdminPath(input.bottomKey, defaults.bottomKey),
+        bottomKey: safeWorkspacePath(input.bottomKey, defaults.bottomKey),
         defaultHeader: typeof input.defaultHeader === 'boolean' ? input.defaultHeader : defaults.defaultHeader,
         defaultFooter: typeof input.defaultFooter === 'boolean' ? input.defaultFooter : defaults.defaultFooter,
         brand: {

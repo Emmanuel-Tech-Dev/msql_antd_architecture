@@ -17,6 +17,19 @@ describe('FrameworkApp', () => {
     expect(await screen.findByRole('heading', { name: 'Project page' })).toBeTruthy();
   });
 
+  it('puts an area page behind sign-in, like /admin', async () => {
+    window.history.pushState({}, '', '/finance/payroll');
+    render(
+      <FrameworkApp
+        config={{ apiUrl: 'http://127.0.0.1:9' }}
+        areas={{ finance: <Route path="payroll" element={<h1>Payroll</h1>} /> }}
+      />,
+    );
+    expect(await screen.findByText('Welcome back', {}, { timeout: 15_000 })).toBeTruthy();
+    expect(window.location.pathname).toBe('/login');
+    expect(screen.queryByRole('heading', { name: 'Payroll' })).toBeNull();
+  }, 60_000);
+
   it('renders the framework sign-in page', async () => {
     window.history.pushState({}, '', '/login');
     render(<FrameworkApp config={{ apiUrl: 'http://127.0.0.1:9' }} />);

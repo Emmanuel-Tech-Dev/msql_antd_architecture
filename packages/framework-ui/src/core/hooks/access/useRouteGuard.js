@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuthStore from "../../../store/authStore";
 import { useResourceStore } from "../../provider/ResourceProvider";
-import { firstAccessibleRoute } from "../../navigation/routeResolver";
+import { firstAccessibleRoute, isWorkspaceArea } from "../../navigation/routeResolver";
 
 const PUBLIC_SYSTEM_ROUTES = ["/login", "/404"];
 const PROTECTED_SYSTEM_ROUTES = ["/admin/404"];
@@ -43,8 +43,10 @@ const useRouteGuard = (loginPath = "/login") => {
     isAllowed = true;
   } else if (!registryReady) {
     isAllowed = false;
-  } else if (currentPath === "/admin") {
-    target = firstAccessibleRoute(browserRoutes) ?? "/admin/404";
+  } else if (isWorkspaceArea(currentPath)) {
+    target = firstAccessibleRoute(browserRoutes, currentPath)
+      ?? firstAccessibleRoute(browserRoutes)
+      ?? "/admin/404";
   } else {
     const assignedRoute = browserRoutes.find((route) =>
       matchesRoute(route.resource_path, currentPath),

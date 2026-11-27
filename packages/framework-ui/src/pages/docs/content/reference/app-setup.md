@@ -19,6 +19,7 @@ The whole app in one component: providers, the sign-in pages, /docs, the /admin 
 | config | Runtime settings (below) |
 | routes | Route elements inside /admin, with relative paths ("invoices" is /admin/invoices) |
 | publicRoutes | Route elements outside sign-in, with full paths ("/pricing") |
+| areas | More signed-in areas with the same layout, sidebar and route guard as /admin: { finance: routes } serves /finance/…, with relative paths inside ("payroll" is /finance/payroll). A name is one path segment (letters, digits, _ or -). Optional |
 | resources | Your resources for { resource, action } permission checks; Users and Roles are built in. Optional |
 | dataProvider / authProvider | Replace the MySQL ORM providers (contracts below). Default: mysqlOrmProvider(config.apiUrl), mysqlOrmAuthProvider() |
 

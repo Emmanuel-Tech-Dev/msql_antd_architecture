@@ -11,6 +11,7 @@ import mysqlOrmProvider from "./core/provider/mysqlOrmProvider.js";
 import mysqlOrmAuthProvider from "./core/provider/mysqlOrmAuthProvider.js";
 import SocketProvider from "./core/realtime/SocketProvider.jsx";
 import { configureFramework } from "./core/config/frameworkConfig";
+import { setWorkspaceAreas } from "./core/navigation/routeResolver";
 
 const AppLayout = lazy(() => import("./components/Layout/AppLayout"));
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -49,19 +50,23 @@ const FRAMEWORK_RESOURCES = [
 ];
 
 const NO_RESOURCES = [];
+const NO_AREAS = {};
 const SKELETON = { animation: "animation-1", borderRadius: "8px", animationSpeed: 2 };
 
 // The whole framework app: providers, sign-in pages, the /admin layout and its pages.
 // `routes` are the project's pages inside /admin; `publicRoutes` sit outside sign-in.
+// `areas` adds more signed-in areas with the same layout: { finance: <Route …/> } serves /finance/….
 export default function FrameworkApp({
   config = {},
   resources = NO_RESOURCES,
   routes = null,
   publicRoutes = null,
+  areas = NO_AREAS,
   dataProvider,
   authProvider,
 }) {
   configureFramework(config);
+  setWorkspaceAreas(Object.keys(areas));
   const data = useMemo(() => dataProvider ?? mysqlOrmProvider(config.apiUrl), [config.apiUrl, dataProvider]);
   const auth = useMemo(() => authProvider ?? mysqlOrmAuthProvider(), [authProvider]);
   const allResources = useMemo(() => [...FRAMEWORK_RESOURCES, ...resources], [resources]);
@@ -105,6 +110,13 @@ export default function FrameworkApp({
                         <Route path="404" element={<NotFound404 />} />
                         <Route path="*" element={<NotFound404 />} />
                       </Route>
+
+                      {Object.entries(areas).map(([name, areaRoutes]) => (
+                        <Route key={name} path={`/${name}`} element={<AppLayout />}>
+                          {areaRoutes}
+                          <Route path="*" element={<NotFound404 />} />
+                        </Route>
+                      ))}
 
                       <Route path="/404" element={<NotFound404 />} />
                       <Route path="*" element={<NotFound404 />} />

@@ -73,6 +73,7 @@ Every mutation accepts { mutationOptions } (onSuccess, onError…) like the data
 | useResourcesReady() | — | true once the user's pages and permissions have loaded |
 | useResourceProvider() | — | { getResource(name), getBrowserRoutes(), isReady() }: reads the registry when called (not reactive). In components, useResource, useBrowserRoutes and useResourcesReady re-render on changes |
 | isRouteVisibleInNav(route) | A BROWSER_ROUTE row | true when its show_in_nav is on (a plain function, not a hook) |
+| toRoutePath(path, prefix = "/admin") | A page path as written on a resource | The full address: toRoutePath("invoices") → "/admin/invoices"; a path starting with / is kept as written, so toRoutePath("/admin/invoices") → "/admin/invoices". A trailing slash is dropped; no path gives null. The framework applies it to every BROWSER_ROUTE row, so the sidebar, the route guard and useCan({ action: "navigate", resource: "invoices" }) accept either form (a plain function, not a hook) |
 
 useCan with a name is the usual form. The { resource, action } form looks the permission up in <FrameworkApp resources>, so it is false for a resource that is not listed there.
 
