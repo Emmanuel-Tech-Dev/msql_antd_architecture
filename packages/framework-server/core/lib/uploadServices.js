@@ -93,6 +93,27 @@ class UploadService {
     return { url: result.secure_url };
   }
 
+  // The sign-in page's cover picture: one per installation, replaced by each upload.
+  async uploadLoginCover(file) {
+    if (!file?.buffer || !hasSupportedImageSignature(file.buffer)) {
+      throw new AppError(
+        "ERR_VALIDATION_FAILED",
+        "The uploaded file content is not a supported image",
+      );
+    }
+
+    const result = await uploadFromBuffer(file.buffer, {
+      folder: "branding",
+      resource_type: "image",
+      public_id: "login-cover",
+      overwrite: true,
+      invalidate: true,
+      transformation: [{ width: 2400, height: 1600, crop: "limit" }, { quality: "auto", fetch_format: "auto" }],
+    });
+
+    return { url: result.secure_url };
+  }
+
   // A signature photographed or scanned on white paper: the paper is made
   // transparent and the image trimmed to the ink, so only the signature
   // shows wherever it is printed. Saved as PNG to keep the transparency; a

@@ -13,6 +13,7 @@ const { z } = require("zod");
 const { profileImageUpload } = require("../core/config/multer");
 const uploadServices = require("../core/lib/uploadServices");
 const { loadBrowserRouteAuthority } = require("../core/lib/authorityService");
+const { readLoginUi } = require("../core/config/loginUi");
 
 const profileSchema = z
   .object({
@@ -119,11 +120,27 @@ class AuthRoute {
 
   login(app) {
     // Public: the sign-in page words its field from the accepted identifiers.
+    // Public: what the sign-in pages need before anyone has a token. The
+    // brand comes from the sidebar setting, the rest from login_ui.
     app.get("/auth/login_options", async (req, res) => {
+      const settings = await new Model()
+        .select(["setting_key", "setting_value"], "ui_settings")
+        .whereIn("setting_key", ["layout.sider", "login_ui"])
+        .where("is_active", "=", 1)
+        .execute();
+      const valueOf = (key) => utils.parseJson(settings.find((row) => row.setting_key === key)?.setting_value, null);
+      const brand = valueOf("layout.sider")?.brand ?? {};
+
       res.status(200).json({
         status: "ok",
         message: "Operation Successful!",
-        data: { identifiers: await this.auth.loginIdentifierColumns() },
+        data: {
+          identifiers: await this.auth.loginIdentifierColumns(),
+          page: {
+            brand: { name: brand.name ?? "Workspace", caption: brand.caption ?? "", mark: brand.mark ?? "W" },
+            ...readLoginUi(valueOf("login_ui")),
+          },
+        },
       });
     });
 

@@ -14,6 +14,7 @@ summary: Endpoint families, access expectations, payload shapes, response envelo
 
 | Method and path | Purpose | Access |
 | --- | --- | --- |
+| GET /auth/login_options | Sign-in columns, brand and the sign-in page's look (login_ui) for the signed-out pages | Public |
 | POST /auth/login | Password login | Public |
 | POST /auth/otp/request-login | Start passwordless challenge | Public |
 | POST /auth/otp/verify-login | Verify challenge and issue session | Public |
@@ -52,7 +53,8 @@ summary: Endpoint families, access expectations, payload shapes, response envelo
 | POST /api/v1/uploads/:table/:column | Upload for a file or image field (needs create or update on the table) |
 | POST /api/v1/extra_meta_options | Legacy lookup values for useGlobalSelect (code allowlist) |
 | GET/POST /access/... | Inspect and update roles, permissions, routes, users, and status |
-| PUT /api/v1/ui-settings/:id | Validate and version appearance settings |
+| PUT /api/v1/ui-settings/:id | Validate and version an appearance setting: settingKey layout.sider (default) or login_ui, with expectedVersion |
+| POST /api/v1/ui-settings/login-cover | Upload the sign-in page cover image (field cover); returns its url for login_ui |
 | GET /api/v1/logs | Query bounded structured logs |
 | GET /api/v1/logs/files | List available log files |
 | POST /api/v1/system/backups | Create a database backup |

@@ -21,6 +21,31 @@ summary: Session lifecycle, role inheritance, user-specific ALLOW/DENY authority
 - The route guard permits or redirects the browser route
 :::
 
+## The sign-in page
+
+What people see before they sign in is set in Settings › Appearance › Sign-in page and saved as the login_ui setting, separately from the rest of Appearance (it has its own Save sign-in page button). Forgot password, reset password, the one-time code pages and password change use the same layout, so the whole signed-out flow matches.
+
+| Layout | Shows | Suits |
+| --- | --- | --- |
+| Centered (default) | The brand above one card, the supporting text under it | Internal tools and admin systems |
+| Split | A brand panel with the headline, supporting text and up to three highlights, beside the form | Products that want to say something at sign-in |
+| Cover | The cover image (or the brand colour, darkened) behind the headline, the form on a white panel | Customer-facing systems with a strong brand |
+
+| Field | Rules | Used by |
+| --- | --- | --- |
+| layout | split, centered or cover | All |
+| headline | Up to 120 characters | Split and Cover |
+| message | Supporting text, up to 280 characters | All |
+| highlights | Up to 3, each a title (up to 40) and a detail (up to 80) | Split |
+| coverImage | Set by Upload image (JPG, PNG, WebP or GIF under 5 MB, stored as branding/login-cover); an http(s) address | Cover |
+| helpUrl | An http(s) address, shown as Help in the footer | All |
+
+The brand (name, caption and mark) is not repeated: the sign-in pages use the sidebar's Brand from the same Appearance page, so the two never disagree.
+
+:::note Safe to show before sign-in
+The signed-out pages read these values from the public GET /auth/login_options, which returns the sign-in columns, the brand and the login_ui fields, nothing else. The server checks every value when it is saved (PUT /api/v1/ui-settings/:id with settingKey login_ui) and falls back to the defaults if a stored value no longer passes. Saving and uploading need update:ui_settings.
+:::
+
 ## Role semantics
 
 | Role | Behavior | Intended use |

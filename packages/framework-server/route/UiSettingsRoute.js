@@ -4,12 +4,16 @@ const utils = require("../shared/utils/functions");
 const authorizationEvents = require("../core/lib/authorizationEvents");
 const AppError = require("../shared/helpers/AppError");
 const logger = require("../shared/helpers/logger");
+const uploadServices = require("../core/lib/uploadServices");
+const { profileImageUpload } = require("../core/config/multer");
+const { loginUiSchema } = require("../core/config/loginUi");
 
 const color = z
   .string()
   .trim()
   .regex(/^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i);
-const adminPath = z.string().startsWith("/admin/").max(255);
+// A page inside a signed-in area: /admin/… or another area such as /finance/….
+const adminPath = z.string().regex(/^\/[A-Za-z0-9_-]+\/\S+$/).max(255);
 const fontFamily = z.enum(["Inter", "Newsreader", "IBM Plex Mono", "Geist", "Geist Mono"]);
 
 const paletteSchema = z
@@ -110,15 +114,44 @@ const siderSchema = z
   })
   .strict();
 
+// The settings Appearance may change, each with its own rules.
+const EDITABLE_SETTINGS = {
+  "layout.sider": siderSchema,
+  login_ui: loginUiSchema,
+};
+
 const updateSchema = z
   .object({
-    settingValue: siderSchema,
+    settingKey: z.enum(Object.keys(EDITABLE_SETTINGS)).default("layout.sider"),
+    settingValue: z.unknown(),
     expectedVersion: z.number().int().positive(),
   })
   .strict();
 
+const acceptCoverImage = (req, res, next) => {
+  profileImageUpload.single("cover")(req, res, (error) => {
+    if (!error) return next();
+    const message = error.code === "LIMIT_FILE_SIZE"
+      ? "Cover images must be smaller than 5 MB"
+      : "Cover images must be JPEG, PNG, WebP or GIF";
+    return next(new AppError("ERR_VALIDATION_FAILED", message));
+  });
+};
+
 class UiSettingsRoute {
   constructor(app) {
+    // Stores the picture only; Save on the Sign-in page puts its address in login_ui.
+    app.post("/api/v1/ui-settings/login-cover", acceptCoverImage, async (req, res, next) => {
+      try {
+        if (!req.file) throw new AppError("ERR_BAD_REQUEST", "Select an image to upload");
+        const uploaded = await uploadServices.uploadLoginCover(req.file);
+        logger.security("Sign-in page cover image uploaded", { requestId: req.requestId, userId: req.user.sub, size: req.file.size });
+        return res.status(200).json({ status: "ok", message: "Cover image uploaded", data: { url: uploaded.url } });
+      } catch (error) {
+        return next(error);
+      }
+    });
+
     app.put("/api/v1/ui-settings/:id", async (req, res, next) => {
       try {
         const id = Number.parseInt(req.params.id, 10);
@@ -126,18 +159,22 @@ class UiSettingsRoute {
           throw new AppError("ERR_INVALID_INPUT", "Invalid UI setting ID");
         }
 
-        const parsed = updateSchema.safeParse(req.body);
+        const request = updateSchema.safeParse(req.body);
+        const parsed = request.success
+          ? EDITABLE_SETTINGS[request.data.settingKey].safeParse(request.data.settingValue)
+          : request;
         if (!parsed.success) {
           throw new AppError("ERR_VALIDATION_FAILED", "Invalid appearance configuration", {
             fields: parsed.error.issues.map((issue) => issue.path.join(".")),
           });
         }
 
-        const { settingValue, expectedVersion } = parsed.data;
+        const { settingKey, expectedVersion } = request.data;
+        const settingValue = parsed.data;
         const result = await new Model()
           .update("ui_settings", { setting_value: JSON.stringify(settingValue), version: expectedVersion + 1, updated_by: req.user.sub })
           .where("id", "=", id)
-          .where("setting_key", "=", "layout.sider")
+          .where("setting_key", "=", settingKey)
           .where("version", "=", expectedVersion)
           .where("is_active", "=", 1)
           .execute();
@@ -153,6 +190,7 @@ class UiSettingsRoute {
           requestId: req.requestId,
           userId: req.user.sub,
           settingId: id,
+          settingKey,
           previousVersion: expectedVersion,
           version: expectedVersion + 1,
         });
@@ -163,7 +201,7 @@ class UiSettingsRoute {
           message: "Appearance settings updated",
           data: {
             id,
-            setting_key: "layout.sider",
+            setting_key: settingKey,
             setting_value: settingValue,
             version: expectedVersion + 1,
           },

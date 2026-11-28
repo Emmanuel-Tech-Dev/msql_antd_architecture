@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, InputNumber, Input, Segmented, Select, Slider, Switch, Tooltip } from 'antd';
+import { Alert, Button, InputNumber, Input, Segmented, Select, Slider, Switch, Tabs, Tooltip } from 'antd';
 import {
     CheckOutlined,
     DesktopOutlined,
     DownloadOutlined,
-    DownOutlined,
     EyeOutlined,
     MoonOutlined,
-    RightOutlined,
     RollbackOutlined,
     SunOutlined,
     UploadOutlined,
 } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useStore as useValuesStore } from '../../store/values-store';
 import { useDataProvider } from '../../core/provider/DataProvider';
 import useCan from '../../core/hooks/access/useCan';
@@ -24,15 +23,16 @@ import { FONT_OPTIONS, parseThemePack, themePackCsv } from './appearance/themePa
 import { COLLAPSE_BREAKPOINTS, FONT_ROLES, LAYOUT_STYLES, describeChanges, paletteKey } from './appearance/appearanceFields';
 import ColourSection from './appearance/ColourSection';
 import AppearancePreview from './appearance/AppearancePreview';
-import utils from '../../utils/function_utils';
+import SignInPageSection from './appearance/SignInPageSection';
 
 const SECTIONS = [
     { id: 'theme', label: 'Theme' },
     { id: 'colours', label: 'Colours' },
     { id: 'text', label: 'Text' },
     { id: 'shape', label: 'Shape & spacing' },
-    { id: 'layout', label: 'Sidebar & header', collapsible: true },
-    { id: 'brand', label: 'Brand', collapsible: true },
+    { id: 'layout', label: 'Sidebar & header' },
+    { id: 'brand', label: 'Brand' },
+    { id: 'signin', label: 'Sign-in page' },
 ];
 
 const SECTION_CLASS = 'scroll-mt-24 rounded-[var(--ads-radius-lg)] border border-[var(--ads-border)] bg-[var(--ads-surface)] p-5';
@@ -79,63 +79,20 @@ function SwitchRow({ label, hint, checked, disabled, onChange }) {
     );
 }
 
-// Sidebar & header and Brand stay folded to a summary line until opened.
-function FoldedSection({ id, title, summary, open, onToggle, children }) {
-    return (
-        <section id={id} aria-labelledby={`${id}-title`} className={`${SECTION_CLASS} !p-0`}>
-            <h2 id={`${id}-title`} className="m-0">
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    onClick={onToggle}
-                    className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--ads-radius-lg)] border-0 bg-transparent px-5 text-left text-[var(--ads-text)] focus-visible:outline-2 focus-visible:outline-[var(--ads-focus)]"
-                >
-                    {open ? <DownOutlined className="text-xs text-[var(--ads-text-muted)]" /> : <RightOutlined className="text-xs text-[var(--ads-text-muted)]" />}
-                    <span className="font-[family-name:var(--ads-font-heading)] text-[length:var(--ads-font-size-h5)] font-semibold">{title}</span>
-                    {!open && <span className="min-w-0 flex-1 truncate text-[length:var(--ads-font-size-body-sm)] font-normal text-[var(--ads-text-muted)]">{summary}</span>}
-                </button>
-            </h2>
-            {open && <div className="flex flex-col gap-3 px-5 pb-5">{children}</div>}
-        </section>
-    );
-}
-
-// "On this page": jumps to a section, highlights the one in view and marks
-// sections with unsaved edits. A row of chips on narrow screens.
-function SectionMenu({ active, unsavedSections, onJump }) {
-    return (
-        <nav aria-label="Appearance sections" className="sticky top-[76px] z-[5] -mx-1 flex gap-1 overflow-x-auto bg-[var(--ads-canvas)] px-1 py-1 min-[900px]:mx-0 min-[900px]:flex-col min-[900px]:overflow-visible min-[900px]:p-0">
-            <span className={`${CAPTION_CLASS} hidden pb-2 min-[900px]:block`}>On this page</span>
-            {SECTIONS.map((section) => {
-                const isActive = active === section.id;
-                return (
-                    <button
-                        key={section.id}
-                        type="button"
-                        aria-current={isActive ? 'location' : undefined}
-                        onClick={() => onJump(section)}
-                        className={`flex h-[34px] shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-[var(--ads-radius-sm)] border-0 px-3 text-left font-medium focus-visible:outline-2 focus-visible:outline-[var(--ads-focus)] ${isActive
-                            ? 'bg-[var(--ads-surface)] font-semibold text-[var(--ads-text)]'
-                            : 'bg-transparent text-[var(--ads-text-muted)] hover:bg-[var(--ads-surface-hover)] hover:text-[var(--ads-text)]'}`}
-                    >
-                        <span className="flex-1">{section.label}</span>
-                        {unsavedSections.has(section.id) && <i className="size-[7px] rounded-full bg-[var(--ads-warning)]" aria-label="unsaved changes" />}
-                    </button>
-                );
-            })}
-            <p className="m-0 hidden pt-3 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-subtle)] min-[900px]:block">A dot marks a section with unsaved changes.</p>
-        </nav>
-    );
-}
-
 export default function AppearanceSettings() {
     const rows = useValuesStore((state) => state.ui_settings) ?? [];
     const row = rows.find((item) => item.setting_key === 'layout.sider');
     const storedConfig = useMemo(() => normalizeSiderConfig(row?.setting_value), [row?.setting_value]);
     const [draft, setDraft] = useState(storedConfig);
     const [paletteMode, setPaletteMode] = useState('light');
-    const [openFolds, setOpenFolds] = useState(() => new Set());
-    const [activeSection, setActiveSection] = useState('theme');
+    // The open tab lives in the address (?tab=signin), so a reload or a shared link keeps it.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = SECTIONS.some((section) => section.id === searchParams.get('tab')) ? searchParams.get('tab') : 'theme';
+    const setActiveTab = (tab) => setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set('tab', tab);
+        return next;
+    }, { replace: true });
     const [saving, setSaving] = useState(false);
     const themePackInputRef = useRef(null);
     const dataProvider = useDataProvider();
@@ -162,19 +119,6 @@ export default function AppearanceSettings() {
         return () => window.removeEventListener('beforeunload', warnAboutUnsavedChanges);
     }, [isDirty]);
 
-    // Highlight the section nearest the top of the screen.
-    useEffect(() => {
-        const observer = new IntersectionObserver((entries) => {
-            const visible = entries.filter((entry) => entry.isIntersecting);
-            if (visible.length) setActiveSection(visible[0].target.id);
-        }, { rootMargin: '-20% 0px -65% 0px' });
-        SECTIONS.forEach(({ id }) => {
-            const element = document.getElementById(id);
-            if (element) observer.observe(element);
-        });
-        return () => observer.disconnect();
-    }, []);
-
     const updateRoot = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
     const updateSection = (section, key, value) => setDraft((current) => ({
         ...current,
@@ -187,21 +131,13 @@ export default function AppearanceSettings() {
     }));
     const updateColour = (editedMode, token, value) => updateSection(paletteKey(editedMode), token, value);
 
-    const toggleFold = (id, open) => setOpenFolds((current) => {
-        const next = new Set(current);
-        if (open ?? !next.has(id)) next.add(id);
-        else next.delete(id);
-        return next;
-    });
-
-    const jumpTo = (section) => {
-        if (section.collapsible) toggleFold(section.id, true);
-        setActiveSection(section.id);
-        requestAnimationFrame(() => document.getElementById(section.id)?.scrollIntoView({
-            behavior: utils.prefersReducedMotion() ? 'auto' : 'smooth',
-            block: 'start',
-        }));
-    };
+    // A tab's name, with a dot when it holds unsaved changes.
+    const tabLabel = (id) => (
+        <span className="flex items-center gap-2">
+            {SECTIONS.find((section) => section.id === id).label}
+            {unsavedSections.has(id) && <i className="size-[7px] rounded-full bg-[var(--ads-warning)]" aria-label="unsaved changes" />}
+        </span>
+    );
 
     // Reset brings back the default colours, fonts and sizes; the
     // sidebar and brand settings are kept.
@@ -289,10 +225,13 @@ export default function AppearanceSettings() {
                 <Alert type="info" showIcon title="You can try changes in the preview, but only people allowed to change appearance can save them." />
             )}
 
-            <div className="grid grid-cols-1 items-start gap-5 min-[900px]:grid-cols-[150px_minmax(0,1fr)] min-[1200px]:grid-cols-[150px_minmax(0,1fr)_360px]">
-                <SectionMenu active={activeSection} unsavedSections={unsavedSections} onJump={jumpTo} />
-
-                <div className="flex min-w-0 flex-col gap-4">
+            <div className={`grid grid-cols-1 items-start gap-5 ${activeTab === 'signin' ? '' : 'min-[1200px]:grid-cols-[minmax(0,1fr)_360px]'}`}>
+                <Tabs
+                    className="min-w-0"
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={[
+                        { key: 'theme', label: tabLabel('theme'), children: (
                     <section id="theme" aria-label="Theme" className={`${SECTION_CLASS} flex flex-col gap-3.5`}>
                         <div className="flex flex-wrap items-center gap-4">
                             <span className="flex overflow-hidden rounded-[var(--ads-radius-md)] border border-[var(--ads-border)]" aria-hidden="true">
@@ -350,7 +289,8 @@ export default function AppearanceSettings() {
                             </span>
                         </div>
                     </section>
-
+                        ) },
+                        { key: 'colours', label: tabLabel('colours'), children: (
                     <section id="colours" aria-label="Colours" className={SECTION_CLASS}>
                         <ColourSection
                             draft={normalizedDraft}
@@ -361,7 +301,8 @@ export default function AppearanceSettings() {
                             disabled={readOnly}
                         />
                     </section>
-
+                        ) },
+                        { key: 'text', label: tabLabel('text'), children: (
                     <section id="text" aria-label="Text" className={`${SECTION_CLASS} flex flex-col gap-3.5`}>
                         <SectionHeading title="Text" description="Fonts for each kind of text, and the base size everything scales from." />
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -380,7 +321,8 @@ export default function AppearanceSettings() {
                         </div>
                         <SliderRow label="Base text size" hint="12–18 px" min={12} max={18} value={application.fontSize} disabled={readOnly} onChange={(value) => updateApplication('fontSize', value)} />
                     </section>
-
+                        ) },
+                        { key: 'shape', label: tabLabel('shape'), children: (
                     <section id="shape" aria-label="Shape and spacing" className={`${SECTION_CLASS} flex flex-col gap-3`}>
                         <SectionHeading title="Shape & spacing" description="How rounded and how roomy buttons, fields and cards are." />
                         <SliderRow
@@ -414,14 +356,10 @@ export default function AppearanceSettings() {
                             onChange={(value) => updateApplication('motionEnabled', value)}
                         />
                     </section>
-
-                    <FoldedSection
-                        id="layout"
-                        title="Sidebar & header"
-                        summary={`${LAYOUT_STYLES.find((style) => style.value === normalizedDraft.variant)?.label ?? normalizedDraft.variant} layout · sidebar ${normalizedDraft.width} px wide · collapses to ${normalizedDraft.collapsedWidth} px · header ${normalizedDraft.headerHeight} px${normalizedDraft.header.sticky ? ' · sticky header' : ''}`}
-                        open={openFolds.has('layout')}
-                        onToggle={() => toggleFold('layout')}
-                    >
+                        ) },
+                        { key: 'layout', label: tabLabel('layout'), children: (
+                    <section id="layout" aria-label="Sidebar & header" className={`${SECTION_CLASS} flex flex-col gap-3`}>
+                        <SectionHeading title="Sidebar & header" description="How the menu and the header are arranged and how they behave." />
                         <div className={`${ROW_CLASS} sm:grid-cols-[200px_minmax(0,1fr)]`}>
                             <RowLabel label="Layout style" hint="How the menu and page are arranged" />
                             <Select
@@ -479,15 +417,11 @@ export default function AppearanceSettings() {
                             <Input aria-label="Pinned page" name="pinnedPage" autoComplete="off" className="max-w-[360px]" value={draft.bottomKey} disabled={readOnly} onChange={(event) => updateRoot('bottomKey', event.target.value)} />
                         </div>
                         <SwitchRow label="Sticky header" hint="Keep search and reminders in view while scrolling" checked={normalizedDraft.header.sticky} disabled={readOnly} onChange={(value) => updateSection('header', 'sticky', value)} />
-                    </FoldedSection>
-
-                    <FoldedSection
-                        id="brand"
-                        title="Brand"
-                        summary={`“${normalizedDraft.brand.name}” · caption “${normalizedDraft.brand.caption}” · mark “${normalizedDraft.brand.mark}”`}
-                        open={openFolds.has('brand')}
-                        onToggle={() => toggleFold('brand')}
-                    >
+                    </section>
+                        ) },
+                        { key: 'brand', label: tabLabel('brand'), children: (
+                    <section id="brand" aria-label="Brand" className={`${SECTION_CLASS} flex flex-col gap-3`}>
+                        <SectionHeading title="Brand" description="The name and mark at the top of the sidebar and on the sign-in pages." />
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]">
                             <label className="flex flex-col gap-1.5">
                                 <span className="font-medium">Name</span>
@@ -502,11 +436,27 @@ export default function AppearanceSettings() {
                                 <Input name="brandMark" autoComplete="off" maxLength={2} value={draft.brand.mark} disabled={readOnly} onChange={(event) => updateSection('brand', 'mark', event.target.value)} />
                             </label>
                         </div>
-                        <p className="m-0 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-muted)]">Shown at the top of the sidebar. The mark is one or two letters in the coloured square.</p>
-                    </FoldedSection>
-                </div>
+                        <p className="m-0 text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-muted)]">Shown at the top of the sidebar and on the sign-in pages. The mark is one or two letters in the coloured square.</p>
+                    </section>
+                        ) },
+                        { key: 'signin', label: tabLabel('signin'), children: (
+                    <section id="signin" aria-label="Sign-in page" className={`${SECTION_CLASS} flex flex-col gap-3.5`}>
+                        <SectionHeading
+                            title="Sign-in page"
+                            description="What people see before they sign in. Saved on its own with the button at the end of this tab."
+                        />
+                        <SignInPageSection
+                            brand={normalizedDraft.brand}
+                            readOnly={readOnly}
+                            onEditBrand={() => setActiveTab('brand')}
+                        />
+                    </section>
+                        ) },
+                    ]}
+                />
 
-                <aside aria-label="Live preview" className="flex min-w-0 flex-col gap-2.5 min-[900px]:col-start-2 min-[1200px]:sticky min-[1200px]:top-[76px] min-[1200px]:col-start-3 min-[1200px]:row-start-1">
+                {activeTab !== 'signin' && (
+                <aside aria-label="Live preview" className="flex min-w-0 flex-col gap-2.5 min-[1200px]:sticky min-[1200px]:top-[76px] min-[1200px]:mt-[62px]">
                     <div className="flex items-center gap-2">
                         <span className={`${CAPTION_CLASS} flex-1`}>Live preview · {paletteMode}</span>
                         <span className="text-[length:var(--ads-font-size-caption)] text-[var(--ads-text-subtle)]">Only you see this</span>
@@ -518,6 +468,7 @@ export default function AppearanceSettings() {
                         <Segmented size="small" aria-label="Preview palette" value={paletteMode} onChange={setPaletteMode} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
                     </div>
                 </aside>
+                )}
             </div>
 
             {isDirty && !readOnly && (
